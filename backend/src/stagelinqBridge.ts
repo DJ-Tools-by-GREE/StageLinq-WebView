@@ -362,6 +362,7 @@ export class StageLinqBridge {
      * i.e. boolean is in json.state (NOT json.value).
      */
     devices.on?.("message", (_info: any, data: any) => {
+      try {
       const msg = data?.message ?? data;
 
       const name = msg?.name ?? msg?.path ?? msg?.key;
@@ -608,13 +609,16 @@ export class StageLinqBridge {
         }
       }
 
+      } catch (e: any) {
+        logError('[StageLinq] message handler error:', e?.message || e);
+      }
     });
 
 
 
     // nowPlaying provides high-level track + some realtime values.
     devices.on?.("nowPlaying", (status: any) => {
-
+      try {
       const playerIdx = Number(status?.player);
       const deck = (playerIdx + 1) as DeckNumber; // 0..3 -> 1..4
       if (!DECKS.includes(deck)) return;
@@ -661,6 +665,9 @@ export class StageLinqBridge {
 
       this.recomputeDerived(deck);
       this.touch(deck);
+      } catch (e: any) {
+        logError('[StageLinq] nowPlaying handler error:', e?.message || e);
+      }
     });
 
     /**
@@ -672,6 +679,7 @@ export class StageLinqBridge {
      * Support both.
      */
     devices.on?.("beatMessage", (a: any, b?: any) => {
+      try {
       // Some emitters provide (info, payload), others (payload) only.
       const payload = b ?? a;
 
@@ -767,10 +775,14 @@ export class StageLinqBridge {
           this.touch(deck);
         });
       }
+      } catch (e: any) {
+        logError('[StageLinq] beatMessage handler error:', e?.message || e);
+      }
     });
 
     // State map updates include TrackLength, current BPM/speed controls, key, fader, etc.
     devices.on?.("stateChanged", (state: any) => {
+      try {
       const name = String(state?.name || "");
       const m = name.match(/^\/Engine\/Deck([1-4])\/(.*)$/);
       if (!m) return;
@@ -841,6 +853,9 @@ export class StageLinqBridge {
 
       if (bpmSpeedSourceUpdated) {
         this.emitBpmDebug(deck, `stateChanged.${tail}`);
+      }
+      } catch (e: any) {
+        logError('[StageLinq] stateChanged handler error:', e?.message || e);
       }
     });
   }

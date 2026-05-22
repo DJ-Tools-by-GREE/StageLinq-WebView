@@ -467,8 +467,10 @@ async function main() {
   wss.on('connection', (ws) => {
     clients.add(ws);
 
+    ws.on('error', () => { clients.delete(ws); });
+
     const hello: WsPayload = { type: 'hello', ts: Date.now(), version: '0.1.0', fps: WS_FPS };
-    ws.send(JSON.stringify(hello));
+    try { ws.send(JSON.stringify(hello)); } catch {}
 
     ws.on('close', () => {
       clients.delete(ws);
@@ -531,7 +533,9 @@ async function main() {
 
     const msg = JSON.stringify(payload as WsPayload);
     for (const ws of clients) {
-      if (ws.readyState === ws.OPEN) ws.send(msg);
+      if (ws.readyState === ws.OPEN) {
+        try { ws.send(msg); } catch {}
+      }
     }
   }, intervalMs);
 

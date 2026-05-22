@@ -60,8 +60,16 @@ export class ArtNetTimecodeBroadcaster {
 
   async start(getDeckState: () => DeckState | undefined) {
     if (!this.opts.enabled) return;
-    await new Promise<void>((resolve) => {
+    this.socket.on('error', (err) => {
+      console.error('[ArtNet] Socket error:', err.message);
+    });
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(
+        () => reject(new Error('[ArtNet] socket.bind() timed out after 5s')),
+        5000,
+      );
       this.socket.bind(() => {
+        clearTimeout(timeout);
         try { this.socket.setBroadcast(true); } catch {}
         resolve();
       });
@@ -160,7 +168,9 @@ export class ArtNetTimecodeBroadcaster {
       `(totalFrames=${totalFrames})`
     );
     const pkt = buildArtNetTimecode(tc.hours, tc.minutes, tc.seconds, tc.frames, this.opts.fpsType);
-    this.socket.send(pkt, 0, pkt.length, this.opts.port, this.opts.targetIp);
+    this.socket.send(pkt, 0, pkt.length, this.opts.port, this.opts.targetIp, (err) => {
+      if (err) console.error('[ArtNet] Send error:', err.message);
+    });
 
     const sendNow = Date.now();
     if (this.lastSendAtMs != null) {

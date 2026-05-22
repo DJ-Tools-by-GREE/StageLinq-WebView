@@ -32,6 +32,9 @@ export class OscBpmSender {
 
   constructor(opts: OscBpmOptions) {
     this.opts = opts;
+    this.socket.on('error', (err) => {
+      console.error('[OSC] Socket error:', err.message);
+    });
   }
 
   stop() {
@@ -58,6 +61,8 @@ export class OscBpmSender {
 
     const packet = buildOscMessage('/cmd', [command]);
     console.log(`[OSC] /cmd -> ${command} (${this.opts.targetIp}:${this.opts.targetPort})`);
-    this.socket.send(packet, 0, packet.length, this.opts.targetPort, this.opts.targetIp);
+    this.socket.send(packet, 0, packet.length, this.opts.targetPort, this.opts.targetIp, (err) => {
+      if (err) console.error('[OSC] Send error:', err.message);
+    });
   }
 }
