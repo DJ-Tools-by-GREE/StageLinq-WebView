@@ -59,6 +59,34 @@ npm run build   # builds frontend then backend
 npm start       # runs built backend, which also serves the frontend
 ```
 
+## Running as a persistent background service (PM2)
+
+For a live show environment, run the server under [PM2](https://pm2.keymetrics.io/) so it survives terminal closes, crashes, and reboots.
+
+```bash
+# Install PM2 once, globally
+npm install -g pm2
+
+# Build first, then start under PM2
+npm run build
+pm2 start npm --name stagelinq-webview -- start
+
+# Persist the process list so it survives reboots
+pm2 save
+pm2 startup   # follow the printed instructions to register the init hook
+```
+
+Useful commands:
+
+```bash
+pm2 status                     # show running processes and restart count
+pm2 logs stagelinq-webview     # tail live logs
+pm2 restart stagelinq-webview  # restart (e.g. after a config change)
+pm2 stop stagelinq-webview     # stop without removing from process list
+```
+
+If the process crashes for any reason, PM2 restarts it automatically (default delay: 500 ms). Timecode output resumes as soon as the StageLinq connection is re-established.
+
 ## Configuration
 
 Settings can be provided as **environment variables** or in an optional **`config.json`** file at the repo root (or in `backend/`). Environment variables take precedence.
