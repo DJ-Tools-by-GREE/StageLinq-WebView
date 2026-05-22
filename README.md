@@ -200,6 +200,7 @@ StageLinq-WebView/
 │   ├── artnetTimecode.ts   # Art-Net SMPTE timecode broadcaster
 │   ├── oscBpm.ts           # OSC BPM sender
 │   ├── camelot.ts          # Key index → Camelot string
+│   ├── constants.ts        # Tunable timing and threshold constants
 │   ├── logging.ts          # Configurable debug logging
 │   └── types.ts            # DeckState, WsPayload
 └── frontend/src/
@@ -226,6 +227,16 @@ On connect the server sends a hello frame, then snapshot frames at 30 Hz:
 - **Relative pitch %** is `(Speed − 1) × 100`.
 - Track length reads from `/Engine/DeckX/TrackLength`; elapsed from BeatInfo `timeline`.
 - StageLinq discovery and event parsing are handled by the `@gree44/stagelinq` library.
+
+## Resilience and auto-reconnect
+
+The backend has a built-in watchdog that monitors the StageLinq connection and automatically recovers from hardware disconnects.
+
+**Per-deck watchdog:** if a deck is playing but no `beatMessage` has arrived for `BEAT_WATCHDOG_TIMEOUT_S` (default 5 s), the deck is marked stopped so stale timecode is not sent.
+
+**Global disconnect detection:** if no `beatMessage` arrives from *any* deck for `DISCONNECT_DETECT_TIMEOUT_S` (default 10 s), the bridge disconnects and retries with `RECONNECT_DELAY_MS` (default 3 s) between attempts. This handles cable pulls, power-cycles, and device sleep without requiring a process restart.
+
+All three values — plus `WS_FPS`, `ARTNET_BIND_TIMEOUT_MS`, `ARTNET_DRIFT_THRESHOLD_RATIO`, and `ELAPSED_THROTTLE_S` — are collected in [`backend/src/constants.ts`](backend/src/constants.ts) so they can be adjusted in one place.
 
 ## License
 

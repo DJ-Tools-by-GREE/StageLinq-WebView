@@ -2,6 +2,7 @@ import type { DeckNumber, DeckState } from "./types.js";
 import path from "node:path";
 import { keyIndexToCamelot } from "./camelot.js";
 import { logBpmDebug, logDiscover, logDiscoverSpeed, logError, logLifecycle, logPlayback } from "./logging.js";
+import { BEAT_WATCHDOG_TIMEOUT_S, DISCONNECT_DETECT_TIMEOUT_S, ELAPSED_THROTTLE_S } from "./constants.js";
 
 import * as pkg from "@gree44/stagelinq";
 
@@ -31,6 +32,7 @@ function toFileName(v: unknown): string {
 export interface BridgeOptions {
   downloadDbSources?: boolean; // kept for compatibility; unused by this library
   onDeviceIp?: (ip: string) => void;
+  onCommunicationLost?: () => void;
 }
 
 export class StageLinqBridge {
@@ -82,6 +84,11 @@ export class StageLinqBridge {
 
   // Throttle elapsedSec updates (we don't need frame-accurate like timecode)
   private lastElapsedEmitSec: Record<DeckNumber, number> = { 1: -1, 2: -1, 3: -1, 4: -1 };
+
+  // Watchdog: timestamps of last beatMessage received per deck and across all decks
+  private lastBeatAtMs: Record<DeckNumber, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
+  private lastAnyBeatAtMs = 0;
+  private watchdogInterval: NodeJS.Timeout | null = null;
 
   constructor(_opts: BridgeOptions = {}) {
     this.opts = _opts;
@@ -682,11 +689,14 @@ export class StageLinqBridge {
       try {
       // Some emitters provide (info, payload), others (payload) only.
       const payload = b ?? a;
+      const now = Date.now();
+      this.lastAnyBeatAtMs = now;
 
       // A) flattened payload: has deck index
       if (payload && (typeof payload.deck === "number" || typeof payload.deck === "string")) {
         const deck = (Number(payload.deck) + 1) as DeckNumber; // 0..3 -> 1..4
         if (!DECKS.includes(deck)) return;
+        this.lastBeatAtMs[deck] = now;
 
         const ds = this.decks[deck];
         if (typeof payload.samples === "number") {
@@ -695,7 +705,7 @@ export class StageLinqBridge {
             const elapsed = payload.samples / sr;
 
             // Throttle: only update if elapsed changed by >= 0.1s
-            if (Math.abs(elapsed - this.lastElapsedEmitSec[deck]) >= 0.1) {
+            if (Math.abs(elapsed - this.lastElapsedEmitSec[deck]) >= ELAPSED_THROTTLE_S) {
               ds.elapsedSec = elapsed;
               this.lastElapsedEmitSec[deck] = elapsed;
 
@@ -734,6 +744,7 @@ export class StageLinqBridge {
         decksArr.forEach((d, idx) => {
           const deck = (idx + 1) as DeckNumber;
           if (!DECKS.includes(deck)) return;
+          this.lastBeatAtMs[deck] = now;
 
           const ds = this.decks[deck];
           if (typeof d?.bpm === "number") {
@@ -747,7 +758,7 @@ export class StageLinqBridge {
               const elapsed = d.samples / sr;
 
               // Throttle: only update if elapsed changed by >= 0.1s
-              if (Math.abs(elapsed - this.lastElapsedEmitSec[deck]) >= 0.1) {
+              if (Math.abs(elapsed - this.lastElapsedEmitSec[deck]) >= ELAPSED_THROTTLE_S) {
                 ds.elapsedSec = elapsed;
                 this.lastElapsedEmitSec[deck] = elapsed;
 
@@ -861,12 +872,59 @@ export class StageLinqBridge {
   }
 
   async connect() {
-    // stagelinq package exposes static connect().
     await StageLinq.connect();
+    this.startWatchdog();
   }
 
   async disconnect() {
+    this.stopWatchdog();
+    this.resetState();
     await StageLinq.disconnect();
+  }
+
+  private stopWatchdog() {
+    if (this.watchdogInterval) {
+      clearInterval(this.watchdogInterval);
+      this.watchdogInterval = null;
+    }
+  }
+
+  private resetState() {
+    for (const d of DECKS) {
+      this.decks[d] = this.blankDeck(d);
+      this.lastBeatAtMs[d] = 0;
+    }
+    this.lastAnyBeatAtMs = 0;
+  }
+
+  private startWatchdog() {
+    this.stopWatchdog();
+    this.watchdogInterval = setInterval(() => {
+      const now = Date.now();
+
+      for (const deck of DECKS) {
+        const ds = this.decks[deck];
+        if (ds.play && this.lastBeatAtMs[deck] > 0) {
+          const silenceMs = now - this.lastBeatAtMs[deck];
+          if (silenceMs > BEAT_WATCHDOG_TIMEOUT_S * 1000) {
+            logError(
+              `[Watchdog] Deck ${deck}: playing but no beat for ${(silenceMs / 1000).toFixed(1)}s — marking stopped`,
+            );
+            ds.play = false;
+            this.touch(deck);
+          }
+        }
+      }
+
+      if (this.lastAnyBeatAtMs > 0) {
+        const silenceMs = now - this.lastAnyBeatAtMs;
+        if (silenceMs > DISCONNECT_DETECT_TIMEOUT_S * 1000) {
+          logError(`[Watchdog] No beat for ${(silenceMs / 1000).toFixed(1)}s — triggering reconnect`);
+          this.lastAnyBeatAtMs = 0; // prevent re-trigger before disconnect completes
+          this.opts.onCommunicationLost?.();
+        }
+      }
+    }, 1000);
   }
 
   getDecks(): Record<DeckNumber, DeckState> {

@@ -1,5 +1,6 @@
 import dgram from 'node:dgram';
 import type { DeckState } from './types.js';
+import { ARTNET_BIND_TIMEOUT_MS, ARTNET_DRIFT_THRESHOLD_RATIO } from './constants.js';
 
 export interface ArtNetOptions {
   enabled: boolean;
@@ -66,7 +67,7 @@ export class ArtNetTimecodeBroadcaster {
     await new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(
         () => reject(new Error('[ArtNet] socket.bind() timed out after 5s')),
-        5000,
+        ARTNET_BIND_TIMEOUT_MS,
       );
       this.socket.bind(() => {
         clearTimeout(timeout);
@@ -128,7 +129,7 @@ export class ArtNetTimecodeBroadcaster {
 
     // Re-sync on seeks/jumps to keep sender aligned with deck timeline.
     const drift = Math.abs(sourceFrames - this.timelineFrames);
-    if (drift > this.opts.fps * 0.15) {
+    if (drift > this.opts.fps * ARTNET_DRIFT_THRESHOLD_RATIO) {
       this.timelineFrames = sourceFrames;
     }
 

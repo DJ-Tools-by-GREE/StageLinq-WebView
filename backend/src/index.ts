@@ -12,6 +12,7 @@ import { StageLinqBridge } from './stagelinqBridge.js';
 import type { DeckNumber, SnapshotPayload, WsPayload } from './types.js';
 import { ArtNetTimecodeBroadcaster } from './artnetTimecode.js';
 import { OscBpmSender } from './oscBpm.js';
+import { RECONNECT_DELAY_MS, WS_FPS } from './constants.js';
 import { States, StageLinqValue } from "@gree44/stagelinq";
 import { logError, logLifecycle, logUiOut } from './logging.js';
 
@@ -71,7 +72,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const PORT = Number(process.env.PORT ?? 8090);
-const WS_FPS = 30;
 
 interface ConfigTrack {
   song_index?: string;
@@ -326,12 +326,37 @@ async function main() {
   const server = http.createServer(app);
   const wss = new WebSocketServer({ server, path: '/ws' });
 
-    const bridge = new StageLinqBridge({
-      downloadDbSources: false,
-      onDeviceIp: (ip) => {
-        logLifecycle(`[StageLinq] Device IP detected: ${ip}`);
-      },
-    });
+  let reconnecting = false;
+  let bridge!: StageLinqBridge;
+
+  const connectWithRetry = async () => {
+    while (true) {
+      try {
+        logLifecycle('Connecting to StageLinq...');
+        await bridge.connect();
+        logLifecycle('StageLinq connected.');
+        return;
+      } catch (e: any) {
+        logError('StageLinq connect failed:', e?.message || e);
+        await new Promise((r) => setTimeout(r, RECONNECT_DELAY_MS));
+      }
+    }
+  };
+
+  bridge = new StageLinqBridge({
+    downloadDbSources: false,
+    onDeviceIp: (ip) => {
+      logLifecycle(`[StageLinq] Device IP detected: ${ip}`);
+    },
+    onCommunicationLost: async () => {
+      if (reconnecting) return;
+      reconnecting = true;
+      logLifecycle('[StageLinq] Communication lost — reconnecting...');
+      try { await bridge.disconnect(); } catch {}
+      await connectWithRetry();
+      reconnecting = false;
+    },
+  });
   const require = createRequire(import.meta.url);
 
   const artnet = new ArtNetTimecodeBroadcaster({
@@ -414,28 +439,17 @@ async function main() {
     logLifecycle(`[CONTROL] mode=${controlMode} not implemented, using fixed deck ${selectedDeck}.`);
   }
 
-  // Connect StageLinq with basic retry loop
-  while (true) {
-    try {
-      logLifecycle('Connecting to StageLinq...');
-      await bridge.connect();
-      logLifecycle('StageLinq connected.');
+  // Initial connect (retries indefinitely with RECONNECT_DELAY_MS between attempts)
+  await connectWithRetry();
 
-      if (oscEnabled && !oscBpm) {
-        oscBpm = new OscBpmSender({
-          enabled: oscEnabled,
-          targetIp: oscTargetIp,
-          targetPort: oscTargetPort,
-          speedMaster: oscSpeedMaster,
-        });
-        logLifecycle(`[OSC] BPM -> ${oscTargetIp}:${oscTargetPort} (SpeedMaster ${oscSpeedMaster})`);
-      }
-
-      break;
-    } catch (e: any) {
-      logError('StageLinq connect failed:', e?.message || e);
-      await new Promise((r) => setTimeout(r, 2000));
-    }
+  if (oscEnabled && !oscBpm) {
+    oscBpm = new OscBpmSender({
+      enabled: oscEnabled,
+      targetIp: oscTargetIp,
+      targetPort: oscTargetPort,
+      speedMaster: oscSpeedMaster,
+    });
+    logLifecycle(`[OSC] BPM -> ${oscTargetIp}:${oscTargetPort} (SpeedMaster ${oscSpeedMaster})`);
   }
 
   await artnet.start(() => {
