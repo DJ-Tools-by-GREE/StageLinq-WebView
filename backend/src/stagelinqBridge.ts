@@ -314,6 +314,17 @@ export class StageLinqBridge {
   }
 
   private wire() {
+    // Set options (including logger) before the static instance is created via devices access.
+    StageLinq.options = {
+      downloadDbSources: false,
+      logger: {
+        trace: () => {},
+        debug: () => {},
+        info:  (msg: string, ...args: unknown[]) => logLifecycle('[StageLinq]', msg, ...args),
+        warn:  (msg: string, ...args: unknown[]) => logError('[StageLinq]', msg, ...args),
+        error: (msg: string, ...args: unknown[]) => logError('[StageLinq]', msg, ...args),
+      },
+    };
     const devices = StageLinq.devices;
 
     // Different versions use different lifecycle event names; listen to both.
