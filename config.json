@@ -1,8 +1,8 @@
 {
     "current_playlist": 0,
     "timecode": {
-        "fps": 30.00,
-        "target_ip": "10.15.10.117",
+        "fps": 30,
+        "target_ip": "10.15.10.109",
         "target_port": 6454
     },
     "control_input": {
@@ -10,30 +10,402 @@
         "universe": 20,
         "address": 1
     },
-    "osc":{  
+    "osc": {
         "enabled": true,
-        "target_ip": "10.15.10.117",
+        "target_ip": "10.15.10.109",
         "target_port": 8000,
         "speedmaster": 15
     },
     "playlists": [
         {
-            "name": "Playlist1",
+            "name": "Party Set",
             "content": [
                 {
                     "song_index": "01 Martin Garrix gravity intro v3.wav",
                     "offset_sec": 10800,
-                    "offset_frame": 0
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
                 },
                 {
                     "song_index": "LMFAO - Party Rock Anthem (Lyrics) ft. Lauren Bennett, GoonRock.mp3",
                     "offset_sec": 11400,
-                    "offset_frame": 0
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
                 },
                 {
                     "song_index": "Bastille-Good_Grief__Don_Diablo_Remix_-Don_Diablo_Remix-76642405.mp3",
                     "offset_sec": 12000,
-                    "offset_frame": 0
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "4 Hangover [Intro Clean].mp3",
+                    "offset_sec": 12600,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "01 - Titanium (feat. Sia) (Extended) (Short Edit).flac",
+                    "offset_sec": 13200,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "Britney Spears - Toxic (Cut End).mp3",
+                    "offset_sec": 13800,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "Scream & Shout (Added Silence before Start).mp3",
+                    "offset_sec": 14400,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "DJ Got Us Fallin' In Love (feat. Pitbull).mp3",
+                    "offset_sec": 15000,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "02 Language (Extended Mix).flac",
+                    "offset_sec": 15600,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "02 Billie Jean (RELOVA Extended Edit) (Short Edit).mp3",
+                    "offset_sec": 16200,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "02 Messy (Łaszewo Extended Edit).mp3",
+                    "offset_sec": 16800,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "ICouldBetheOne-LaLaLa(Freqture)Extended (Short Edit).m4a",
+                    "offset_sec": 17400,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "Alex Warren - Ordinary (Djs From Mars If I Lose Myself Bootleg) Clean 10A 130 (Short Edit).mp3",
+                    "offset_sec": 18000,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "Only Girl (In The World).mp3",
+                    "offset_sec": 18600,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "2. Don't Start Now.flac",
+                    "offset_sec": 19200,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "Starships.mp3",
+                    "offset_sec": 19800,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "Rasputin.mp3",
+                    "offset_sec": 20400,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "Sexy Bitch (feat. Akon).mp3",
+                    "offset_sec": 21000,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "Hotel Room Service.mp3",
+                    "offset_sec": 21600,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "Can't Hold Us (feat. Ray Dalton).mp3",
+                    "offset_sec": 22200,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "Bruno Mars - Locked Out Of Heaven (Clean) (Extended) (HD).mp4",
+                    "offset_sec": 22800,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "06. Shake It Off.flac",
+                    "offset_sec": 23400,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "Britney Spears - ...Baby One More Time.mp3",
+                    "offset_sec": 24000,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "Zara Larsson - Lush Life.mp3",
+                    "offset_sec": 24600,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "TLC - No Scrubs.flac",
+                    "offset_sec": 25200,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "04 - Unwritten.flac",
+                    "offset_sec": 25800,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "2558. Shakira Ft. Wyclef Jean - Hips Don't Lie [2006].flac",
+                    "offset_sec": 26400,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "05 - Dua Lipa - Levitating.flac",
+                    "offset_sec": 27000,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "014. Bonez MC & RAF Camora - Palmen aus Plastik.flac",
+                    "offset_sec": 27600,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "James Hype, Miggy Dela Rosa - Ferrari (Extended Mix).mp3",
+                    "offset_sec": 28200,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "05 - Ohne mein Team.mp3",
+                    "offset_sec": 28800,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "Disco_Lines__Tinashe-No_Broke_Boys-Extended_Mix-75639505.mp3",
+                    "offset_sec": 29400,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "03. Von Party zu Party.flac",
+                    "offset_sec": 30000,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "Better Off Alone.mp3",
+                    "offset_sec": 30600,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "2 David Guetta ft Kid Cudi - Memories (Clean Extended).mp3",
+                    "offset_sec": 31200,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "4 Rihanna - S&M (Intro Clean).mp3",
+                    "offset_sec": 31800,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "Water.mp3",
+                    "offset_sec": 32400,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "On The Floor.mp3",
+                    "offset_sec": 33000,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "Pump It Up - Dastic Remix.mp3",
+                    "offset_sec": 33600,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "Rather Be (feat. Jess Glynne) - OVERWERK Remix.mp3",
+                    "offset_sec": 34200,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "Without You (feat. Sandro Cavazza).mp3",
+                    "offset_sec": 34800,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "4 Nelly Furtado - Maneater (Intro Clean).mp3",
+                    "offset_sec": 35400,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
+                },
+                {
+                    "song_index": "005 - Dirty Diana (2012 Remaster).mp3",
+                    "offset_sec": 36000,
+                    "offset_frame": 0,
+                    "note": {
+                        "description": "",
+                        "show_secs_before_transition_starts": 600
+                    }
                 }
             ]
         }
