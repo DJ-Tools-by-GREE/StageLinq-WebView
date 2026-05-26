@@ -1,6 +1,11 @@
 import dgram from 'node:dgram';
 import type { DeckState } from './types.js';
-import { ARTNET_BIND_TIMEOUT_MS, ARTNET_DRIFT_THRESHOLD_RATIO } from './constants.js';
+import {
+  ARTNET_BIND_TIMEOUT_MS,
+  ARTNET_DRIFT_THRESHOLD_RATIO,
+  ARTNET_SOCKET_RECOVERY_COOLDOWN_MS,
+  ARTNET_SOCKET_RECOVERY_DELAY_MS,
+} from './constants.js';
 
 export interface ArtNetOptions {
   enabled: boolean;
@@ -49,6 +54,8 @@ export class ArtNetTimecodeBroadcaster {
   private sentInWindow = 0;
   private lastCadenceWarnMs = 0;
   private lastSendAtMs: number | null = null;
+  private socketFaulted = false;
+  private lastSocketRecoveryMs = 0;
 
   constructor(opts: ArtNetOptions) {
     this.opts = opts;
@@ -93,7 +100,33 @@ export class ArtNetTimecodeBroadcaster {
       clearInterval(this.loop);
       this.loop = null;
     }
+    this.socketFaulted = false;
     try { this.socket.close(); } catch {}
+  }
+
+  private async recoverSocket() {
+    console.warn('[ArtNet] Network error — recreating socket in 5s');
+    try { this.socket.close(); } catch {}
+    await new Promise<void>(r => setTimeout(r, ARTNET_SOCKET_RECOVERY_DELAY_MS));
+    if (!this.loop) return;
+    this.socket = dgram.createSocket('udp4');
+    this.socket.on('error', (err) => {
+      console.error('[ArtNet] Socket error:', err.message);
+    });
+    await new Promise<void>((resolve) => {
+      const timeout = setTimeout(() => {
+        console.error('[ArtNet] Socket rebind timed out');
+        resolve();
+      }, ARTNET_BIND_TIMEOUT_MS);
+      this.socket.bind(() => {
+        clearTimeout(timeout);
+        try { this.socket.setBroadcast(true); } catch {}
+        resolve();
+      });
+    });
+    this.lastSocketRecoveryMs = Date.now();
+    this.socketFaulted = false;
+    console.log('[ArtNet] Socket recreated');
   }
 
   tick(deckState: DeckState) {
@@ -168,9 +201,20 @@ export class ArtNetTimecodeBroadcaster {
       `[ArtNet OUT] ${String(tc.hours).padStart(2, '0')}:${String(tc.minutes).padStart(2, '0')}:${String(tc.seconds).padStart(2, '0')}:${String(tc.frames).padStart(2, '0')} ` +
       `(totalFrames=${totalFrames})`
     );
+    if (this.socketFaulted) return;
     const pkt = buildArtNetTimecode(tc.hours, tc.minutes, tc.seconds, tc.frames, this.opts.fpsType);
     this.socket.send(pkt, 0, pkt.length, this.opts.port, this.opts.targetIp, (err) => {
-      if (err) console.error('[ArtNet] Send error:', err.message);
+      if (err) {
+        console.error('[ArtNet] Send error:', err.message);
+        const code = (err as NodeJS.ErrnoException).code;
+        if ((code === 'ENETUNREACH' || code === 'EADDRNOTAVAIL') && !this.socketFaulted) {
+          const now = Date.now();
+          if (now - this.lastSocketRecoveryMs > ARTNET_SOCKET_RECOVERY_COOLDOWN_MS) {
+            this.socketFaulted = true;
+            void this.recoverSocket();
+          }
+        }
+      }
     });
 
     const sendNow = Date.now();

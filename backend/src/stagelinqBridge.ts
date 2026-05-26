@@ -873,6 +873,7 @@ export class StageLinqBridge {
 
   async connect() {
     await StageLinq.connect();
+    this.lastAnyBeatAtMs = Date.now();
     this.startWatchdog();
   }
 

@@ -19,6 +19,12 @@ export const WS_FPS = 30;
 /** Milliseconds to wait for the Art-Net UDP socket to bind before giving up. */
 export const ARTNET_BIND_TIMEOUT_MS = 5000;
 
+/** Milliseconds to wait before recreating the Art-Net socket after a fatal network error. */
+export const ARTNET_SOCKET_RECOVERY_DELAY_MS = 5000;
+
+/** Minimum milliseconds between socket recovery attempts. */
+export const ARTNET_SOCKET_RECOVERY_COOLDOWN_MS = 12000;
+
 /**
  * Fraction of one frame (at the configured FPS) that the internal timeline can drift from the
  * source position before it is snapped back. E.g. 0.15 = 1/7th of a frame at 30 fps (~5 ms).
