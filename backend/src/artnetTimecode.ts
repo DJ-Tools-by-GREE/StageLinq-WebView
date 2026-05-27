@@ -56,6 +56,7 @@ export class ArtNetTimecodeBroadcaster {
   private lastSendAtMs: number | null = null;
   private socketFaulted = false;
   private lastSocketRecoveryMs = 0;
+  private lastSentStoppedFrames: number | null = null;
 
   constructor(opts: ArtNetOptions) {
     this.opts = opts;
@@ -137,12 +138,42 @@ export class ArtNetTimecodeBroadcaster {
     const sourceFrames = Math.max(0, sourceSec * this.opts.fps);
 
     if (!this.sendWhenStopped && deckState.play !== true) {
-      // Keep internal clock in sync but suppress output when paused/stopped.
+      const wasPlaying = this.lastTickMs !== null;
       this.timelineFrames = sourceFrames;
       this.lastTickMs = null;
       this.fpsWindowStartMs = null;
       this.sentInWindow = 0;
       this.lastSendAtMs = null;
+
+      let stoppedFrame = Math.floor(sourceFrames);
+      const totalSec = Number(deckState.totalSec) || 0;
+      if (totalSec > 0) {
+        stoppedFrame = Math.min(stoppedFrame, Math.max(0, Math.floor(totalSec * this.opts.fps) - 1));
+      }
+
+      if (wasPlaying) {
+        // Just stopped — record position without sending.
+        this.lastSentStoppedFrames = stoppedFrame;
+      } else if (this.lastSentStoppedFrames !== stoppedFrame) {
+        this.lastSentStoppedFrames = stoppedFrame;
+        if (stoppedFrame > 0 && !this.socketFaulted) {
+          const tc = framesToHMSF(stoppedFrame, this.opts.fps);
+          const pkt = buildArtNetTimecode(tc.hours, tc.minutes, tc.seconds, tc.frames, this.opts.fpsType);
+          this.socket.send(pkt, 0, pkt.length, this.opts.port, this.opts.targetIp, (err) => {
+            if (err) {
+              console.error('[ArtNet] Send error:', err.message);
+              const code = (err as NodeJS.ErrnoException).code;
+              if ((code === 'ENETUNREACH' || code === 'EADDRNOTAVAIL') && !this.socketFaulted) {
+                const now = Date.now();
+                if (now - this.lastSocketRecoveryMs > ARTNET_SOCKET_RECOVERY_COOLDOWN_MS) {
+                  this.socketFaulted = true;
+                  void this.recoverSocket();
+                }
+              }
+            }
+          });
+        }
+      }
       return;
     }
 
