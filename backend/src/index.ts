@@ -14,7 +14,7 @@ import { ArtNetTimecodeBroadcaster } from './artnetTimecode.js';
 import { OscBpmSender } from './oscBpm.js';
 import { RECONNECT_DELAY_MS, WS_FPS } from './constants.js';
 import { States, StageLinqValue } from "@gree44/stagelinq";
-import { logError, logLifecycle, logUiOut } from './logging.js';
+import { logError, logLifecycle, logStatus, logUiOut } from './logging.js';
 
 function isIgnorableStageLinqError(err: unknown): boolean {
   if (!err) return false;
@@ -516,18 +516,14 @@ async function main() {
   // Broadcast snapshots at 30Hz
   // Broadcast snapshots at 30Hz
   const intervalMs = Math.round(1000 / WS_FPS);
-  let lastOscNoDeckLogAt = 0;
   setInterval(() => {
     const decks = bridge.getDecks();
 
     if (selectedDeck && oscBpm) {
+      logStatus('');
       oscBpm.sendDeckBpm(decks[selectedDeck]);
     } else if (oscEnabled && oscBpm) {
-      const now = Date.now();
-      if (now - lastOscNoDeckLogAt > 2000) {
-        lastOscNoDeckLogAt = now;
-        logLifecycle('[OSC] Waiting for selected deck (sACN control has not selected a deck yet).');
-      }
+      logStatus('[OSC] Waiting for selected deck (sACN control has not selected a deck yet).');
     }
 
     const payload: SnapshotPayload = {

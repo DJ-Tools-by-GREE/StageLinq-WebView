@@ -1,3 +1,24 @@
+const isTTY = Boolean(process.stdout.isTTY);
+let currentStatus = '';
+
+function clearStatus() {
+    if (isTTY && currentStatus) {
+        process.stdout.write('\r\x1b[K');
+        currentStatus = '';
+    }
+}
+
+export function logStatus(msg: string) {
+    if (!msg) { clearStatus(); return; }
+    if (isTTY) {
+        process.stdout.write('\r\x1b[K' + msg);
+        currentStatus = msg;
+    } else if (msg !== currentStatus) {
+        currentStatus = msg;
+        console.log(msg);
+    }
+}
+
 // Logging switches: set these booleans to control console output.
 export const LOG_ENABLED = {
     lifecycle: true,
@@ -39,37 +60,37 @@ function splitDeckArgs(args: any[]): { shouldLog: boolean; payload: any[] } {
 }
 
 export function logLifecycle(...args: any[]) {
-    if (LOG_ENABLED.lifecycle) console.log(...args);
+    if (LOG_ENABLED.lifecycle) { clearStatus(); console.log(...args); }
 }
 
 export function logPlayback(...args: any[]) {
     if (!LOG_ENABLED.playback) return;
     const { shouldLog, payload } = splitDeckArgs(args);
-    if (shouldLog) console.log(...payload);
+    if (shouldLog) { clearStatus(); console.log(...payload); }
 }
 
 export function logDiscover(...args: any[]) {
     if (!LOG_ENABLED.discover) return;
     const { shouldLog, payload } = splitDeckArgs(args);
-    if (shouldLog) console.log(...payload);
+    if (shouldLog) { clearStatus(); console.log(...payload); }
 }
 
 export function logDiscoverSpeed(...args: any[]) {
     if (!(LOG_ENABLED.discover && LOG_ENABLED.discoverSpeed)) return;
     const { shouldLog, payload } = splitDeckArgs(args);
-    if (shouldLog) console.log(...payload);
+    if (shouldLog) { clearStatus(); console.log(...payload); }
 }
 
 export function logBpmDebug(...args: any[]) {
     if (!LOG_ENABLED.bpmDebug) return;
     const { shouldLog, payload } = splitDeckArgs(args);
-    if (shouldLog) console.log(...payload);
+    if (shouldLog) { clearStatus(); console.log(...payload); }
 }
 
 export function logUiOut(...args: any[]) {
-    if (LOG_ENABLED.uiOut) console.log(...args);
+    if (LOG_ENABLED.uiOut) { clearStatus(); console.log(...args); }
 }
 
 export function logError(...args: any[]) {
-    if (LOG_ENABLED.errors) console.error(...args);
+    if (LOG_ENABLED.errors) { clearStatus(); console.error(...args); }
 }

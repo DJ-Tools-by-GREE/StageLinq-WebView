@@ -6,6 +6,7 @@ import {
   ARTNET_SOCKET_RECOVERY_COOLDOWN_MS,
   ARTNET_SOCKET_RECOVERY_DELAY_MS,
 } from './constants.js';
+import { logError, logLifecycle, logStatus } from './logging.js';
 
 export interface ArtNetOptions {
   enabled: boolean;
@@ -70,7 +71,7 @@ export class ArtNetTimecodeBroadcaster {
   async start(getDeckState: () => DeckState | undefined) {
     if (!this.opts.enabled) return;
     this.socket.on('error', (err) => {
-      console.error('[ArtNet] Socket error:', err.message);
+      logError('[ArtNet] Socket error:', err.message);
     });
     await new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(
@@ -93,7 +94,7 @@ export class ArtNetTimecodeBroadcaster {
       this.tick(deckState);
     }, intervalMs);
 
-    console.log(`Art-Net TC enabled: ${this.opts.targetIp}:${this.opts.port} @ ${this.opts.fps}fps, send=${sendHz}Hz (deck ${this.opts.deck})`);
+    logLifecycle(`Art-Net TC enabled: ${this.opts.targetIp}:${this.opts.port} @ ${this.opts.fps}fps, send=${sendHz}Hz (deck ${this.opts.deck})`);
   }
 
   stop() {
@@ -106,17 +107,17 @@ export class ArtNetTimecodeBroadcaster {
   }
 
   private async recoverSocket() {
-    console.warn('[ArtNet] Network error — recreating socket in 5s');
+    logError('[ArtNet] Network error — recreating socket in 5s');
     try { this.socket.close(); } catch {}
     await new Promise<void>(r => setTimeout(r, ARTNET_SOCKET_RECOVERY_DELAY_MS));
     if (!this.loop) return;
     this.socket = dgram.createSocket('udp4');
     this.socket.on('error', (err) => {
-      console.error('[ArtNet] Socket error:', err.message);
+      logError('[ArtNet] Socket error:', err.message);
     });
     await new Promise<void>((resolve) => {
       const timeout = setTimeout(() => {
-        console.error('[ArtNet] Socket rebind timed out');
+        logError('[ArtNet] Socket rebind timed out');
         resolve();
       }, ARTNET_BIND_TIMEOUT_MS);
       this.socket.bind(() => {
@@ -127,7 +128,7 @@ export class ArtNetTimecodeBroadcaster {
     });
     this.lastSocketRecoveryMs = Date.now();
     this.socketFaulted = false;
-    console.log('[ArtNet] Socket recreated');
+    logLifecycle('[ArtNet] Socket recreated');
   }
 
   tick(deckState: DeckState) {
@@ -161,7 +162,7 @@ export class ArtNetTimecodeBroadcaster {
           const pkt = buildArtNetTimecode(tc.hours, tc.minutes, tc.seconds, tc.frames, this.opts.fpsType);
           this.socket.send(pkt, 0, pkt.length, this.opts.port, this.opts.targetIp, (err) => {
             if (err) {
-              console.error('[ArtNet] Send error:', err.message);
+              logError('[ArtNet] Send error:', err.message);
               const code = (err as NodeJS.ErrnoException).code;
               if ((code === 'ENETUNREACH' || code === 'EADDRNOTAVAIL') && !this.socketFaulted) {
                 const now = Date.now();
@@ -228,15 +229,14 @@ export class ArtNetTimecodeBroadcaster {
     // Send every loop tick (no frame-skipping), so receivers get continuous TC updates.
 
     const tc = framesToHMSF(totalFrames, this.opts.fps);
-    console.log(
-      `[ArtNet OUT] ${String(tc.hours).padStart(2, '0')}:${String(tc.minutes).padStart(2, '0')}:${String(tc.seconds).padStart(2, '0')}:${String(tc.frames).padStart(2, '0')} ` +
-      `(totalFrames=${totalFrames})`
+    logStatus(
+      `[ArtNet TC] ${String(tc.hours).padStart(2, '0')}:${String(tc.minutes).padStart(2, '0')}:${String(tc.seconds).padStart(2, '0')}:${String(tc.frames).padStart(2, '0')}`
     );
     if (this.socketFaulted) return;
     const pkt = buildArtNetTimecode(tc.hours, tc.minutes, tc.seconds, tc.frames, this.opts.fpsType);
     this.socket.send(pkt, 0, pkt.length, this.opts.port, this.opts.targetIp, (err) => {
       if (err) {
-        console.error('[ArtNet] Send error:', err.message);
+        logError('[ArtNet] Send error:', err.message);
         const code = (err as NodeJS.ErrnoException).code;
         if ((code === 'ENETUNREACH' || code === 'EADDRNOTAVAIL') && !this.socketFaulted) {
           const now = Date.now();
@@ -254,7 +254,7 @@ export class ArtNetTimecodeBroadcaster {
       if (dtMs > this.expectedIntervalMs * 1.6 && (sendNow - this.lastCadenceWarnMs) > 1000) {
         this.lastCadenceWarnMs = sendNow;
         const instFps = 1000 / dtMs;
-        console.warn(
+        logError(
           `[ArtNet] Cadence drop detected: ${instFps.toFixed(2)}fps (target ${this.opts.fps}fps, interval ${dtMs.toFixed(1)}ms)`
         );
       }
@@ -271,7 +271,7 @@ export class ArtNetTimecodeBroadcaster {
     if (windowMs >= 1000) {
       const avgFps = (this.sentInWindow * 1000) / windowMs;
       if (avgFps < (this.opts.fps - 0.5)) {
-        console.warn(
+        logError(
           `[ArtNet] Average output below target: ${avgFps.toFixed(2)}fps (target ${this.opts.fps}fps, samples ${this.sentInWindow}/${windowMs.toFixed(0)}ms)`
         );
       }
