@@ -1,5 +1,6 @@
 import dgram from 'node:dgram';
 import type { DeckState } from './types.js';
+import { OSC_HEARTBEAT_INTERVAL_MS } from './constants.js';
 
 export interface OscBpmOptions {
   enabled: boolean;
@@ -29,26 +30,31 @@ export class OscBpmSender {
   private socket = dgram.createSocket('udp4');
   private opts: OscBpmOptions;
   private lastCommand: string | null = null;
+  private lastDeck: DeckState | undefined;
+  private heartbeatTimer: NodeJS.Timeout | null = null;
 
   constructor(opts: OscBpmOptions) {
     this.opts = opts;
     this.socket.on('error', (err) => {
       console.error('[OSC] Socket error:', err.message);
     });
+    this.heartbeatTimer = setInterval(() => this.sendHeartbeat(), OSC_HEARTBEAT_INTERVAL_MS);
   }
 
   stop() {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
     try { this.socket.close(); } catch {}
     console.log('[OSC] Sender stopped');
   }
 
   sendDeckBpm(deck: DeckState | undefined) {
-    if (!this.opts.enabled) {
-      return;
-    }
-    if (!deck) {
-      return;
-    }
+    if (!this.opts.enabled) return;
+    if (!deck) return;
+
+    this.lastDeck = deck;
 
     const bpm = Number(deck.currentBpm) > 0 ? Number(deck.currentBpm) : Number(deck.trackBpm);
     if (!Number.isFinite(bpm) || bpm <= 0) return;
@@ -59,6 +65,20 @@ export class OscBpmSender {
     if (command === this.lastCommand) return;
     this.lastCommand = command;
 
+    this.transmit(command);
+  }
+
+  private sendHeartbeat() {
+    if (!this.opts.enabled || !this.lastDeck) return;
+    const deck = this.lastDeck;
+    const bpm = Number(deck.currentBpm) > 0 ? Number(deck.currentBpm) : Number(deck.trackBpm);
+    if (!Number.isFinite(bpm) || bpm <= 0) return;
+
+    const roundedBpm = Math.round(bpm * 100) / 100;
+    this.transmit(`Master 3.${this.opts.speedMaster} At BPM ${roundedBpm}`);
+  }
+
+  private transmit(command: string) {
     const packet = buildOscMessage('/cmd', [command]);
     console.log(`[OSC] /cmd -> ${command} (${this.opts.targetIp}:${this.opts.targetPort})`);
     this.socket.send(packet, 0, packet.length, this.opts.targetPort, this.opts.targetIp, (err) => {
