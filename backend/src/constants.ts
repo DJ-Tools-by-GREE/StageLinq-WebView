@@ -35,3 +35,8 @@ export const ARTNET_DRIFT_THRESHOLD_RATIO = 0.15;
 
 /** Minimum elapsed-time change (seconds) before a BeatInfo update is written to deck state. */
 export const ELAPSED_THROTTLE_S = 0.1;
+
+// OSC
+
+/** Milliseconds between periodic OSC BPM heartbeat sends (independent of on-change sends). */
+export const OSC_HEARTBEAT_INTERVAL_MS = 1000;
