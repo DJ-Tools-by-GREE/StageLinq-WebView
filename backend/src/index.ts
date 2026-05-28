@@ -332,9 +332,9 @@ async function main() {
   const connectWithRetry = async () => {
     while (true) {
       try {
-        logLifecycle('Connecting to StageLinq...');
+        logLifecycle('StageLinq: joining network, waiting for devices...');
         await bridge.connect();
-        logLifecycle('StageLinq connected.');
+        logLifecycle('StageLinq: listening for devices.');
         return;
       } catch (e: any) {
         logError('StageLinq connect failed:', e?.message || e);

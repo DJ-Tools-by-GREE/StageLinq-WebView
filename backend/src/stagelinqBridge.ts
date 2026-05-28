@@ -337,7 +337,7 @@ export class StageLinqBridge {
     // Different versions use different lifecycle event names; listen to both.
     devices.on?.("ready", (info: any) => {
       const name = info?.software?.name || "";
-      logLifecycle(`StageLinq ready ${name ? `(${name})` : ""}`);
+      logLifecycle(`[StageLinq] Device ready${name ? `: ${name}` : ""}`);
     });
 
     devices.on?.("connected", (info: any) => {
@@ -345,7 +345,7 @@ export class StageLinqBridge {
         this.opts.onDeviceIp?.(info.address);
       }
       logLifecycle(
-        `StageLinq connected: ${info?.address || ""} ${info?.software?.name || ""}`
+        `[StageLinq] Device connected: ${info?.address || ""} ${info?.software?.name || ""}`.trimEnd()
       );
     });
 
@@ -354,7 +354,7 @@ export class StageLinqBridge {
         this.opts.onDeviceIp?.(info.address);
       }
       logLifecycle(
-        `StageLinq deviceConnected: ${info?.address || ""} ${info?.software?.name || ""}`
+        `[StageLinq] Device connected: ${info?.address || ""} ${info?.software?.name || ""}`.trimEnd()
       );
     });
 
