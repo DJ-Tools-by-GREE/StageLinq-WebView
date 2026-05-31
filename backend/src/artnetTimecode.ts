@@ -15,16 +15,19 @@ export interface ArtNetOptions {
   fps: number;
   sendHz?: number;
   fpsType: number; // 0x00=24,0x01=25,0x02=29.97,0x03=30
+  streamId?: number;
   deck: 1 | 2 | 3 | 4;
   latencyCompMs?: number;
   sendWhenStopped?: boolean;
 }
 
-function buildArtNetTimecode(hours: number, minutes: number, seconds: number, frames: number, fpsType: number): Buffer {
+function buildArtNetTimecode(hours: number, minutes: number, seconds: number, frames: number, fpsType: number, streamId: number): Buffer {
   const buffer = Buffer.alloc(19);
   buffer.write('Art-Net\0', 0, 8, 'ascii');
   buffer.writeUInt16LE(0x9700, 8);
   buffer.writeUInt16BE(14, 10);
+  buffer[12] = 0x00;
+  buffer[13] = streamId & 0xff;
   buffer[14] = frames & 0xff;
   buffer[15] = seconds & 0xff;
   buffer[16] = minutes & 0xff;
@@ -159,7 +162,7 @@ export class ArtNetTimecodeBroadcaster {
         this.lastSentStoppedFrames = stoppedFrame;
         if (stoppedFrame > 0 && !this.socketFaulted) {
           const tc = framesToHMSF(stoppedFrame, this.opts.fps);
-          const pkt = buildArtNetTimecode(tc.hours, tc.minutes, tc.seconds, tc.frames, this.opts.fpsType);
+          const pkt = buildArtNetTimecode(tc.hours, tc.minutes, tc.seconds, tc.frames, this.opts.fpsType, this.opts.streamId ?? 0x00);
           this.socket.send(pkt, 0, pkt.length, this.opts.port, this.opts.targetIp, (err) => {
             if (err) {
               logError('[ArtNet] Send error:', err.message);
@@ -233,7 +236,7 @@ export class ArtNetTimecodeBroadcaster {
       `[ArtNet TC] ${String(tc.hours).padStart(2, '0')}:${String(tc.minutes).padStart(2, '0')}:${String(tc.seconds).padStart(2, '0')}:${String(tc.frames).padStart(2, '0')}`
     );
     if (this.socketFaulted) return;
-    const pkt = buildArtNetTimecode(tc.hours, tc.minutes, tc.seconds, tc.frames, this.opts.fpsType);
+    const pkt = buildArtNetTimecode(tc.hours, tc.minutes, tc.seconds, tc.frames, this.opts.fpsType, this.opts.streamId ?? 0x00);
     this.socket.send(pkt, 0, pkt.length, this.opts.port, this.opts.targetIp, (err) => {
       if (err) {
         logError('[ArtNet] Send error:', err.message);

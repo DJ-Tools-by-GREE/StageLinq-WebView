@@ -85,6 +85,7 @@ interface RootConfig {
     fps?: number;
     target_ip?: string;
     target_port?: number;
+    stream_id?: number;
   };
   control_input?: {
     mode?: string;
@@ -238,6 +239,7 @@ async function main() {
   const artnetSendHz = Number(process.env.ARTNET_SEND_HZ ?? artnetFps);
   const artnetFpsType = 0x03;
   const artnetLatencyCompMs = Number(process.env.ARTNET_LATENCY_COMP_MS ?? 80);
+  const artnetStreamId = Number(process.env.ARTNET_STREAM_ID ?? config?.timecode?.stream_id ?? 0x00);
 
   const oscEnabled = (process.env.OSC_ENABLED ?? String(config?.osc?.enabled ?? false)).toLowerCase() === 'true';
   const oscTargetIp = process.env.OSC_TARGET_IP ?? config?.osc?.target_ip ?? '127.0.0.1';
@@ -366,6 +368,7 @@ async function main() {
     fps: artnetFps,
     sendHz: artnetSendHz,
     fpsType: artnetFpsType,
+    streamId: artnetStreamId,
     deck: artnetDeck,
     latencyCompMs: artnetLatencyCompMs,
     sendWhenStopped: sendTimecodeWhenStopped,
