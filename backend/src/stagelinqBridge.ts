@@ -984,14 +984,19 @@ export class StageLinqBridge {
     onProgress: (pct: number) => void,
   ): Promise<Uint8Array> {
     const parts = netPath.split('/');
-    // net://uuid/source/... → parts: ['net:', '', 'uuid', 'source', ...]
+    // net://uuid/source/path → parts: ['net:', '', 'uuid', 'source', ...]
     if (parts.length < 4 || parts[0] !== 'net:') {
-      throw new Error(`Invalid net path: ${netPath}`);
+      throw new Error(`Invalid net path (expected net://uuid/source/...): "${netPath}"`);
     }
     const deviceId = `net://${parts[2]}`;
     const filePath = '/' + parts.slice(3).join('/');
 
-    const ft = (StageLinq as any).devices?.getFileTransferService(deviceId);
+    logLifecycle(`[WAVEFORM] downloadFile deviceId="${deviceId}" filePath="${filePath}"`);
+
+    const devices = (StageLinq as any).devices;
+    logLifecycle(`[WAVEFORM] StageLinq.devices type=${typeof devices} keys=${devices ? Object.getOwnPropertyNames(Object.getPrototypeOf(devices)).join(',') : 'null'}`);
+
+    const ft = devices?.getFileTransferService(deviceId);
     if (!ft) throw new Error(`FileTransfer service not available for ${deviceId}`);
 
     const handler = (progress: { percentComplete: number }) => {
