@@ -9,12 +9,13 @@ import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { StageLinqBridge } from './stagelinqBridge.js';
-import type { DeckNumber, SnapshotPayload, WsPayload } from './types.js';
+import type { DeckNumber, SnapshotPayload, WaveformDataPayload, WaveformStatusPayload, WsPayload } from './types.js';
 import { ArtNetTimecodeBroadcaster } from './artnetTimecode.js';
 import { OscBpmSender } from './oscBpm.js';
-import { RECONNECT_DELAY_MS, WS_FPS } from './constants.js';
+import { RECONNECT_DELAY_MS, WS_FPS, WAVEFORM_PEAKS_PER_SEC } from './constants.js';
 import { States, StageLinqValue } from "@gree44/stagelinq";
 import { logError, logLifecycle, logStatus, logUiOut } from './logging.js';
+import { generateWaveformPeaks, peaksCache } from './waveformService.js';
 
 function isIgnorableStageLinqError(err: unknown): boolean {
   if (!err) return false;
@@ -159,8 +160,32 @@ function buildTrackOffsetMap(cfg: RootConfig | null): Map<string, { offsetSec: n
   return map;
 }
 
+function deviceIdFromNetPath(netPath: string): string | null {
+  const parts = netPath.split('/');
+  // net://uuid/source/... → parts: ['net:', '', 'uuid', 'source', ...]
+  if (parts.length < 4 || parts[0] !== 'net:') return null;
+  return `net://${parts[2]}`;
+}
+
+function filePathFromNetPath(netPath: string): string | null {
+  const parts = netPath.split('/');
+  if (parts.length < 4 || parts[0] !== 'net:') return null;
+  return '/' + parts.slice(3).join('/');
+}
+
+function buildActivePlaylistFileSet(cfg: RootConfig | null): Set<string> {
+  const set = new Set<string>();
+  const playlists = cfg?.playlists ?? [];
+  const idx = Number(cfg?.current_playlist ?? -1);
+  if (idx < 0 || idx >= playlists.length) return set;
+  for (const item of playlists[idx].content ?? []) {
+    const key = normalizeTrackName(String(item.song_index ?? ''));
+    if (key) set.add(key);
+  }
+  return set;
+}
+
 function mapDmxToDeck(value: number): DeckNumber | null {
-  if (value <= 50) return null;
   if (value <= 101) return 1;
   if (value <= 152) return 2;
   if (value <= 203) return 3;
@@ -253,6 +278,7 @@ async function main() {
   const controlChannelIndex = Math.max(0, controlAddress - 1);
 
   let trackOffsets = buildTrackOffsetMap(config);
+  let activePlaylistFiles = buildActivePlaylistFileSet(config);
 
   let reloadInProgress = false;
   const reloadConfig = async () => {
@@ -262,6 +288,7 @@ async function main() {
       const next = await loadRootConfig();
       config = next;
       trackOffsets = buildTrackOffsetMap(config);
+      activePlaylistFiles = buildActivePlaylistFileSet(config);
       logLifecycle(`[CONFIG] Reloaded. Offset entries: ${trackOffsets.size}`);
     } catch (e: any) {
       logError('[CONFIG] Reload failed:', e?.message || e);
@@ -331,6 +358,27 @@ async function main() {
   let reconnecting = false;
   let bridge!: StageLinqBridge;
 
+  let seq = 0;
+  const clients = new Set<any>();
+  const waveformTaskIds: Record<DeckNumber, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
+
+  function broadcastMsg(msg: WsPayload) {
+    const raw = JSON.stringify(msg);
+    for (const ws of clients) {
+      if (ws.readyState === ws.OPEN) {
+        try { ws.send(raw); } catch {}
+      }
+    }
+  }
+
+  function broadcastWaveformStatus(deck: DeckNumber, stage: WaveformStatusPayload['stage'], progress: number, fileName: string) {
+    broadcastMsg({ type: 'waveform_status', deck, stage, progress, fileName });
+  }
+
+  function broadcastWaveformData(deck: DeckNumber, fileName: string, peaks: number[]) {
+    broadcastMsg({ type: 'waveform_data', deck, fileName, peaks, peaksPerSec: WAVEFORM_PEAKS_PER_SEC });
+  }
+
   const connectWithRetry = async () => {
     while (true) {
       try {
@@ -357,6 +405,48 @@ async function main() {
       try { await bridge.disconnect(); } catch {}
       await connectWithRetry();
       reconnecting = false;
+    },
+    onTrackChanged: (deck, fileName, rawNetworkPath) => {
+      if (!activePlaylistFiles.has(fileName)) return;
+      if (peaksCache.has(fileName)) {
+        broadcastWaveformData(deck, fileName, peaksCache.get(fileName)!);
+        return;
+      }
+
+      const taskId = ++waveformTaskIds[deck];
+      logLifecycle(`[WAVEFORM] Deck ${deck}: queuing "${fileName}"`);
+
+      (async () => {
+        try {
+          broadcastWaveformStatus(deck, 'downloading', 0, fileName);
+          const audioBytes = await bridge.downloadFile(rawNetworkPath, (pct) => {
+            if (waveformTaskIds[deck] !== taskId) return;
+            broadcastWaveformStatus(deck, 'downloading', pct, fileName);
+          });
+
+          if (waveformTaskIds[deck] !== taskId) return;
+          broadcastWaveformStatus(deck, 'generating', 0, fileName);
+
+          const peaks = await generateWaveformPeaks(
+            audioBytes,
+            fileName,
+            bridge.getDeck(deck).totalSec,
+            () => {},
+            (pct) => {
+              if (waveformTaskIds[deck] !== taskId) return;
+              broadcastWaveformStatus(deck, 'generating', pct, fileName);
+            },
+          );
+
+          if (waveformTaskIds[deck] !== taskId) return;
+          logLifecycle(`[WAVEFORM] Deck ${deck}: ready, ${peaks.length} peaks`);
+          broadcastWaveformData(deck, fileName, peaks);
+        } catch (e: any) {
+          if (waveformTaskIds[deck] !== taskId) return;
+          logError(`[WAVEFORM] Deck ${deck} failed:`, e?.message || e);
+          broadcastWaveformStatus(deck, 'error', 0, fileName);
+        }
+      })();
     },
   });
   const require = createRequire(import.meta.url);
@@ -477,8 +567,6 @@ async function main() {
     };
   });
 
-  let seq = 0;
-  const clients = new Set<any>();
 
   wss.on('connection', (ws) => {
     clients.add(ws);
@@ -487,6 +575,17 @@ async function main() {
 
     const hello: WsPayload = { type: 'hello', ts: Date.now(), version: '0.1.0', fps: WS_FPS };
     try { ws.send(JSON.stringify(hello)); } catch {}
+
+    // Replay any cached waveforms for currently loaded decks
+    const currentDecks = bridge.getDecks();
+    for (const [dStr, deckState] of Object.entries(currentDecks)) {
+      const deck = Number(dStr) as DeckNumber;
+      const fn = deckState.fileName;
+      if (fn && peaksCache.has(fn)) {
+        const msg: WsPayload = { type: 'waveform_data', deck, fileName: fn, peaks: peaksCache.get(fn)!, peaksPerSec: WAVEFORM_PEAKS_PER_SEC };
+        try { ws.send(JSON.stringify(msg)); } catch {}
+      }
+    }
 
     ws.on('close', () => {
       clients.delete(ws);
@@ -517,7 +616,6 @@ async function main() {
 
 
   // Broadcast snapshots at 30Hz
-  // Broadcast snapshots at 30Hz
   const intervalMs = Math.round(1000 / WS_FPS);
   setInterval(() => {
     const decks = bridge.getDecks();
@@ -543,12 +641,7 @@ async function main() {
       logUiOut('[UI OUT]', JSON.stringify(payload));
     }
 
-    const msg = JSON.stringify(payload as WsPayload);
-    for (const ws of clients) {
-      if (ws.readyState === ws.OPEN) {
-        try { ws.send(msg); } catch {}
-      }
-    }
+    broadcastMsg(payload);
   }, intervalMs);
 
 

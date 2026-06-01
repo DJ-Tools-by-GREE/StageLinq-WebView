@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import type { DeckNumber, DeckState, WsPayload } from './types';
+import type { DeckNumber, DeckState, WaveformDataPayload, WaveformStatusPayload, WaveformStage, WsPayload } from './types';
 import DeckCard from './DeckCard';
 
 const DECKS: DeckNumber[] = [1, 2, 3, 4];
@@ -21,12 +21,34 @@ const blankDeck = (deck: DeckNumber): DeckState => ({
   updatedAt: Date.now(),
 });
 
+export interface WaveformState {
+  peaks: number[] | null;
+  peaksPerSec: number;
+  stage: WaveformStage | null;
+  progress: number;
+  fileName: string;
+}
+
+const blankWaveform = (): WaveformState => ({
+  peaks: null,
+  peaksPerSec: 200,
+  stage: null,
+  progress: 0,
+  fileName: '',
+});
+
 export default function App() {
   const [decks, setDecks] = useState<Record<DeckNumber, DeckState>>({
     1: blankDeck(1),
     2: blankDeck(2),
     3: blankDeck(3),
     4: blankDeck(4),
+  });
+  const [waveforms, setWaveforms] = useState<Record<DeckNumber, WaveformState>>({
+    1: blankWaveform(),
+    2: blankWaveform(),
+    3: blankWaveform(),
+    4: blankWaveform(),
   });
   const [connected, setConnected] = useState(false);
   const [sendWhenStopped, setSendWhenStopped] = useState(false);
@@ -66,6 +88,29 @@ export default function App() {
             if (msg.seq <= lastSeq.current) return;
             lastSeq.current = msg.seq;
             setDecks(msg.decks);
+          } else if (msg.type === 'waveform_status') {
+            const s = msg as WaveformStatusPayload;
+            setWaveforms((prev) => ({
+              ...prev,
+              [s.deck]: {
+                ...prev[s.deck],
+                stage: s.stage,
+                progress: s.progress,
+                fileName: s.fileName,
+              },
+            }));
+          } else if (msg.type === 'waveform_data') {
+            const d = msg as WaveformDataPayload;
+            setWaveforms((prev) => ({
+              ...prev,
+              [d.deck]: {
+                peaks: d.peaks,
+                peaksPerSec: d.peaksPerSec,
+                stage: 'ready',
+                progress: 100,
+                fileName: d.fileName,
+              },
+            }));
           }
         } catch {
           // ignore
@@ -126,6 +171,7 @@ export default function App() {
             key={d}
             deck={d}
             state={decks[d]}
+            waveform={waveforms[d]}
             connected={connected}
           />
         ))}

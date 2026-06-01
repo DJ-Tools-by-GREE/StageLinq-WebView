@@ -157,12 +157,60 @@ html, body {
   font-weight: 700;
 }
 
-.waveform {
+.waveformWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 16px 16px 16px;
+}
+
+.waveformLoading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 2px 2px 2px;
+}
+
+.waveformLoadLabel {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.waveformBar {
+  flex: 1;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.10);
+  overflow: hidden;
+}
+
+.waveformBarFill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.waveformError {
+  font-size: 11px;
+  color: var(--muted);
+  padding: 2px;
+}
+
+.waveformOverview {
+  width: 100%;
+  height: 32px;
+  display: block;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.03);
+}
+
+.waveformDetail {
+  width: 100%;
   height: 72px;
-  margin: 0 16px 16px 16px;
-  border-radius: 14px;
-  border: 1px dashed rgba(255,255,255,0.18);
-  background: rgba(255,255,255,0.04);
+  display: block;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.03);
 }
 
 .fader {

@@ -40,3 +40,14 @@ export const ELAPSED_THROTTLE_S = 0.1;
 
 /** Milliseconds between periodic OSC BPM heartbeat sends (independent of on-change sends). */
 export const OSC_HEARTBEAT_INTERVAL_MS = 1000;
+
+// Waveform generation
+
+/** Sample rate used when extracting raw PCM from audio files via ffmpeg. */
+export const WAVEFORM_FFMPEG_SAMPLE_RATE = 8000;
+
+/** Number of PCM samples per waveform peak (= WAVEFORM_FFMPEG_SAMPLE_RATE / WAVEFORM_PEAKS_PER_SEC). */
+export const WAVEFORM_SAMPLES_PER_PEAK = 40;
+
+/** Resulting waveform peaks per second (8000 / 40 = 200). */
+export const WAVEFORM_PEAKS_PER_SEC = 200;

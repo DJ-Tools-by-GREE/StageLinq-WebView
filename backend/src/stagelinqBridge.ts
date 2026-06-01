@@ -33,6 +33,7 @@ export interface BridgeOptions {
   downloadDbSources?: boolean; // kept for compatibility; unused by this library
   onDeviceIp?: (ip: string) => void;
   onCommunicationLost?: () => void;
+  onTrackChanged?: (deck: DeckNumber, fileName: string, rawNetworkPath: string) => void;
 }
 
 export class StageLinqBridge {
@@ -90,6 +91,10 @@ export class StageLinqBridge {
   private lastAnyBeatAtMs = 0;
   private watchdogInterval: NodeJS.Timeout | null = null;
 
+  // Captured full net:// paths (before basename stripping) and change-tracking for onTrackChanged.
+  private rawNetworkPaths: Record<DeckNumber, string> = { 1: '', 2: '', 3: '', 4: '' };
+  private lastTriggeredFileNames: Record<DeckNumber, string> = { 1: '', 2: '', 3: '', 4: '' };
+
   constructor(_opts: BridgeOptions = {}) {
     this.opts = _opts;
     this.decks = Object.fromEntries(
@@ -123,6 +128,21 @@ export class StageLinqBridge {
 
   private touch(deck: DeckNumber) {
     this.decks[deck].updatedAt = Date.now();
+  }
+
+  private captureNetPath(deck: DeckNumber, rawValue: unknown) {
+    if (typeof rawValue === 'string' && rawValue.startsWith('net://')) {
+      this.rawNetworkPaths[deck] = rawValue;
+    }
+  }
+
+  private maybeFireTrackChanged(deck: DeckNumber) {
+    const fn = this.decks[deck].fileName;
+    const netPath = this.rawNetworkPaths[deck];
+    if (fn && netPath && fn !== this.lastTriggeredFileNames[deck]) {
+      this.lastTriggeredFileNames[deck] = fn;
+      this.opts.onTrackChanged?.(deck, fn, netPath);
+    }
   }
   private unloadDeck(deck: DeckNumber) {
     this.decks[deck].trackLoaded = false;
@@ -239,8 +259,12 @@ export class StageLinqBridge {
       toFileName(obj.song_index);
 
     if (fileNameFromTrackData) {
+      this.captureNetPath(deck,
+        obj.fileName || obj.filename || obj.filePath || obj.filepath ||
+        obj.fullPath || obj.path || obj.uri || obj.songIndex || obj.song_index || '');
       ds.fileName = fileNameFromTrackData;
       this.touch(deck);
+      this.maybeFireTrackChanged(deck);
     }
 
     // --- duration ---
@@ -324,6 +348,7 @@ export class StageLinqBridge {
     // Set options (including logger) before the static instance is created via devices access.
     StageLinq.options = {
       downloadDbSources: false,
+      enableFileTranfer: true,
       logger: {
         trace: () => {},
         debug: () => {},
@@ -417,8 +442,10 @@ export class StageLinqBridge {
       const ds = this.decks[deck];
 
       if (/(?:Track\/)?(?:FileName|Filename|FilePath|Path)$/i.test(tail) && typeof rawValue === "string" && rawValue.trim()) {
+        this.captureNetPath(deck, rawValue);
         ds.fileName = toFileName(rawValue);
         this.touch(deck);
+        this.maybeFireTrackChanged(deck);
       }
 
       // ---- Explicit track-loaded flag (if emitted by device) ----
@@ -639,7 +666,13 @@ export class StageLinqBridge {
         toFileName(status?.path) ||
         toFileName(status?.songIndex) ||
         toFileName(status?.song_index);
-      if (nowPlayingFileName) ds.fileName = nowPlayingFileName;
+      if (nowPlayingFileName) {
+        this.captureNetPath(deck,
+          status?.fileName || status?.filename || status?.filePath ||
+          status?.path || status?.songIndex || status?.song_index || '');
+        ds.fileName = nowPlayingFileName;
+        this.maybeFireTrackChanged(deck);
+      }
       if (typeof status?.title === "string") {
         if (status.title.trim()) {
           ds.title = status.title;
@@ -846,7 +879,9 @@ export class StageLinqBridge {
         }
       } else if (/^(Track\/)?(FileName|Filename|FilePath|Path)$/i.test(tail)) {
         if (typeof value === "string" && value.trim()) {
+          this.captureNetPath(deck, value);
           ds.fileName = toFileName(value);
+          this.maybeFireTrackChanged(deck);
         }
       } else if (tail === "CurrentKeyIndex" || tail === "Track/CurrentKeyIndex") {
         if (typeof value === "number") ds.keyIndex = value;
@@ -936,5 +971,35 @@ export class StageLinqBridge {
 
   getDeck(deck: DeckNumber): DeckState {
     return { ...this.decks[deck] };
+  }
+
+  getRawNetworkPath(deck: DeckNumber): string {
+    return this.rawNetworkPaths[deck];
+  }
+
+  async downloadFile(
+    netPath: string,
+    onProgress: (pct: number) => void,
+  ): Promise<Uint8Array> {
+    const parts = netPath.split('/');
+    // net://uuid/source/... → parts: ['net:', '', 'uuid', 'source', ...]
+    if (parts.length < 4 || parts[0] !== 'net:') {
+      throw new Error(`Invalid net path: ${netPath}`);
+    }
+    const deviceId = `net://${parts[2]}`;
+    const filePath = '/' + parts.slice(3).join('/');
+
+    const ft = (StageLinq as any).devices?.getFileTransferService(deviceId);
+    if (!ft) throw new Error(`FileTransfer service not available for ${deviceId}`);
+
+    const handler = (progress: { percentComplete: number }) => {
+      onProgress(Math.round(progress.percentComplete));
+    };
+    ft.on('fileTransferProgress', handler);
+    try {
+      return await ft.getFile(filePath);
+    } finally {
+      ft.off('fileTransferProgress', handler);
+    }
   }
 }

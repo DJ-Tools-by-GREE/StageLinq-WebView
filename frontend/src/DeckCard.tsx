@@ -1,5 +1,7 @@
 import React, { useMemo } from 'react';
 import type { DeckNumber, DeckState } from './types';
+import type { WaveformState } from './App';
+import WaveformDisplay from './WaveformDisplay';
 
 function pad2(n: number): string {
   return String(Math.max(0, Math.floor(n))).padStart(2, '0');
@@ -22,9 +24,10 @@ function signedPercentFromSpeedState(speedState: number): string {
 export default function DeckCard(props: {
   deck: DeckNumber;
   state: DeckState;
+  waveform: WaveformState;
   connected: boolean;
 }) {
-  const { deck, state, connected } = props;
+  const { deck, state, waveform, connected } = props;
 
   const themeClass = `theme-d${deck}`;
   const faderOnRight = deck === 1 || deck === 3;
@@ -107,7 +110,15 @@ export default function DeckCard(props: {
         ) : null}
       </div>
 
-      <div className="waveform" title="Waveform placeholder" />
+      <WaveformDisplay
+        deck={deck}
+        peaks={waveform.peaks}
+        peaksPerSec={waveform.peaksPerSec}
+        elapsedSec={state.elapsedSec}
+        totalSec={state.totalSec}
+        stage={waveform.stage}
+        progress={waveform.progress}
+      />
     </div>
   );
 }

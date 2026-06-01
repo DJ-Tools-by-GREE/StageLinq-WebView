@@ -32,4 +32,22 @@ export interface HelloPayload {
   fps: number;
 }
 
-export type WsPayload = HelloPayload | SnapshotPayload;
+export type WaveformStage = 'downloading' | 'generating' | 'ready' | 'error';
+
+export interface WaveformStatusPayload {
+  type: 'waveform_status';
+  deck: DeckNumber;
+  stage: WaveformStage;
+  progress: number;
+  fileName: string;
+}
+
+export interface WaveformDataPayload {
+  type: 'waveform_data';
+  deck: DeckNumber;
+  fileName: string;
+  peaks: number[];
+  peaksPerSec: number;
+}
+
+export type WsPayload = HelloPayload | SnapshotPayload | WaveformStatusPayload | WaveformDataPayload;
