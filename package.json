@@ -10,7 +10,7 @@
     "dev": "npm run -w backend dev",
     "build": "npm run -w frontend build && npm run -w backend build",
     "start": "npm run -w backend start",
-    "deploy": "npm run build && pm2 stop stagelinq-webview && pm2 start npm --name stagelinq-webview -- start && pm2 logs stagelinq-webview"
+    "deploy": "npm run build && pm2 restart stagelinq-webview --update-env"
   },
   "dependencies": {
     "@gree44/stagelinq": "^3.0.9",
