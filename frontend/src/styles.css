@@ -240,6 +240,7 @@ html, body {
   flex-direction: column;
   gap: 4px;
   padding: 0 16px 16px 16px;
+  position: relative;
 }
 
 .waveformOverview {
@@ -259,10 +260,16 @@ html, body {
 }
 
 .waveformLoading {
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 16px;
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 0 2px 2px 2px;
+  background: rgba(18, 20, 27, 0.85);
+  z-index: 1;
 }
 
 .waveformLoadLabel {
@@ -286,9 +293,14 @@ html, body {
 }
 
 .waveformError {
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 16px;
   font-size: 11px;
   color: var(--muted);
   padding: 2px;
+  z-index: 1;
 }
 
 /* ── Timecode toggle ────────────────────────────────────────────── */
