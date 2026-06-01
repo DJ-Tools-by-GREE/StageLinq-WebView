@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import type { DeckState } from './types.js';
 import type { WaveformState } from './appTypes.js';
 import WaveformDisplay from './WaveformDisplay.js';
@@ -20,7 +21,7 @@ interface Props {
 }
 
 export default function DeckCard({ state, waveform, connected }: Props) {
-  const { deck, trackLoaded, title, artist, elapsedSec, totalSec, currentBpm,
+  const { deck, trackLoaded, fileName, title, artist, elapsedSec, totalSec, currentBpm,
           trackBpm, speedState, keyCamelot, fader, play } = state;
 
   const faderOnRight = deck === 1 || deck === 3;
@@ -39,12 +40,42 @@ export default function DeckCard({ state, waveform, connected }: Props) {
   const dispArtist = trackLoaded ? (artist || '—') : '—';
   const dispKey    = trackLoaded ? (keyCamelot || '--') : '--';
 
+  const [artworkUrl, setArtworkUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!trackLoaded || !fileName) {
+      setArtworkUrl(null);
+      return;
+    }
+    let revoked = false;
+    let objectUrl: string | null = null;
+
+    fetch(`/api/artwork/${deck}`)
+      .then((r) => (r.ok ? r.blob() : null))
+      .then((blob) => {
+        if (revoked || !blob) return;
+        objectUrl = URL.createObjectURL(blob);
+        setArtworkUrl(objectUrl);
+      })
+      .catch(() => {});
+
+    return () => {
+      revoked = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [deck, fileName, trackLoaded]);
+
   return (
     <div className={`card theme-d${deck}`}>
       <div className="deckBorder" />
 
       <div className="cardHeader">
-        <div className="art">D{deck}</div>
+        <div className="art">
+          {artworkUrl
+            ? <img src={artworkUrl} alt="" className="artImg" />
+            : <span>D{deck}</span>
+          }
+        </div>
 
         <div className="titleBlock">
           <div className="title" title={dispTitle}>

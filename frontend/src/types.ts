@@ -3,6 +3,7 @@ export type DeckNumber = 1 | 2 | 3 | 4;
 export interface DeckState {
   deck: DeckNumber;
   trackLoaded: boolean;
+  fileName: string;
   title: string;
   artist: string;
   elapsedSec: number;

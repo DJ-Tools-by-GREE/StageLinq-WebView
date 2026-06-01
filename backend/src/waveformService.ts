@@ -4,9 +4,12 @@ import crypto from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { logError, logLifecycle } from './logging.js';
-import { WAVEFORM_FFMPEG_SAMPLE_RATE, WAVEFORM_SAMPLES_PER_PEAK, WAVEFORM_PEAKS_PER_SEC } from './constants.js';
+import { WAVEFORM_FFMPEG_SAMPLE_RATE, WAVEFORM_SAMPLES_PER_PEAK } from './constants.js';
 
 export const peaksCache = new Map<string, number[]>();
+
+// artwork is stored as { data: Buffer, mime: string }
+export const artworkCache = new Map<string, { data: Buffer; mime: string } | null>();
 
 export async function generateWaveformPeaks(
   audioBytes: Uint8Array,
@@ -29,12 +32,57 @@ export async function generateWaveformPeaks(
   onDownloadDone();
 
   try {
-    const peaks = await extractPeaksViaFfmpeg(tempPath, totalSec, onGenerateProgress);
+    const [peaks] = await Promise.all([
+      extractPeaksViaFfmpeg(tempPath, totalSec, onGenerateProgress),
+      extractArtwork(tempPath, fileName),
+    ]);
     peaksCache.set(fileName, peaks);
     return peaks;
   } finally {
     await fs.unlink(tempPath).catch(() => {});
   }
+}
+
+async function extractArtwork(inputPath: string, fileName: string): Promise<void> {
+  if (artworkCache.has(fileName)) return;
+
+  return new Promise((resolve) => {
+    const proc = spawn('ffmpeg', [
+      '-i', inputPath,
+      '-an',
+      '-vcodec', 'copy',
+      '-f', 'image2pipe',
+      '-v', 'quiet',
+      'pipe:1',
+    ]);
+
+    const chunks: Buffer[] = [];
+
+    proc.stdout.on('data', (chunk: Buffer) => chunks.push(chunk));
+    proc.stderr.on('data', () => {});
+
+    proc.on('error', () => {
+      artworkCache.set(fileName, null);
+      resolve();
+    });
+
+    proc.on('close', () => {
+      const data = Buffer.concat(chunks);
+      if (data.length < 4) {
+        artworkCache.set(fileName, null);
+        resolve();
+        return;
+      }
+      // Detect image format from magic bytes
+      let mime = 'image/jpeg';
+      if (data[0] === 0x89 && data[1] === 0x50) mime = 'image/png';
+      else if (data[0] === 0x47 && data[1] === 0x49) mime = 'image/gif';
+      else if (data[0] === 0x57 && data[1] === 0x45) mime = 'image/webp';
+      artworkCache.set(fileName, { data, mime });
+      logLifecycle(`[WAVEFORM] Artwork extracted for "${fileName}" (${data.length} bytes, ${mime})`);
+      resolve();
+    });
+  });
 }
 
 function extractPeaksViaFfmpeg(
@@ -53,7 +101,6 @@ function extractPeaksViaFfmpeg(
     ]);
 
     const chunks: Buffer[] = [];
-    // Expected total bytes if duration is known: totalSec * sampleRate * 2 bytes/sample
     const expectedBytes = totalSec > 0 ? Math.ceil(totalSec * WAVEFORM_FFMPEG_SAMPLE_RATE * 2) : 0;
     let receivedBytes = 0;
 

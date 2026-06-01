@@ -15,7 +15,7 @@ import { OscBpmSender } from './oscBpm.js';
 import { RECONNECT_DELAY_MS, WS_FPS, WAVEFORM_PEAKS_PER_SEC } from './constants.js';
 import { States, StageLinqValue } from "@gree44/stagelinq";
 import { logError, logLifecycle, logStatus, logUiOut } from './logging.js';
-import { generateWaveformPeaks, peaksCache } from './waveformService.js';
+import { generateWaveformPeaks, peaksCache, artworkCache } from './waveformService.js';
 
 function isIgnorableStageLinqError(err: unknown): boolean {
   if (!err) return false;
@@ -343,6 +343,17 @@ async function main() {
     sendTimecodeWhenStopped = enabled;
     artnet.setSendWhenStopped(enabled);
     res.json({ ok: true, enabled: sendTimecodeWhenStopped });
+  });
+
+  app.get('/api/artwork/:deck', (req, res) => {
+    const deck = Number(req.params.deck) as DeckNumber;
+    const fileName = bridge.getDeck(deck)?.fileName;
+    if (!fileName) { res.status(404).end(); return; }
+    const entry = artworkCache.get(fileName);
+    if (!entry) { res.status(404).end(); return; }
+    res.setHeader('Content-Type', entry.mime);
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.send(entry.data);
   });
 
   // Serve frontend build if present
