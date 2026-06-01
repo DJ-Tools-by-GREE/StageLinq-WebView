@@ -665,10 +665,12 @@ export class StageLinqBridge {
     // nowPlaying provides high-level track + some realtime values.
     devices.on?.("nowPlaying", (status: any) => {
       try {
-      const playerIdx = Number(status?.player);
-      const deck = (playerIdx + 1) as DeckNumber; // 0..3 -> 1..4
-      if (!DECKS.includes(deck)) return;
-
+      // status.player is the physical player number (0 for Prime 4+, varies for SC6000s).
+      // status.layer is the deck letter: 'A'=deck1, 'B'=deck2, 'C'=deck3, 'D'=deck4.
+      // Using player+1 always resolves to deck 1 on a single-unit setup — wrong.
+      const layerMap: Record<string, DeckNumber> = { A: 1, B: 2, C: 3, D: 4 };
+      const deck: DeckNumber | undefined = layerMap[String(status?.layer).toUpperCase()];
+      if (!deck || !DECKS.includes(deck)) return;
 
       const ds = this.decks[deck];
       const nowPlayingFileName =
@@ -1004,11 +1006,31 @@ export class StageLinqBridge {
     const filePath = '/' + parts.slice(3).join('/');
 
     logLifecycle(`[WAVEFORM] downloadFile deviceId="${deviceId}" filePath="${filePath}"`);
-    logLifecycle(`[WAVEFORM] stageLinqDevices proto=${this.stageLinqDevices ? Object.getOwnPropertyNames(Object.getPrototypeOf(this.stageLinqDevices)).slice(0, 5).join(',') : 'null'}`);
 
-    // Use the library's own downloadFile method which handles availability checks internally.
-    const data = await this.stageLinqDevices.downloadFile(deviceId, filePath);
-    onProgress(100);
-    return data;
+    // FileTransfer is set up asynchronously after device connect. Poll until ready.
+    const POLL_MS = 500;
+    const TIMEOUT_MS = 30_000;
+    const deadline = Date.now() + TIMEOUT_MS;
+
+    while (true) {
+      const ft = this.stageLinqDevices?.getFileTransferService?.(deviceId);
+      if (ft) {
+        const handler = (progress: { percentComplete: number }) => {
+          onProgress(Math.round(progress.percentComplete));
+        };
+        ft.on('fileTransferProgress', handler);
+        try {
+          return await ft.getFile(filePath);
+        } finally {
+          ft.off('fileTransferProgress', handler);
+        }
+      }
+
+      if (Date.now() >= deadline) {
+        throw new Error(`FileTransfer service not available for ${deviceId} after ${TIMEOUT_MS / 1000}s`);
+      }
+      logLifecycle(`[WAVEFORM] FileTransfer not ready yet for ${deviceId}, retrying in ${POLL_MS}ms…`);
+      await new Promise((r) => setTimeout(r, POLL_MS));
+    }
   }
 }
