@@ -431,10 +431,10 @@ export class StageLinqBridge {
           this.decks[ch].fader = clamp01(rawValue);
           this.seenMixerFader[ch] = true;
           this.touch(ch);
+          logDiscover(ch, `[FADER] deck=${ch} source=MixerCH raw=${rawValue} applied=${clamp01(rawValue).toFixed(4)}`);
 
           if (!this.seen.fader) {
             this.seen.fader = true;
-            logDiscover(ch, "[DISCOVER] Fader path:", name, "=", rawValue);
           }
         }
         return;
@@ -612,10 +612,12 @@ export class StageLinqBridge {
         if (!this.seenMixerFader[deck]) {
           ds.fader = clamp01(rawValue);
           this.touch(deck);
+          logDiscover(deck, `[FADER] deck=${deck} source=ExternalMixerVolume(message) raw=${rawValue} applied=${clamp01(rawValue).toFixed(4)}`);
           if (!this.seen.fader) {
             this.seen.fader = true;
-            logDiscover(deck, "[DISCOVER] Fader (deck) path:", name, "=", rawValue);
           }
+        } else {
+          logDiscover(deck, `[FADER] deck=${deck} source=ExternalMixerVolume(message) raw=${rawValue} BLOCKED (MixerCH seen)`);
         }
       }
 
@@ -712,8 +714,13 @@ export class StageLinqBridge {
       if (typeof status?.currentBpm === "number") {
         ds.currentBpm = status.currentBpm;
       }
-      if (typeof status?.externalMixerVolume === "number" && !this.seenMixerFader[deck]) {
-        ds.fader = clamp01(status.externalMixerVolume);
+      if (typeof status?.externalMixerVolume === "number") {
+        if (!this.seenMixerFader[deck]) {
+          ds.fader = clamp01(status.externalMixerVolume);
+          logDiscover(deck, `[FADER] deck=${deck} source=externalMixerVolume(nowPlaying) raw=${status.externalMixerVolume} applied=${clamp01(status.externalMixerVolume).toFixed(4)}`);
+        } else {
+          logDiscover(deck, `[FADER] deck=${deck} source=externalMixerVolume(nowPlaying) raw=${status.externalMixerVolume} BLOCKED (MixerCH seen)`);
+        }
       }
       // Do NOT set ds.play here — nowPlaying fires on metadata events and its play field
       // does not reliably reflect the current transport state. Play state is owned exclusively
@@ -874,7 +881,14 @@ export class StageLinqBridge {
 
 
       else if (tail === "ExternalMixerVolume" || tail === "Track/ExternalMixerVolume") {
-        if (typeof value === "number" && !this.seenMixerFader[deck]) ds.fader = clamp01(value);
+        if (typeof value === "number") {
+          if (!this.seenMixerFader[deck]) {
+            ds.fader = clamp01(value);
+            logDiscover(deck, `[FADER] deck=${deck} source=ExternalMixerVolume(stateChanged) raw=${value} applied=${clamp01(value).toFixed(4)}`);
+          } else {
+            logDiscover(deck, `[FADER] deck=${deck} source=ExternalMixerVolume(stateChanged) raw=${value} BLOCKED (MixerCH seen)`);
+          }
+        }
       } else if (tail === "ArtistName" || tail === "Track/ArtistName") {
         if (typeof value === "string") {
           if (value.trim()) {
