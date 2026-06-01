@@ -69,7 +69,12 @@ npm install -g pm2
 
 # Build first, then start under PM2
 npm run build
+
+# macOS / Linux
 pm2 start npm --name stagelinq-webview -- start
+
+# Windows (use npm.cmd — pm2 cannot find bare "npm" on Windows)
+pm2 start npm.cmd --name stagelinq-webview -- start
 
 # Persist the process list so it survives reboots
 pm2 save
