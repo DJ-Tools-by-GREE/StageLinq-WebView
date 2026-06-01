@@ -95,6 +95,8 @@ export class StageLinqBridge {
   private rawNetworkPaths: Record<DeckNumber, string> = { 1: '', 2: '', 3: '', 4: '' };
   private lastTriggeredFileNames: Record<DeckNumber, string> = { 1: '', 2: '', 3: '', 4: '' };
 
+  private stageLinqDevices: any = null;
+
   constructor(_opts: BridgeOptions = {}) {
     this.opts = _opts;
     this.decks = Object.fromEntries(
@@ -360,6 +362,7 @@ export class StageLinqBridge {
       },
     };
     const devices = StageLinq.devices;
+    this.stageLinqDevices = devices;
 
     // Different versions use different lifecycle event names; listen to both.
     devices.on?.("ready", (info: any) => {
@@ -993,10 +996,7 @@ export class StageLinqBridge {
 
     logLifecycle(`[WAVEFORM] downloadFile deviceId="${deviceId}" filePath="${filePath}"`);
 
-    const devices = (StageLinq as any).devices;
-    logLifecycle(`[WAVEFORM] StageLinq.devices type=${typeof devices} keys=${devices ? Object.getOwnPropertyNames(Object.getPrototypeOf(devices)).join(',') : 'null'}`);
-
-    const ft = devices?.getFileTransferService(deviceId);
+    const ft = this.stageLinqDevices?.getFileTransferService(deviceId);
     if (!ft) throw new Error(`FileTransfer service not available for ${deviceId}`);
 
     const handler = (progress: { percentComplete: number }) => {
