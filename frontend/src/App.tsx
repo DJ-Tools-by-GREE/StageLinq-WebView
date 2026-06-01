@@ -134,7 +134,7 @@ export default function App() {
   }, [settingBusy, sendWhenStopped]);
 
   return (
-    <div className="app">
+    <>
       <div className="grid">
         {DECK_NUMBERS.map((d) => (
           <DeckCard
@@ -145,14 +145,15 @@ export default function App() {
           />
         ))}
       </div>
-      <button
-        className={`tcToggle${sendWhenStopped ? ' tcToggle--on' : ''}${settingBusy ? ' tcToggle--busy' : ''}`}
-        onClick={toggleSendWhenStopped}
-        disabled={settingBusy}
-        aria-label="Toggle timecode while stopped"
-      >
-        {sendWhenStopped ? 'TC while stopped: ON' : 'TC while stopped: OFF'}
-      </button>
-    </div>
+      <div className="overlayToggle">
+        <button
+          className={`toggleBtn ${sendWhenStopped ? 'on' : 'off'}`}
+          onClick={toggleSendWhenStopped}
+          disabled={settingBusy}
+        >
+          {sendWhenStopped ? 'TC while stopped: ON' : 'TC while stopped: OFF'}
+        </button>
+      </div>
+    </>
   );
 }

@@ -1,14 +1,6 @@
-import type { CSSProperties } from 'react';
 import type { DeckState } from './types.js';
 import type { WaveformState } from './appTypes.js';
 import WaveformDisplay from './WaveformDisplay.js';
-
-const DECK_COLORS: Record<number, string> = {
-  1: '#b100ff',
-  2: '#2f7bff',
-  3: '#00c853',
-  4: '#ff2d2d',
-};
 
 function formatMMSS(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds <= 0) return '00:00';
@@ -31,94 +23,94 @@ export default function DeckCard({ state, waveform, connected }: Props) {
   const { deck, trackLoaded, title, artist, elapsedSec, totalSec, currentBpm,
           trackBpm, speedState, keyCamelot, fader, play } = state;
 
-  const color = DECK_COLORS[deck] ?? '#ffffff';
-  const remaining = Math.max(0, totalSec - elapsedSec);
+  const faderOnRight = deck === 1 || deck === 3;
   const faderPct = Math.round(fader * 100);
   const isPlaying = play && trackLoaded;
 
+  const elapsed   = trackLoaded ? formatMMSS(elapsedSec) : '00:00';
+  const totalStr  = trackLoaded ? formatMMSS(totalSec) : '00:00';
+  const remainStr = trackLoaded ? formatMMSS(Math.max(0, totalSec - elapsedSec)) : '00:00';
+
+  const bpm       = trackLoaded && Number.isFinite(currentBpm) ? currentBpm.toFixed(2) : '—';
+  const tBpm      = trackLoaded && Number.isFinite(trackBpm) && trackBpm > 0 ? trackBpm.toFixed(2) : '—';
+  const rel       = trackLoaded ? signedPercent(speedState) : '—';
+
+  const dispTitle  = trackLoaded ? (title  || '—') : '—';
+  const dispArtist = trackLoaded ? (artist || '—') : '—';
+  const dispKey    = trackLoaded ? (keyCamelot || '--') : '--';
+
   return (
-    <div className="deckCard" style={{ '--deck-color': color } as CSSProperties}>
-      {/* Header row */}
-      <div className="deckHeader">
-        <div className="deckId">
-          <span className="deckLabel">D{deck}</span>
-          {isPlaying && <span className="nowPlaying" aria-label="Now playing" />}
-        </div>
-        <div className="deckHeaderRight">
-          <span className={`connBadge${connected ? ' connBadge--live' : ''}`}>
-            {connected ? 'LIVE' : 'OFFLINE'}
-          </span>
-          <span className="keyBadge">
-            {trackLoaded && keyCamelot ? keyCamelot : '--'}
-          </span>
-        </div>
-      </div>
+    <div className={`card theme-d${deck}`}>
+      <div className="deckBorder" />
 
-      {/* Track info */}
-      <div className="trackInfo">
-        <div className="trackTitle">{trackLoaded && title ? title : '—'}</div>
-        <div className="trackArtist">{trackLoaded && artist ? artist : '—'}</div>
-      </div>
+      <div className="cardHeader">
+        <div className="art">D{deck}</div>
 
-      {/* Main data row: timing + bpm/pitch + fader */}
-      <div className="deckBody">
-        <div className="timingBlock">
-          <div className="timeRow">
-            <span className="timeLabel">ELAPSED</span>
-            <span className="timeValue elapsed">{trackLoaded ? formatMMSS(elapsedSec) : '00:00'}</span>
+        <div className="titleBlock">
+          <div className="title" title={dispTitle}>
+            {isPlaying && <span className="playDot" />}
+            {dispTitle}
           </div>
-          <div className="timeRow">
-            <span className="timeLabel">REMAIN</span>
-            <span className="timeValue remain">{trackLoaded ? formatMMSS(remaining) : '00:00'}</span>
-          </div>
-          <div className="timeRow">
-            <span className="timeLabel">TOTAL</span>
-            <span className="timeValue total">{trackLoaded ? formatMMSS(totalSec) : '00:00'}</span>
-          </div>
+          <div className="artist" title={dispArtist}>{dispArtist}</div>
         </div>
 
-        <div className="bpmBlock">
-          <div className="bpmRow">
-            <span className="bpmLabel">BPM</span>
-            <span className="bpmValue live">
-              {trackLoaded ? currentBpm.toFixed(2) : '—'}
-            </span>
+        <div className="stats">
+          <div className="pills">
+            <span className="pill">Key: <strong>{dispKey}</strong></span>
+            <span className="pill">{connected ? 'LIVE' : 'OFFLINE'}</span>
           </div>
-          <div className="bpmRow">
-            <span className="bpmLabel">TRACK</span>
-            <span className="bpmValue">
-              {trackLoaded && trackBpm > 0 ? trackBpm.toFixed(2) : '—'}
-            </span>
+          <div className="kv">
+            <div><span className="label">Elapsed / Total</span></div>
+            <div><strong>{elapsed}</strong> / <strong>{totalStr}</strong></div>
+            <div className="label">Remaining: {remainStr}</div>
           </div>
-          <div className="bpmRow">
-            <span className="bpmLabel">PITCH</span>
-            <span className={`bpmValue pitch${!trackLoaded ? '' : speedState > 0 ? ' pitch--up' : speedState < 0 ? ' pitch--down' : ''}`}>
-              {trackLoaded ? signedPercent(speedState) : '—'}
-            </span>
-          </div>
-        </div>
-
-        <div className="faderBlock">
-          <div className="faderTrack">
-            <div className="faderFill" style={{ height: `${faderPct}%` }} />
-            <div className="faderThumb" style={{ bottom: `${faderPct}%` }} />
-          </div>
-          <span className="faderLabel">{faderPct}%</span>
         </div>
       </div>
 
-      {/* Waveform */}
-      <div className="waveformSection">
-        <WaveformDisplay
-          deck={deck}
-          peaks={waveform.peaks}
-          peaksPerSec={waveform.peaksPerSec}
-          elapsedSec={elapsedSec}
-          totalSec={totalSec}
-          stage={waveform.stage}
-          progress={waveform.progress}
-        />
+      <div className="middle">
+        {!faderOnRight && (
+          <div className="fader" aria-label={`Deck ${deck} channel fader`}>
+            <div className="faderTrack">
+              <div className="faderFill" style={{ height: `${faderPct}%` }} />
+            </div>
+            <div className="faderPct">{faderPct}%</div>
+          </div>
+        )}
+
+        <div className="content">
+          <div className="row">
+            <div className="label">BPM</div>
+            <div className="value">{bpm}</div>
+          </div>
+          <div className="row">
+            <div className="label">Track BPM</div>
+            <div className="value">{tBpm}</div>
+          </div>
+          <div className="row">
+            <div className="label">Relative</div>
+            <div className="value">{rel}</div>
+          </div>
+        </div>
+
+        {faderOnRight && (
+          <div className="fader" aria-label={`Deck ${deck} channel fader`}>
+            <div className="faderTrack">
+              <div className="faderFill" style={{ height: `${faderPct}%` }} />
+            </div>
+            <div className="faderPct">{faderPct}%</div>
+          </div>
+        )}
       </div>
+
+      <WaveformDisplay
+        deck={deck}
+        peaks={waveform.peaks}
+        peaksPerSec={waveform.peaksPerSec}
+        elapsedSec={elapsedSec}
+        totalSec={totalSec}
+        stage={waveform.stage}
+        progress={waveform.progress}
+      />
     </div>
   );
 }
