@@ -1,191 +1,158 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import type { DeckNumber, DeckState, WaveformDataPayload, WaveformStatusPayload, WaveformStage, WsPayload } from './types';
-import DeckCard from './DeckCard';
+import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import type { DeckNumber, DeckState, WsPayload } from './types.js';
+import type { WaveformState } from './appTypes.js';
+import DeckCard from './DeckCard.js';
 
-const DECKS: DeckNumber[] = [1, 2, 3, 4];
+const DECK_NUMBERS: DeckNumber[] = [1, 2, 3, 4];
 
-const blankDeck = (deck: DeckNumber): DeckState => ({
-  deck,
-  trackLoaded: false,
-  title: '—',
-  artist: '—',
-  elapsedSec: 0,
-  totalSec: 0,
-  currentBpm: 0,
-  trackBpm: 0,
-  speedState: 0,
-  keyIndex: null,
-  keyCamelot: '--',
-  fader: 0,
-  play: false,
-  updatedAt: Date.now(),
-});
-
-export interface WaveformState {
-  peaks: number[] | null;
-  peaksPerSec: number;
-  stage: WaveformStage | null;
-  progress: number;
-  fileName: string;
+function makeBlankDeck(deck: DeckNumber): DeckState {
+  return {
+    deck,
+    trackLoaded: false,
+    title: '',
+    artist: '',
+    elapsedSec: 0,
+    totalSec: 0,
+    currentBpm: 0,
+    trackBpm: 0,
+    speedState: 0,
+    keyIndex: null,
+    keyCamelot: '',
+    fader: 0,
+    play: false,
+    updatedAt: 0,
+  };
 }
 
-const blankWaveform = (): WaveformState => ({
-  peaks: null,
-  peaksPerSec: 200,
-  stage: null,
-  progress: 0,
-  fileName: '',
-});
+function makeBlankWaveform(): WaveformState {
+  return { peaks: null, peaksPerSec: 200, stage: null, progress: 0, fileName: '' };
+}
+
+type DecksState = Record<DeckNumber, DeckState>;
+type WaveformsState = Record<DeckNumber, WaveformState>;
 
 export default function App() {
-  const [decks, setDecks] = useState<Record<DeckNumber, DeckState>>({
-    1: blankDeck(1),
-    2: blankDeck(2),
-    3: blankDeck(3),
-    4: blankDeck(4),
+  const [decks, setDecks] = useState<DecksState>({
+    1: makeBlankDeck(1),
+    2: makeBlankDeck(2),
+    3: makeBlankDeck(3),
+    4: makeBlankDeck(4),
   });
-  const [waveforms, setWaveforms] = useState<Record<DeckNumber, WaveformState>>({
-    1: blankWaveform(),
-    2: blankWaveform(),
-    3: blankWaveform(),
-    4: blankWaveform(),
+  const [waveforms, setWaveforms] = useState<WaveformsState>({
+    1: makeBlankWaveform(),
+    2: makeBlankWaveform(),
+    3: makeBlankWaveform(),
+    4: makeBlankWaveform(),
   });
   const [connected, setConnected] = useState(false);
   const [sendWhenStopped, setSendWhenStopped] = useState(false);
   const [settingBusy, setSettingBusy] = useState(false);
-  const lastSeq = useRef(0);
+
+  const lastSeq = useRef(-1);
+  const unmounting = useRef(false);
+  const retryTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
 
   const wsUrl = useMemo(() => {
     const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
     return `${proto}://${window.location.host}/ws`;
   }, []);
 
-  useEffect(() => {
-    let ws: WebSocket | null = null;
-    let closedByUs = false;
-    let retryT: number | null = null;
+  const connect = useCallback(() => {
+    const ws = new WebSocket(wsUrl);
+    wsRef.current = ws;
 
-    const connect = () => {
-      ws = new WebSocket(wsUrl);
+    ws.onopen = () => setConnected(true);
 
-      ws.onopen = () => {
-        setConnected(true);
-      };
+    ws.onmessage = (ev) => {
+      let msg: WsPayload;
+      try { msg = JSON.parse(ev.data as string); } catch { return; }
 
-      ws.onclose = () => {
-        setConnected(false);
-        if (!closedByUs) retryT = window.setTimeout(connect, 800);
-      };
-
-      ws.onerror = () => {
-        // onclose will follow
-      };
-
-      ws.onmessage = (ev) => {
-        try {
-          const msg = JSON.parse(ev.data) as WsPayload;
-          if (msg.type === 'snapshot') {
-            if (msg.seq <= lastSeq.current) return;
-            lastSeq.current = msg.seq;
-            setDecks(msg.decks);
-          } else if (msg.type === 'waveform_status') {
-            const s = msg as WaveformStatusPayload;
-            setWaveforms((prev) => ({
-              ...prev,
-              [s.deck]: {
-                ...prev[s.deck],
-                stage: s.stage,
-                progress: s.progress,
-                fileName: s.fileName,
-              },
-            }));
-          } else if (msg.type === 'waveform_data') {
-            const d = msg as WaveformDataPayload;
-            setWaveforms((prev) => ({
-              ...prev,
-              [d.deck]: {
-                peaks: d.peaks,
-                peaksPerSec: d.peaksPerSec,
-                stage: 'ready',
-                progress: 100,
-                fileName: d.fileName,
-              },
-            }));
-          }
-        } catch {
-          // ignore
-        }
-      };
+      if (msg.type === 'snapshot') {
+        if (msg.seq <= lastSeq.current) return;
+        lastSeq.current = msg.seq;
+        setDecks(msg.decks as DecksState);
+      } else if (msg.type === 'waveform_status') {
+        const { deck, stage, progress, fileName } = msg;
+        setWaveforms((prev) => ({
+          ...prev,
+          [deck]: { ...prev[deck], stage, progress, fileName },
+        }));
+      } else if (msg.type === 'waveform_data') {
+        const { deck, peaks, peaksPerSec, fileName } = msg;
+        setWaveforms((prev) => ({
+          ...prev,
+          [deck]: { peaks, peaksPerSec, stage: 'ready', progress: 100, fileName },
+        }));
+      }
     };
 
-    connect();
-
-    return () => {
-      closedByUs = true;
-      if (retryT) window.clearTimeout(retryT);
-      try { ws?.close(); } catch { }
+    ws.onclose = () => {
+      setConnected(false);
+      if (!unmounting.current) {
+        retryTimeout.current = setTimeout(connect, 800);
+      }
     };
+
+    ws.onerror = () => ws.close();
   }, [wsUrl]);
 
   useEffect(() => {
-    let cancelled = false;
-    fetch('/api/timecode/send-when-stopped')
-      .then((r) => r.json())
-      .then((data) => {
-        if (cancelled) return;
-        setSendWhenStopped(data?.enabled === true);
-      })
-      .catch(() => {
-        // ignore
-      });
-
+    unmounting.current = false;
+    connect();
     return () => {
-      cancelled = true;
+      unmounting.current = true;
+      if (retryTimeout.current) clearTimeout(retryTimeout.current);
+      wsRef.current?.close();
     };
+  }, [connect]);
+
+  useEffect(() => {
+    const ac = new AbortController();
+    fetch('/api/timecode/send-when-stopped', { signal: ac.signal })
+      .then((r) => r.json())
+      .then((data: { enabled: boolean }) => { setSendWhenStopped(data.enabled === true); })
+      .catch(() => {});
+    return () => ac.abort();
   }, []);
 
-  const toggleSendWhenStopped = async () => {
+  const toggleSendWhenStopped = useCallback(async () => {
     if (settingBusy) return;
     setSettingBusy(true);
-    const next = !sendWhenStopped;
     try {
       const res = await fetch('/api/timecode/send-when-stopped', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enabled: next }),
+        body: JSON.stringify({ enabled: !sendWhenStopped }),
       });
-      const data = await res.json();
-      setSendWhenStopped(data?.enabled === true);
+      const data: { enabled: boolean } = await res.json();
+      setSendWhenStopped(data.enabled === true);
     } catch {
-      // ignore
     } finally {
       setSettingBusy(false);
     }
-  };
+  }, [settingBusy, sendWhenStopped]);
 
   return (
-    <>
+    <div className="app">
       <div className="grid">
-        {DECKS.map((d) => (
+        {DECK_NUMBERS.map((d) => (
           <DeckCard
             key={d}
-            deck={d}
             state={decks[d]}
             waveform={waveforms[d]}
             connected={connected}
           />
         ))}
       </div>
-
-      <div className="overlayToggle">
-        <button
-          className={`toggleBtn ${sendWhenStopped ? 'on' : 'off'}`}
-          onClick={toggleSendWhenStopped}
-          disabled={settingBusy}
-        >
-          {sendWhenStopped ? 'TC while stopped: ON' : 'TC while stopped: OFF'}
-        </button>
-      </div>
-    </>
+      <button
+        className={`tcToggle${sendWhenStopped ? ' tcToggle--on' : ''}${settingBusy ? ' tcToggle--busy' : ''}`}
+        onClick={toggleSendWhenStopped}
+        disabled={settingBusy}
+        aria-label="Toggle timecode while stopped"
+      >
+        {sendWhenStopped ? 'TC while stopped: ON' : 'TC while stopped: OFF'}
+      </button>
+    </div>
   );
 }

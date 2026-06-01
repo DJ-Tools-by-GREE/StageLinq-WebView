@@ -1,124 +1,124 @@
-import React, { useMemo } from 'react';
-import type { DeckNumber, DeckState } from './types';
-import type { WaveformState } from './App';
-import WaveformDisplay from './WaveformDisplay';
+import type { CSSProperties } from 'react';
+import type { DeckState } from './types.js';
+import type { WaveformState } from './appTypes.js';
+import WaveformDisplay from './WaveformDisplay.js';
 
-function pad2(n: number): string {
-  return String(Math.max(0, Math.floor(n))).padStart(2, '0');
-}
+const DECK_COLORS: Record<number, string> = {
+  1: '#b100ff',
+  2: '#2f7bff',
+  3: '#00c853',
+  4: '#ff2d2d',
+};
 
 function formatMMSS(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds <= 0) return '00:00';
   const s = Math.floor(seconds);
-  const m = Math.floor(s / 60);
-  const r = s % 60;
-  return `${pad2(m)}:${pad2(r)}`;
+  return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 }
 
-function signedPercentFromSpeedState(speedState: number): string {
+function signedPercent(speedState: number): string {
   if (!Number.isFinite(speedState)) return '0.00%';
-  const sign = speedState >= 0 ? '+' : '';
-  return `${sign}${speedState.toFixed(2)}%`;
+  return `${speedState >= 0 ? '+' : ''}${speedState.toFixed(2)}%`;
 }
 
-export default function DeckCard(props: {
-  deck: DeckNumber;
+interface Props {
   state: DeckState;
   waveform: WaveformState;
   connected: boolean;
-}) {
-  const { deck, state, waveform, connected } = props;
+}
 
-  const themeClass = `theme-d${deck}`;
-  const faderOnRight = deck === 1 || deck === 3;
+export default function DeckCard({ state, waveform, connected }: Props) {
+  const { deck, trackLoaded, title, artist, elapsedSec, totalSec, currentBpm,
+          trackBpm, speedState, keyCamelot, fader, play } = state;
 
-  const elapsed = useMemo(() => state.trackLoaded ? formatMMSS(state.elapsedSec) : '00:00', [state.trackLoaded, state.elapsedSec]);
-  const total = useMemo(() => state.trackLoaded ? formatMMSS(state.totalSec) : '00:00', [state.trackLoaded, state.totalSec]);
-  const remaining = useMemo(() => state.trackLoaded ? formatMMSS(Math.max(0, state.totalSec - state.elapsedSec)) : '00:00', [state.trackLoaded, state.totalSec, state.elapsedSec]);
-  const title = state.trackLoaded ? (state.title || '—') : '—';
-  const artist = state.trackLoaded ? (state.artist || '—') : '—';
-
-  const bpm = state.trackLoaded && Number.isFinite(state.currentBpm) ? state.currentBpm.toFixed(2) : '—';
-  const trackBpm = state.trackLoaded && Number.isFinite(state.trackBpm) && state.trackBpm > 0 ? state.trackBpm.toFixed(2) : '—';
-  const rel = state.trackLoaded ? signedPercentFromSpeedState(state.speedState) : '—';
-
-  const faderPct = Math.round((state.fader ?? 0) * 100);
+  const color = DECK_COLORS[deck] ?? '#ffffff';
+  const remaining = Math.max(0, totalSec - elapsedSec);
+  const faderPct = Math.round(fader * 100);
+  const isPlaying = play && trackLoaded;
 
   return (
-    <div className={`card ${themeClass}`}>
-      <div className="deckBorder" />
-
-      <div className="cardHeader">
-        <div className="art" title="Artwork (placeholder)">
-          D{deck}
+    <div className="deckCard" style={{ '--deck-color': color } as CSSProperties}>
+      {/* Header row */}
+      <div className="deckHeader">
+        <div className="deckId">
+          <span className="deckLabel">D{deck}</span>
+          {isPlaying && <span className="nowPlaying" aria-label="Now playing" />}
         </div>
-
-        <div className="titleBlock">
-          <div className="title" title={title}>
-            {state.trackLoaded && state.play ? <span className="playDot" /> : null}
-            {title}
-          </div>
-          <div className="artist" title={artist}>{artist}</div>
-        </div>
-
-        <div className="stats">
-          <div className="pills">
-            <span className="pill">Key: <strong>{state.trackLoaded ? (state.keyCamelot || '--') : '--'}</strong></span>
-            <span className="pill">{connected ? 'LIVE' : 'OFFLINE'}</span>
-          </div>
-
-          <div className="kv">
-            <div><span className="label">Elapsed / Total</span></div>
-            <div><strong>{elapsed}</strong> / <strong>{total}</strong></div>
-            <div className="label">Remaining: {remaining}</div>
-          </div>
+        <div className="deckHeaderRight">
+          <span className={`connBadge${connected ? ' connBadge--live' : ''}`}>
+            {connected ? 'LIVE' : 'OFFLINE'}
+          </span>
+          <span className="keyBadge">
+            {trackLoaded && keyCamelot ? keyCamelot : '--'}
+          </span>
         </div>
       </div>
 
-      <div className="middle">
-        {!faderOnRight ? (
-          <div className="fader" aria-label={`Deck ${deck} channel fader`}>
-            <div className="faderTrack">
-              <div className="faderFill" style={{ height: `${faderPct}%` }} />
-            </div>
-            <div className="faderPct">{faderPct}%</div>
-          </div>
-        ) : null}
+      {/* Track info */}
+      <div className="trackInfo">
+        <div className="trackTitle">{trackLoaded && title ? title : '—'}</div>
+        <div className="trackArtist">{trackLoaded && artist ? artist : '—'}</div>
+      </div>
 
-        <div className="content">
-          <div className="row">
-            <div className="label">BPM</div>
-            <div className="value">{bpm}</div>
+      {/* Main data row: timing + bpm/pitch + fader */}
+      <div className="deckBody">
+        <div className="timingBlock">
+          <div className="timeRow">
+            <span className="timeLabel">ELAPSED</span>
+            <span className="timeValue elapsed">{trackLoaded ? formatMMSS(elapsedSec) : '00:00'}</span>
           </div>
-          <div className="row">
-            <div className="label">Track BPM</div>
-            <div className="value">{trackBpm}</div>
+          <div className="timeRow">
+            <span className="timeLabel">REMAIN</span>
+            <span className="timeValue remain">{trackLoaded ? formatMMSS(remaining) : '00:00'}</span>
           </div>
-          <div className="row">
-            <div className="label">Relative</div>
-            <div className="value">{rel}</div>
+          <div className="timeRow">
+            <span className="timeLabel">TOTAL</span>
+            <span className="timeValue total">{trackLoaded ? formatMMSS(totalSec) : '00:00'}</span>
           </div>
         </div>
 
-        {faderOnRight ? (
-          <div className="fader" aria-label={`Deck ${deck} channel fader`}>
-            <div className="faderTrack">
-              <div className="faderFill" style={{ height: `${faderPct}%` }} />
-            </div>
-            <div className="faderPct">{faderPct}%</div>
+        <div className="bpmBlock">
+          <div className="bpmRow">
+            <span className="bpmLabel">BPM</span>
+            <span className="bpmValue live">
+              {trackLoaded ? currentBpm.toFixed(2) : '—'}
+            </span>
           </div>
-        ) : null}
+          <div className="bpmRow">
+            <span className="bpmLabel">TRACK</span>
+            <span className="bpmValue">
+              {trackLoaded && trackBpm > 0 ? trackBpm.toFixed(2) : '—'}
+            </span>
+          </div>
+          <div className="bpmRow">
+            <span className="bpmLabel">PITCH</span>
+            <span className={`bpmValue pitch${!trackLoaded ? '' : speedState > 0 ? ' pitch--up' : speedState < 0 ? ' pitch--down' : ''}`}>
+              {trackLoaded ? signedPercent(speedState) : '—'}
+            </span>
+          </div>
+        </div>
+
+        <div className="faderBlock">
+          <div className="faderTrack">
+            <div className="faderFill" style={{ height: `${faderPct}%` }} />
+            <div className="faderThumb" style={{ bottom: `${faderPct}%` }} />
+          </div>
+          <span className="faderLabel">{faderPct}%</span>
+        </div>
       </div>
 
-      <WaveformDisplay
-        deck={deck}
-        peaks={waveform.peaks}
-        peaksPerSec={waveform.peaksPerSec}
-        elapsedSec={state.elapsedSec}
-        totalSec={state.totalSec}
-        stage={waveform.stage}
-        progress={waveform.progress}
-      />
+      {/* Waveform */}
+      <div className="waveformSection">
+        <WaveformDisplay
+          deck={deck}
+          peaks={waveform.peaks}
+          peaksPerSec={waveform.peaksPerSec}
+          elapsedSec={elapsedSec}
+          totalSec={totalSec}
+          stage={waveform.stage}
+          progress={waveform.progress}
+        />
+      </div>
     </div>
   );
 }
