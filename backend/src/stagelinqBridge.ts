@@ -131,15 +131,17 @@ export class StageLinqBridge {
   }
 
   private captureNetPath(deck: DeckNumber, rawValue: unknown) {
-    if (typeof rawValue === 'string' && rawValue.startsWith('net://')) {
-      this.rawNetworkPaths[deck] = rawValue;
+    if (typeof rawValue === 'string' && rawValue.trim()) {
+      this.rawNetworkPaths[deck] = rawValue.trim();
     }
   }
 
   private maybeFireTrackChanged(deck: DeckNumber) {
     const fn = this.decks[deck].fileName;
     const netPath = this.rawNetworkPaths[deck];
-    if (fn && netPath && fn !== this.lastTriggeredFileNames[deck]) {
+    logLifecycle(`[WAVEFORM] maybeFireTrackChanged deck=${deck} fn="${fn}" netPath="${netPath}" lastTriggered="${this.lastTriggeredFileNames[deck]}"`);
+    if (!fn || !netPath) return;
+    if (fn !== this.lastTriggeredFileNames[deck]) {
       this.lastTriggeredFileNames[deck] = fn;
       this.opts.onTrackChanged?.(deck, fn, netPath);
     }

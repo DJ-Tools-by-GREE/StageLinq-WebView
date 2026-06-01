@@ -407,6 +407,7 @@ async function main() {
       reconnecting = false;
     },
     onTrackChanged: (deck, fileName, rawNetworkPath) => {
+      logLifecycle(`[WAVEFORM] onTrackChanged deck=${deck} file="${fileName}" path="${rawNetworkPath}" inPlaylist=${activePlaylistFiles.has(fileName)}`);
       if (!activePlaylistFiles.has(fileName)) return;
       if (peaksCache.has(fileName)) {
         broadcastWaveformData(deck, fileName, peaksCache.get(fileName)!);
