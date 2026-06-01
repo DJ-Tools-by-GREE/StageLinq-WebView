@@ -86,6 +86,10 @@ export class StageLinqBridge {
   // Throttle elapsedSec updates (we don't need frame-accurate like timecode)
   private lastElapsedEmitSec: Record<DeckNumber, number> = { 1: -1, 2: -1, 3: -1, 4: -1 };
 
+  // Once /Mixer/CH{n}faderPosition is seen for a deck, ignore ExternalMixerVolume for that deck.
+  // These two paths report different physical things on internal-mixer hardware; mixing them causes jitter.
+  private seenMixerFader: Record<DeckNumber, boolean> = { 1: false, 2: false, 3: false, 4: false };
+
   // Watchdog: timestamps of last beatMessage received per deck and across all decks
   private lastBeatAtMs: Record<DeckNumber, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
   private lastAnyBeatAtMs = 0;
@@ -425,6 +429,7 @@ export class StageLinqBridge {
 
         if (typeof rawValue === "number") {
           this.decks[ch].fader = clamp01(rawValue);
+          this.seenMixerFader[ch] = true;
           this.touch(ch);
 
           if (!this.seen.fader) {
@@ -604,11 +609,13 @@ export class StageLinqBridge {
 
       // ---- Fader fallback if device publishes it on deck ----
       if ((/ExternalMixerVolume$/i.test(tail) || /MixerVolume$/i.test(tail)) && typeof rawValue === "number") {
-        ds.fader = clamp01(rawValue);
-        this.touch(deck);
-        if (!this.seen.fader) {
-          this.seen.fader = true;
-          logDiscover(deck, "[DISCOVER] Fader (deck) path:", name, "=", rawValue);
+        if (!this.seenMixerFader[deck]) {
+          ds.fader = clamp01(rawValue);
+          this.touch(deck);
+          if (!this.seen.fader) {
+            this.seen.fader = true;
+            logDiscover(deck, "[DISCOVER] Fader (deck) path:", name, "=", rawValue);
+          }
         }
       }
 
@@ -703,10 +710,12 @@ export class StageLinqBridge {
       if (typeof status?.currentBpm === "number") {
         ds.currentBpm = status.currentBpm;
       }
-      if (typeof status?.externalMixerVolume === "number") {
+      if (typeof status?.externalMixerVolume === "number" && !this.seenMixerFader[deck]) {
         ds.fader = clamp01(status.externalMixerVolume);
       }
-      if (typeof status?.play === "boolean") ds.play = status.play;
+      // Do NOT set ds.play here — nowPlaying fires on metadata events and its play field
+      // does not reliably reflect the current transport state. Play state is owned exclusively
+      // by the message/stateChanged handlers which also call maybeLogPlayChange.
 
       this.recomputeDerived(deck);
       this.touch(deck);
@@ -863,7 +872,7 @@ export class StageLinqBridge {
 
 
       else if (tail === "ExternalMixerVolume" || tail === "Track/ExternalMixerVolume") {
-        if (typeof value === "number") ds.fader = clamp01(value);
+        if (typeof value === "number" && !this.seenMixerFader[deck]) ds.fader = clamp01(value);
       } else if (tail === "ArtistName" || tail === "Track/ArtistName") {
         if (typeof value === "string") {
           if (value.trim()) {
@@ -995,18 +1004,11 @@ export class StageLinqBridge {
     const filePath = '/' + parts.slice(3).join('/');
 
     logLifecycle(`[WAVEFORM] downloadFile deviceId="${deviceId}" filePath="${filePath}"`);
+    logLifecycle(`[WAVEFORM] stageLinqDevices proto=${this.stageLinqDevices ? Object.getOwnPropertyNames(Object.getPrototypeOf(this.stageLinqDevices)).slice(0, 5).join(',') : 'null'}`);
 
-    const ft = this.stageLinqDevices?.getFileTransferService(deviceId);
-    if (!ft) throw new Error(`FileTransfer service not available for ${deviceId}`);
-
-    const handler = (progress: { percentComplete: number }) => {
-      onProgress(Math.round(progress.percentComplete));
-    };
-    ft.on('fileTransferProgress', handler);
-    try {
-      return await ft.getFile(filePath);
-    } finally {
-      ft.off('fileTransferProgress', handler);
-    }
+    // Use the library's own downloadFile method which handles availability checks internally.
+    const data = await this.stageLinqDevices.downloadFile(deviceId, filePath);
+    onProgress(100);
+    return data;
   }
 }
