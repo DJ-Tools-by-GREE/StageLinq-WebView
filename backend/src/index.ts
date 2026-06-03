@@ -14,7 +14,7 @@ import { ArtNetTimecodeBroadcaster } from './artnetTimecode.js';
 import { OscBpmSender } from './oscBpm.js';
 import { RECONNECT_DELAY_MS, WS_FPS, WAVEFORM_PEAKS_PER_SEC } from './constants.js';
 import { States, StageLinqValue } from "@gree44/stagelinq";
-import { logError, logLifecycle, logStatus, logUiOut } from './logging.js';
+import { logError, logLifecycle, logUiOut, applyLoggingConfig, applyDisplayConfig, DISPLAY_ENABLED, logDashboard, deckColor, getStatusSlot, DIM, R } from './logging.js';
 import { generateWaveformPeaks, peaksCache, artworkCache } from './waveformService.js';
 
 function isIgnorableStageLinqError(err: unknown): boolean {
@@ -99,10 +99,25 @@ interface RootConfig {
     target_port?: number;
     speedmaster?: number;
   };
+  sacn_sim?: { enabled?: boolean };
   playlists?: Array<{
     name?: string;
     content?: ConfigTrack[];
   }>;
+  logging?: {
+    lifecycle?: boolean;
+    playback?: boolean;
+    discover?: boolean;
+    discoverSpeed?: boolean;
+    bpmDebug?: boolean;
+    uiOut?: boolean;
+    errors?: boolean;
+  };
+  display?: {
+    dashboard?: boolean;
+    artnet?: boolean;
+    info?: boolean;
+  };
 }
 
 function stripJsonComments(input: string): string {
@@ -253,6 +268,8 @@ function getLocalIpv4Addresses(): string[] {
 
 async function main() {
   let config = await loadRootConfig();
+  if (config?.logging) applyLoggingConfig(config.logging);
+  if (config?.display) applyDisplayConfig(config.display);
   let sendTimecodeWhenStopped = false;
 
   // Art-Net settings from root config.json (env vars override).
@@ -275,6 +292,7 @@ async function main() {
   const controlMode = String(process.env.CONTROL_INPUT_MODE ?? config?.control_input?.mode ?? 'sacn').toLowerCase();
   const sacnUniverse = Number(process.env.SACN_UNIVERSE ?? config?.control_input?.universe ?? 20);
   const controlAddress = Number(process.env.SACN_ADDRESS ?? config?.control_input?.address ?? 1);
+  const sacnSimEnabled = (process.env.SACN_SIM === '1') || (config?.sacn_sim?.enabled === true);
   const controlChannelIndex = Math.max(0, controlAddress - 1);
 
   let trackOffsets = buildTrackOffsetMap(config);
@@ -287,6 +305,8 @@ async function main() {
     try {
       const next = await loadRootConfig();
       config = next;
+      if (config?.logging) applyLoggingConfig(config.logging);
+      if (config?.display) applyDisplayConfig(config.display);
       trackOffsets = buildTrackOffsetMap(config);
       activePlaylistFiles = buildActivePlaylistFileSet(config);
       logLifecycle(`[CONFIG] Reloaded. Offset entries: ${trackOffsets.size}`);
@@ -356,6 +376,98 @@ async function main() {
     res.send(entry.data);
   });
 
+  // sACN deck simulator — sends a real sACN packet to the configured universe/address
+  let sacnSender: any = null;
+  const DECK_DMX: Record<number, number> = { 1: 50, 2: 127, 3: 178, 4: 230 };
+  if (sacnSimEnabled) app.post('/api/sacn/deck', async (req, res) => {
+    const deck = Number(req?.body?.deck);
+    if (![1, 2, 3, 4].includes(deck)) { res.status(400).json({ error: 'deck must be 1–4' }); return; }
+    try {
+      if (!sacnSender) {
+        const sacnPkg: any = require('sacn');
+        const SenderClass = sacnPkg?.Sender ?? sacnPkg?.default?.Sender;
+        sacnSender = new SenderClass({ universe: sacnUniverse, minRefreshRate: 0, defaultPacketOptions: { useRawDmxValues: true } });
+      }
+      const payload: Record<number, number> = {};
+      payload[controlAddress] = DECK_DMX[deck];
+      await sacnSender.send({ payload });
+      res.json({ ok: true, deck, universe: sacnUniverse, address: controlAddress, dmx: DECK_DMX[deck] });
+    } catch (e: any) {
+      res.status(500).json({ error: e?.message || String(e) });
+    }
+  });
+
+  if (sacnSimEnabled) app.get('/sacn-sim', (_req, res) => {
+    const u = sacnUniverse;
+    const ch = controlAddress;
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>sACN Deck Simulator</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #111; color: #eee; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 24px; }
+  h1 { font-size: 1.1rem; opacity: 0.5; letter-spacing: 0.05em; text-transform: uppercase; }
+  .meta { font-size: 0.75rem; opacity: 0.4; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  button {
+    width: 160px; height: 120px; border: none; border-radius: 12px; cursor: pointer;
+    font-size: 2rem; font-weight: bold; color: #fff; transition: transform 0.1s, filter 0.1s;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+  }
+  button:hover { filter: brightness(1.25); }
+  button:active { transform: scale(0.94); }
+  button.active { outline: 3px solid #fff; outline-offset: 3px; }
+  button[data-deck="1"] { background: #9333ea; }
+  button[data-deck="2"] { background: #2563eb; }
+  button[data-deck="3"] { background: #16a34a; }
+  button[data-deck="4"] { background: #dc2626; }
+  #status { font-size: 0.8rem; opacity: 0.5; min-height: 1.2em; }
+</style>
+</head>
+<body>
+<h1>sACN Deck Simulator</h1>
+<div class="meta">Universe ${u} &nbsp;·&nbsp; CH ${ch}</div>
+<div class="grid">
+  <button data-deck="1">D1</button>
+  <button data-deck="2">D2</button>
+  <button data-deck="3">D3</button>
+  <button data-deck="4">D4</button>
+</div>
+<div id="status">—</div>
+<script>
+  const status = document.getElementById('status');
+  let active = null;
+  document.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const deck = btn.dataset.deck;
+      try {
+        const r = await fetch('/api/sacn/deck', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ deck: Number(deck) })
+        });
+        const j = await r.json();
+        if (j.ok) {
+          document.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          active = deck;
+          status.textContent = 'Sent → U${u} CH${ch} = ' + j.dmx + ' (Deck ' + deck + ')';
+        } else {
+          status.textContent = 'Error: ' + (j.error || 'unknown');
+        }
+      } catch (e) {
+        status.textContent = 'Fetch error: ' + e.message;
+      }
+    });
+  });
+</script>
+</body>
+</html>`);
+  });
+
   // Serve frontend build if present
   const frontendDist = path.resolve(__dirname, '../../frontend/dist');
   app.use(express.static(frontendDist));
@@ -370,6 +482,9 @@ async function main() {
   let bridge!: StageLinqBridge;
 
   let seq = 0;
+  let uiUrls: string[] = [];
+  let spinnerFrame = 0;
+  const SPINNER = ['⡿', '⣟', '⣯', '⣷', '⣾', '⣽', '⣻', '⢿'];
   const clients = new Set<any>();
   const waveformTaskIds: Record<DeckNumber, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
 
@@ -524,11 +639,13 @@ async function main() {
         process.once('SIGINT', () => {
           oscBpm?.stop();
           try { sACN.close(); } catch {}
+          try { sacnSender?.close(); } catch {}
           process.exit(0);
         });
         process.once('SIGTERM', () => {
           oscBpm?.stop();
           try { sACN.close(); } catch {}
+          try { sacnSender?.close(); } catch {}
           process.exit(0);
         });
 
@@ -633,10 +750,7 @@ async function main() {
     const decks = bridge.getDecks();
 
     if (selectedDeck && oscBpm) {
-      logStatus('');
       oscBpm.sendDeckBpm(decks[selectedDeck]);
-    } else if (oscEnabled && oscBpm) {
-      logStatus('[OSC] Waiting for selected deck (sACN control has not selected a deck yet).');
     }
 
     const payload: SnapshotPayload = {
@@ -654,6 +768,74 @@ async function main() {
     }
 
     broadcastMsg(payload);
+
+    // Build multi-line dashboard
+    const deckNums: DeckNumber[] = [1, 2, 3, 4];
+    const col = (n: number, s: string) => deckColor(n, s);
+    const pad = (s: string, w: number) => s.length >= w ? s.slice(0, w) : s + ' '.repeat(w - s.length);
+
+    const header = deckNums.map(n =>
+      col(n, pad(`── Deck ${n} ──────────────────────`, 34))
+    ).join('');
+
+    const titleRow = deckNums.map(n => {
+      const d = decks[n];
+      if (!d.trackLoaded) return col(n, pad('(empty)', 34));
+      const icon = d.play ? '▶' : '⏸';
+      const title = pad(d.title || d.fileName || '?', 31);
+      return col(n, `${icon} ${title} `);
+    }).join('');
+
+    const artistRow = deckNums.map(n => {
+      const d = decks[n];
+      return col(n, pad(d.trackLoaded ? (d.artist || '') : '', 34));
+    }).join('');
+
+    const bpmRow = deckNums.map(n => {
+      const d = decks[n];
+      const bpm  = d.currentBpm  > 0 ? d.currentBpm.toFixed(2)  : '--';
+      const tbpm = d.trackBpm    > 0 ? d.trackBpm.toFixed(2)    : '--';
+      const spd  = d.speedState !== 0 ? `${d.speedState > 0 ? '+' : ''}${d.speedState.toFixed(2)}%` : '±0%';
+      return pad(`BPM ${bpm}  track ${tbpm}  ${spd}`, 34);
+    }).join('');
+
+    const keyRow = deckNums.map(n => {
+      const d = decks[n];
+      const key = d.keyCamelot || (d.keyIndex != null ? `#${d.keyIndex}` : '--');
+      const fader = `fader ${(d.fader * 100).toFixed(0)}%`;
+      const elapsed = d.elapsedSec > 0
+        ? `${Math.floor(d.elapsedSec / 60)}:${String(Math.floor(d.elapsedSec % 60)).padStart(2, '0')}`
+        : '--:--';
+      const total = d.totalSec > 0
+        ? `${Math.floor(d.totalSec / 60)}:${String(Math.floor(d.totalSec % 60)).padStart(2, '0')}`
+        : '--:--';
+      return pad(`key ${key}  ${fader}  ${elapsed}/${total}`, 34);
+    }).join('');
+
+    const deckSel = selectedDeck ? col(selectedDeck, `Deck ${selectedDeck} selected`) : `${DIM}no deck selected${R}`;
+    const oscSlot = getStatusSlot('osc');
+    const artnetSlot = DISPLAY_ENABLED.artnet ? getStatusSlot('artnet') : '';
+    const spinner = SPINNER[Math.floor(spinnerFrame++ / 4) % SPINNER.length];
+    const oscStatus = selectedDeck
+      ? (oscSlot || `${DIM}OSC idle${R}`)
+      : `${spinner} waiting for sACN deck select`;
+    const statusRow = [deckSel, artnetSlot, oscStatus].filter(Boolean).join('  |  ');
+
+    const lines: string[] = [header, titleRow, artistRow, bpmRow, keyRow, statusRow];
+
+    if (DISPLAY_ENABLED.info) {
+      const tcInfo = artnetEnabled
+        ? `ArtNet ${artnetTargetIp}:${artnetPort} ${artnetFps}fps`
+        : `${DIM}ArtNet disabled${R}`;
+      const oscInfo = oscEnabled
+        ? `OSC ${oscTargetIp}:${oscTargetPort} SM${oscSpeedMaster}`
+        : `${DIM}OSC disabled${R}`;
+      const urlParts = uiUrls.length > 0 ? uiUrls.map(u => `UI ${u}`) : ['starting...'];
+      if (sacnSimEnabled && uiUrls.length > 0) urlParts.push(`sACN-sim ${uiUrls[0].replace(/\/$/, '')}/sacn-sim`);
+      lines.push(`${DIM}${tcInfo}  ${oscInfo}  ${urlParts.join('  ')}${R}`);
+    }
+
+    logDashboard(lines);
   }, intervalMs);
 
 
@@ -661,14 +843,17 @@ async function main() {
   server.listen(PORT, '0.0.0.0', () => {
     const ips = getLocalIpv4Addresses();
     if (ips.length === 0) {
+      uiUrls = [`http://localhost:${PORT}/`];
       logLifecycle(`Web UI: http://localhost:${PORT}/`);
       logLifecycle(`WS: ws://localhost:${PORT}/ws`);
       return;
     }
 
     for (const ip of ips) {
+      uiUrls.push(`http://${ip}:${PORT}/`);
       logLifecycle(`Web UI: http://${ip}:${PORT}/`);
       logLifecycle(`WS: ws://${ip}:${PORT}/ws`);
+      if (sacnSimEnabled) logLifecycle(`sACN Sim: http://${ip}:${PORT}/sacn-sim`);
     }
   });
 }

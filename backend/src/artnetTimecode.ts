@@ -232,7 +232,7 @@ export class ArtNetTimecodeBroadcaster {
     // Send every loop tick (no frame-skipping), so receivers get continuous TC updates.
 
     const tc = framesToHMSF(totalFrames, this.opts.fps);
-    logStatus(
+    logStatus('artnet',
       `[ArtNet TC] ${String(tc.hours).padStart(2, '0')}:${String(tc.minutes).padStart(2, '0')}:${String(tc.seconds).padStart(2, '0')}:${String(tc.frames).padStart(2, '0')}`
     );
     if (this.socketFaulted) return;

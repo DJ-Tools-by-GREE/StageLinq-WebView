@@ -1,5 +1,22 @@
 {
     "current_playlist": 0,
+    "sacn_sim": {
+        "enabled": true
+    },
+    "display": {
+        "dashboard": true,
+        "artnet": true,
+        "info": true
+    },
+    "logging": {
+        "lifecycle": true,
+        "playback": true,
+        "discover": false,
+        "discoverSpeed": false,
+        "bpmDebug": false,
+        "uiOut": false,
+        "errors": true
+    },
     "timecode": {
         "fps": 30,
         "target_ip": "10.15.10.109",
