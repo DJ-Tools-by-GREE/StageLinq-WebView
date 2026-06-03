@@ -54,7 +54,6 @@ export class StageLinqBridge {
     total: false,
     key: false,
     speed: false,
-    fader: false,
   };
 
   // Sample rate comes from StateMap: /Engine/DeckX/Track/SampleRate
@@ -85,10 +84,6 @@ export class StageLinqBridge {
 
   // Throttle elapsedSec updates (we don't need frame-accurate like timecode)
   private lastElapsedEmitSec: Record<DeckNumber, number> = { 1: -1, 2: -1, 3: -1, 4: -1 };
-
-  // Once /Mixer/CH{n}faderPosition is seen for a deck, ignore ExternalMixerVolume for that deck.
-  // These two paths report different physical things on internal-mixer hardware; mixing them causes jitter.
-  private seenMixerFader: Record<DeckNumber, boolean> = { 1: false, 2: false, 3: false, 4: false };
 
   // Watchdog: timestamps of last beatMessage received per deck and across all decks
   private lastBeatAtMs: Record<DeckNumber, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
@@ -421,21 +416,13 @@ export class StageLinqBridge {
         json?.text ??
         json;
 
-      // ---- Mixer channel faders (volume) ----
-      // Your probe shows paths like: /Mixer/CH2faderPosition
+      // ---- Mixer channel faders (/Mixer/CH{n}faderPosition — raw position, 0..1) ----
       const mixerMatch = String(name).match(/^\/Mixer\/CH([1-4])faderPosition$/);
       if (mixerMatch) {
         const ch = Number(mixerMatch[1]) as DeckNumber;
-
         if (typeof rawValue === "number") {
           this.decks[ch].fader = clamp01(rawValue);
-          this.seenMixerFader[ch] = true;
           this.touch(ch);
-          logDiscover(ch, `[FADER] deck=${ch} source=MixerCH raw=${rawValue} applied=${clamp01(rawValue).toFixed(4)}`);
-
-          if (!this.seen.fader) {
-            this.seen.fader = true;
-          }
         }
         return;
       }
@@ -607,19 +594,7 @@ export class StageLinqBridge {
         }
       }
 
-      // ---- Fader fallback if device publishes it on deck ----
-      if ((/ExternalMixerVolume$/i.test(tail) || /MixerVolume$/i.test(tail)) && typeof rawValue === "number") {
-        if (!this.seenMixerFader[deck]) {
-          ds.fader = clamp01(rawValue);
-          this.touch(deck);
-          logDiscover(deck, `[FADER] deck=${deck} source=ExternalMixerVolume(message) raw=${rawValue} applied=${clamp01(rawValue).toFixed(4)}`);
-          if (!this.seen.fader) {
-            this.seen.fader = true;
-          }
-        } else {
-          logDiscover(deck, `[FADER] deck=${deck} source=ExternalMixerVolume(message) raw=${rawValue} BLOCKED (MixerCH seen)`);
-        }
-      }
+      // ExternalMixerVolume is post-gain and not used — fader is sourced exclusively from /Mixer/CH{n}faderPosition.
 
       // ---- Track title / artist (keep your exact matches, plus fallback patterns) ----
       if ((/SongName$/i.test(tail) || /Title$/i.test(tail)) && typeof rawValue === "string" && rawValue.trim()) {
@@ -713,14 +688,6 @@ export class StageLinqBridge {
 
       if (typeof status?.currentBpm === "number") {
         ds.currentBpm = status.currentBpm;
-      }
-      if (typeof status?.externalMixerVolume === "number") {
-        if (!this.seenMixerFader[deck]) {
-          ds.fader = clamp01(status.externalMixerVolume);
-          logDiscover(deck, `[FADER] deck=${deck} source=externalMixerVolume(nowPlaying) raw=${status.externalMixerVolume} applied=${clamp01(status.externalMixerVolume).toFixed(4)}`);
-        } else {
-          logDiscover(deck, `[FADER] deck=${deck} source=externalMixerVolume(nowPlaying) raw=${status.externalMixerVolume} BLOCKED (MixerCH seen)`);
-        }
       }
       // Do NOT set ds.play here — nowPlaying fires on metadata events and its play field
       // does not reliably reflect the current transport state. Play state is owned exclusively
@@ -880,16 +847,7 @@ export class StageLinqBridge {
       }
 
 
-      else if (tail === "ExternalMixerVolume" || tail === "Track/ExternalMixerVolume") {
-        if (typeof value === "number") {
-          if (!this.seenMixerFader[deck]) {
-            ds.fader = clamp01(value);
-            logDiscover(deck, `[FADER] deck=${deck} source=ExternalMixerVolume(stateChanged) raw=${value} applied=${clamp01(value).toFixed(4)}`);
-          } else {
-            logDiscover(deck, `[FADER] deck=${deck} source=ExternalMixerVolume(stateChanged) raw=${value} BLOCKED (MixerCH seen)`);
-          }
-        }
-      } else if (tail === "ArtistName" || tail === "Track/ArtistName") {
+      else if (tail === "ArtistName" || tail === "Track/ArtistName") {
         if (typeof value === "string") {
           if (value.trim()) {
             ds.artist = value;
