@@ -59,35 +59,44 @@ npm run build   # builds frontend then backend
 npm start       # runs built backend, which also serves the frontend
 ```
 
-## Running as a persistent background service (PM2)
+## Live show (macOS)
 
-For a live show environment, run the server under [PM2](https://pm2.keymetrics.io/) so it survives terminal closes, crashes, and reboots.
+For a live show, use `npm run show`. It requires [tmux](https://formulae.brew.sh/formula/tmux) — install once via Homebrew:
 
 ```bash
-# Install PM2 once, globally
-npm install -g pm2
+brew install tmux
+```
 
-# Build first, then start under PM2
+Then:
+
+```bash
 npm run build
-
-# Works on macOS, Linux, and Windows
-pm2 start backend/dist/index.js --name stagelinq-webview
-
-# Persist the process list so it survives reboots
-pm2 save
-pm2 startup   # follow the printed instructions to register the init hook
+npm run show
 ```
 
-Useful commands:
+This starts a persistent tmux session named `stagelinq` with:
+- **Interactive terminal** — live status display works as designed
+- **Auto-restart** — the process restarts automatically after any crash (2 s delay)
+- **caffeinate** — prevents display sleep, idle sleep, and screen lock
+- **Detachable** — closing the terminal window does not kill the process
+
+**Session commands:**
 
 ```bash
-pm2 status                     # show running processes and restart count
-pm2 logs stagelinq-webview     # tail live logs
-pm2 restart stagelinq-webview  # restart (e.g. after a config change)
-pm2 stop stagelinq-webview     # stop without removing from process list
+tmux attach -t stagelinq          # reattach to the live interactive display
+tmux kill-session -t stagelinq    # stop everything completely
 ```
 
-If the process crashes for any reason, PM2 restarts it automatically (default delay: 500 ms). Timecode output resumes as soon as the StageLinq connection is re-established.
+Inside the session:
+- `Ctrl+B` then `D` — detach (app keeps running in background)
+- `Ctrl+C` — restart the app (loop relaunches after 2 s)
+- `Ctrl+C` then `exit` within 2 s — stop the app and close the session
+
+**First run on a new machine** (or after pulling code changes):
+
+```bash
+npm run fresh   # npm install + full rebuild + show
+```
 
 ## Configuration
 

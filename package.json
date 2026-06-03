@@ -10,8 +10,8 @@
     "dev": "npm run -w backend dev",
     "build": "npm run -w frontend build && npm run -w backend build",
     "start": "npm run -w backend start",
-    "show": "tmux new-session -s stagelinq 'caffeinate -disu bash -c \"while true; do npm start; sleep 2; done\"'",
-    "fresh": "npm install && npm run build && tmux new-session -s stagelinq 'caffeinate -disu bash -c \"while true; do npm start; sleep 2; done\"'",
+    "show": "node scripts/show.mjs",
+    "fresh": "npm install && npm run build && node scripts/show.mjs",
     "deploy": "npm run build && pm2 restart stagelinq-webview --update-env && pm2 logs stagelinq-webview",
     "pm2-clean": "npm run build && node -e \"try{require('child_process').execSync('pm2 delete all',{stdio:'inherit'})}catch(e){}\" && pm2 start backend/dist/index.js --name stagelinq-webview && pm2 save && pm2 logs stagelinq-webview"
   },
