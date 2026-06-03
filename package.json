@@ -11,7 +11,7 @@
     "build": "npm run -w frontend build && npm run -w backend build",
     "start": "npm run -w backend start",
     "deploy": "npm run build && pm2 restart stagelinq-webview --update-env && pm2 logs stagelinq-webview",
-    "pm2-clean": "pm2 delete stagelinq-webview && pm2 start backend/dist/index.js --name stagelinq-webview && pm2 save"
+    "pm2-clean": "npm run build && pm2 delete stagelinq-webview 2>/dev/null; pm2 start backend/dist/index.js --name stagelinq-webview && pm2 save && pm2 logs stagelinq-webview"
   },
   "dependencies": {
     "@gree44/stagelinq": "^3.0.9",
