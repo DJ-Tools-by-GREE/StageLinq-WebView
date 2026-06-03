@@ -1,5 +1,8 @@
 {
     "current_playlist": 0,
+    "waveform": {
+        "all_tracks": true
+    },
     "sacn_sim": {
         "enabled": true
     },

@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import type { DeckState } from './types.js';
 import type { WaveformState } from './appTypes.js';
 import WaveformDisplay from './WaveformDisplay.js';
@@ -17,11 +16,12 @@ function signedPercent(speedState: number): string {
 interface Props {
   state: DeckState;
   waveform: WaveformState;
-  connected: boolean;
+  selected: boolean;
+  artworkUrl: string | null;
 }
 
-export default function DeckCard({ state, waveform, connected }: Props) {
-  const { deck, trackLoaded, fileName, title, artist, elapsedSec, totalSec, currentBpm,
+export default function DeckCard({ state, waveform, selected, artworkUrl }: Props) {
+  const { deck, trackLoaded, title, artist, elapsedSec, totalSec, currentBpm,
           trackBpm, speedState, keyCamelot, fader, play } = state;
 
   const faderOnRight = deck === 1 || deck === 3;
@@ -32,63 +32,39 @@ export default function DeckCard({ state, waveform, connected }: Props) {
   const totalStr  = trackLoaded ? formatMMSS(totalSec) : '00:00';
   const remainStr = trackLoaded ? formatMMSS(Math.max(0, totalSec - elapsedSec)) : '00:00';
 
-  const bpm       = trackLoaded && Number.isFinite(currentBpm) ? currentBpm.toFixed(2) : '—';
-  const tBpm      = trackLoaded && Number.isFinite(trackBpm) && trackBpm > 0 ? trackBpm.toFixed(2) : '—';
-  const rel       = trackLoaded ? signedPercent(speedState) : '—';
+  const bpm    = trackLoaded && Number.isFinite(currentBpm) ? currentBpm.toFixed(2) : '—';
+  const tBpm   = trackLoaded && Number.isFinite(trackBpm) && trackBpm > 0 ? trackBpm.toFixed(2) : '—';
+  const rel    = trackLoaded ? signedPercent(speedState) : '—';
 
   const dispTitle  = trackLoaded ? (title  || '—') : '—';
   const dispArtist = trackLoaded ? (artist || '—') : '—';
   const dispKey    = trackLoaded ? (keyCamelot || '--') : '--';
-
-  const [artworkUrl, setArtworkUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!trackLoaded || !fileName) {
-      setArtworkUrl(null);
-      return;
-    }
-    let revoked = false;
-    let objectUrl: string | null = null;
-
-    fetch(`/api/artwork/${deck}`)
-      .then((r) => (r.ok ? r.blob() : null))
-      .then((blob) => {
-        if (revoked || !blob) return;
-        objectUrl = URL.createObjectURL(blob);
-        setArtworkUrl(objectUrl);
-      })
-      .catch(() => {});
-
-    return () => {
-      revoked = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [deck, fileName, trackLoaded]);
 
   return (
     <div className={`card theme-d${deck}`}>
       <div className="deckBorder" />
 
       <div className="cardHeader">
-        <div className="art">
-          {artworkUrl
-            ? <img src={artworkUrl} alt="" className="artImg" />
-            : <span>D{deck}</span>
-          }
-        </div>
-
-        <div className="titleBlock">
-          <div className="title" title={dispTitle}>
-            {isPlaying && <span className="playDot" />}
-            {dispTitle}
+        <div className="trackInfo">
+          <div className={`art${selected ? ' art--selected' : ''}`}>
+            {artworkUrl
+              ? <img src={artworkUrl} alt="" className="artImg" />
+              : <span>D{deck}</span>
+            }
           </div>
-          <div className="artist" title={dispArtist}>{dispArtist}</div>
+
+          <div className="titleBlock">
+            <div className="title" title={dispTitle}>
+              {isPlaying && <span className="playDot" />}
+              {dispTitle}
+            </div>
+            <div className="artist" title={dispArtist}>{dispArtist}</div>
+          </div>
         </div>
 
         <div className="stats">
           <div className="pills">
             <span className="pill">Key: <strong>{dispKey}</strong></span>
-            <span className="pill">{connected ? 'LIVE' : 'OFFLINE'}</span>
           </div>
           <div className="kv">
             <div><span className="label">Elapsed / Total</span></div>

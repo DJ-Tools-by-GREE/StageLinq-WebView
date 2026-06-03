@@ -23,6 +23,8 @@ export interface SnapshotPayload {
   seq: number;
   ts: number;
   decks: Record<DeckNumber, DeckState>;
+  selectedDeck: DeckNumber | null;
+  nextTrack: string | null;
 }
 
 export interface HelloPayload {
@@ -42,6 +44,13 @@ export interface WaveformStatusPayload {
   fileName: string;
 }
 
+export interface ArtworkDataPayload {
+  type: 'artwork_data';
+  fileName: string;
+  data: string | null; // base64-encoded image, null if no artwork
+  mime: string | null;
+}
+
 export interface WaveformDataPayload {
   type: 'waveform_data';
   deck: DeckNumber;
@@ -50,4 +59,4 @@ export interface WaveformDataPayload {
   peaksPerSec: number;
 }
 
-export type WsPayload = HelloPayload | SnapshotPayload | WaveformStatusPayload | WaveformDataPayload;
+export type WsPayload = HelloPayload | SnapshotPayload | WaveformStatusPayload | WaveformDataPayload | ArtworkDataPayload;

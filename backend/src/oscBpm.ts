@@ -1,7 +1,7 @@
 import dgram from 'node:dgram';
 import type { DeckState } from './types.js';
 import { OSC_HEARTBEAT_INTERVAL_MS } from './constants.js';
-import { logError, logLifecycle, logStatus } from './logging.js';
+import { logError, logLifecycle, logStatus, GRN, RST } from './logging.js';
 
 export interface OscBpmOptions {
   enabled: boolean;
@@ -48,7 +48,7 @@ export class OscBpmSender {
       this.heartbeatTimer = null;
     }
     try { this.socket.close(); } catch {}
-    logLifecycle('[OSC] Sender stopped');
+    logLifecycle(`${GRN}[OSC] Sender stopped${RST}`);
   }
 
   sendDeckBpm(deck: DeckState | undefined) {

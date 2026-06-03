@@ -1,13 +1,41 @@
 import { format as utilFormat } from 'node:util';
+import fs from 'node:fs';
+import path from 'node:path';
 
 const isTTY = Boolean(process.stdout.isTTY);
+
+const LOG_FILE = path.resolve(process.cwd(), 'errorlog.md');
+let logFileStream: fs.WriteStream | null = null;
+
+function getLogStream(): fs.WriteStream {
+    if (!logFileStream) {
+        logFileStream = fs.createWriteStream(LOG_FILE, { flags: 'a' });
+        const ts = new Date().toISOString();
+        logFileStream.write(`\n--- session start ${ts} ---\n`);
+    }
+    return logFileStream;
+}
+
+function writeToFile(...args: any[]) {
+    try {
+        const ts = new Date().toISOString().slice(11, 23); // HH:MM:SS.mmm
+        getLogStream().write(`[${ts}] ${utilFormat(...args)}\n`);
+    } catch {}
+}
 
 export const R    = '\x1b[0m';
 export const DIM  = '\x1b[2m';
 export const BOLD = '\x1b[1m';
+
+export const RED = isTTY ? '\x1b[31m' : '';
+export const GRN = isTTY ? '\x1b[32m' : '';
+export const YEL = isTTY ? '\x1b[33m' : '';
+export const RST = isTTY ? '\x1b[0m'  : '';
+
 const DECK_COLORS = ['\x1b[35m', '\x1b[34m', '\x1b[32m', '\x1b[31m'];
 
 export function deckColor(deck: number, s: string) {
+    if (!isTTY) return s;
     return `${DECK_COLORS[(deck - 1) & 3]}${s}${R}`;
 }
 
@@ -129,20 +157,20 @@ export const LOG_DECK_FILTER = {
     deck4: false,
 };
 
-function splitDeckArgs(args: any[]): { shouldLog: boolean; payload: any[] } {
+function splitDeckArgs(args: any[]): { shouldLog: boolean; deck: number | null; payload: any[] } {
     const first = args[0];
     if (typeof first !== 'number' || !Number.isInteger(first) || first < 1 || first > 4) {
-        return { shouldLog: true, payload: args };
+        return { shouldLog: true, deck: null, payload: args };
     }
     if (!LOG_DECK_FILTER.enabled) {
-        return { shouldLog: true, payload: args.slice(1) };
+        return { shouldLog: true, deck: first, payload: args.slice(1) };
     }
     const allow =
         (first === 1 && LOG_DECK_FILTER.deck1) ||
         (first === 2 && LOG_DECK_FILTER.deck2) ||
         (first === 3 && LOG_DECK_FILTER.deck3) ||
         (first === 4 && LOG_DECK_FILTER.deck4);
-    return { shouldLog: allow, payload: args.slice(1) };
+    return { shouldLog: allow, deck: first, payload: args.slice(1) };
 }
 
 function printLog(method: 'log' | 'error', ...args: any[]) {
@@ -163,26 +191,50 @@ export function logLifecycle(...args: any[]) {
 
 export function logPlayback(...args: any[]) {
     if (!LOG_ENABLED.playback) return;
-    const { shouldLog, payload } = splitDeckArgs(args);
-    if (shouldLog) printLog('log', ...payload);
+    const { shouldLog, deck, payload } = splitDeckArgs(args);
+    if (!shouldLog) return;
+    if (deck !== null && isTTY) {
+        const col = DECK_COLORS[(deck - 1) & 3];
+        printLog('log', `${col}${utilFormat(...payload)}${R}`);
+    } else {
+        printLog('log', ...payload);
+    }
 }
 
 export function logDiscover(...args: any[]) {
     if (!LOG_ENABLED.discover) return;
-    const { shouldLog, payload } = splitDeckArgs(args);
-    if (shouldLog) printLog('log', ...payload);
+    const { shouldLog, deck, payload } = splitDeckArgs(args);
+    if (!shouldLog) return;
+    if (deck !== null && isTTY) {
+        const col = DECK_COLORS[(deck - 1) & 3];
+        printLog('log', `${col}${utilFormat(...payload)}${R}`);
+    } else {
+        printLog('log', ...payload);
+    }
 }
 
 export function logDiscoverSpeed(...args: any[]) {
     if (!(LOG_ENABLED.discover && LOG_ENABLED.discoverSpeed)) return;
-    const { shouldLog, payload } = splitDeckArgs(args);
-    if (shouldLog) printLog('log', ...payload);
+    const { shouldLog, deck, payload } = splitDeckArgs(args);
+    if (!shouldLog) return;
+    if (deck !== null && isTTY) {
+        const col = DECK_COLORS[(deck - 1) & 3];
+        printLog('log', `${col}${utilFormat(...payload)}${R}`);
+    } else {
+        printLog('log', ...payload);
+    }
 }
 
 export function logBpmDebug(...args: any[]) {
     if (!LOG_ENABLED.bpmDebug) return;
-    const { shouldLog, payload } = splitDeckArgs(args);
-    if (shouldLog) printLog('log', ...payload);
+    const { shouldLog, deck, payload } = splitDeckArgs(args);
+    if (!shouldLog) return;
+    if (deck !== null && isTTY) {
+        const col = DECK_COLORS[(deck - 1) & 3];
+        printLog('log', `${col}${utilFormat(...payload)}${R}`);
+    } else {
+        printLog('log', ...payload);
+    }
 }
 
 export function logUiOut(...args: any[]) {
@@ -190,5 +242,16 @@ export function logUiOut(...args: any[]) {
 }
 
 export function logError(...args: any[]) {
-    if (LOG_ENABLED.errors) printLog('error', ...args);
+    writeToFile(...args);
+    if (!LOG_ENABLED.errors) return;
+    if (isTTY) {
+        printLog('error', `${RED}${utilFormat(...args)}${R}`);
+    } else {
+        printLog('error', ...args);
+    }
+}
+
+export function logWaveform(...args: any[]) {
+    writeToFile(...args);
+    if (LOG_ENABLED.lifecycle) printLog('log', ...args);
 }

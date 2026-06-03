@@ -14,8 +14,8 @@ import { ArtNetTimecodeBroadcaster } from './artnetTimecode.js';
 import { OscBpmSender } from './oscBpm.js';
 import { RECONNECT_DELAY_MS, WS_FPS, WAVEFORM_PEAKS_PER_SEC } from './constants.js';
 import { States, StageLinqValue } from "@gree44/stagelinq";
-import { logError, logLifecycle, logUiOut, applyLoggingConfig, applyDisplayConfig, DISPLAY_ENABLED, logDashboard, deckColor, getStatusSlot, DIM, R } from './logging.js';
-import { generateWaveformPeaks, peaksCache, artworkCache } from './waveformService.js';
+import { logError, logLifecycle, logWaveform, logUiOut, applyLoggingConfig, applyDisplayConfig, DISPLAY_ENABLED, logDashboard, deckColor, getStatusSlot, DIM, R, GRN, YEL, RED, RST } from './logging.js';
+import { generateWaveformPeaks, peaksCache, artworkCache, initWaveformCache } from './waveformService.js';
 
 function isIgnorableStageLinqError(err: unknown): boolean {
   if (!err) return false;
@@ -100,6 +100,7 @@ interface RootConfig {
     speedmaster?: number;
   };
   sacn_sim?: { enabled?: boolean };
+  waveform?: { all_tracks?: boolean };
   playlists?: Array<{
     name?: string;
     content?: ConfigTrack[];
@@ -136,14 +137,14 @@ async function loadRootConfig(): Promise<RootConfig | null> {
     try {
       const raw = await fs.readFile(filePath, 'utf8');
       const parsed = JSON.parse(stripJsonComments(raw)) as RootConfig;
-      logLifecycle(`[CONFIG] Loaded ${filePath}`);
+      logLifecycle(`${GRN}[CONFIG] Loaded ${filePath}${RST}`);
       return parsed;
     } catch {
       // try next candidate
     }
   }
 
-  logLifecycle('[CONFIG] No config.json found, using env/default values.');
+  logLifecycle(`${RED}[CONFIG] No config.json found, using env/default values.${RST}`);
   return null;
 }
 
@@ -198,6 +199,18 @@ function buildActivePlaylistFileSet(cfg: RootConfig | null): Set<string> {
     if (key) set.add(key);
   }
   return set;
+}
+
+function computeNextTrack(cfg: RootConfig | null, currentFileName: string | null): string | null {
+  const playlists = cfg?.playlists ?? [];
+  const idx = Number(cfg?.current_playlist ?? -1);
+  if (idx < 0 || idx >= playlists.length) return null;
+  const content = playlists[idx].content ?? [];
+  if (!currentFileName) return content[0]?.song_index ?? null;
+  const key = normalizeTrackName(currentFileName);
+  const pos = content.findIndex((item) => normalizeTrackName(String(item.song_index ?? '')) === key);
+  if (pos < 0 || pos + 1 >= content.length) return null;
+  return content[pos + 1].song_index ?? null;
 }
 
 function mapDmxToDeck(value: number): DeckNumber | null {
@@ -272,6 +285,8 @@ async function main() {
   if (config?.display) applyDisplayConfig(config.display);
   let sendTimecodeWhenStopped = false;
 
+  await initWaveformCache(process.cwd());
+
   // Art-Net settings from root config.json (env vars override).
   const artnetEnabled = (process.env.ARTNET_ENABLED ?? 'true').toLowerCase() !== 'false';
   const artnetTargetIp = process.env.ARTNET_TARGET_IP ?? config?.timecode?.target_ip ?? '255.255.255.255';
@@ -297,6 +312,7 @@ async function main() {
 
   let trackOffsets = buildTrackOffsetMap(config);
   let activePlaylistFiles = buildActivePlaylistFileSet(config);
+  let waveformAllTracks = config?.waveform?.all_tracks ?? true;
 
   let reloadInProgress = false;
   const reloadConfig = async () => {
@@ -309,7 +325,8 @@ async function main() {
       if (config?.display) applyDisplayConfig(config.display);
       trackOffsets = buildTrackOffsetMap(config);
       activePlaylistFiles = buildActivePlaylistFileSet(config);
-      logLifecycle(`[CONFIG] Reloaded. Offset entries: ${trackOffsets.size}`);
+      waveformAllTracks = config?.waveform?.all_tracks ?? true;
+      logLifecycle(`${GRN}[CONFIG] Reloaded. Offset entries: ${trackOffsets.size}${RST}`);
     } catch (e: any) {
       logError('[CONFIG] Reload failed:', e?.message || e);
     } finally {
@@ -325,7 +342,7 @@ async function main() {
 
     process.stdin.on('keypress', (_str, key) => {
       if (key?.ctrl && key?.name === 'r') {
-        logLifecycle('[CONFIG] Ctrl+R detected. Reloading config...');
+        logLifecycle(`${YEL}[CONFIG] Ctrl+R detected. Reloading config...${RST}`);
         void reloadConfig();
       }
       if (key?.ctrl && key?.name === 'c') {
@@ -505,12 +522,23 @@ async function main() {
     broadcastMsg({ type: 'waveform_data', deck, fileName, peaks, peaksPerSec: WAVEFORM_PEAKS_PER_SEC });
   }
 
+  function broadcastArtwork(fileName: string) {
+    const entry = artworkCache.get(fileName);
+    if (entry === undefined) return;
+    broadcastMsg({
+      type: 'artwork_data',
+      fileName,
+      data: entry ? entry.data.toString('base64') : null,
+      mime: entry ? entry.mime : null,
+    });
+  }
+
   const connectWithRetry = async () => {
     while (true) {
       try {
         logLifecycle('StageLinq: joining network, waiting for devices...');
         await bridge.connect();
-        logLifecycle('StageLinq: listening for devices.');
+        logLifecycle(`${GRN}StageLinq: listening for devices.${RST}`);
         return;
       } catch (e: any) {
         logError('StageLinq connect failed:', e?.message || e);
@@ -527,21 +555,36 @@ async function main() {
     onCommunicationLost: async () => {
       if (reconnecting) return;
       reconnecting = true;
-      logLifecycle('[StageLinq] Communication lost — reconnecting...');
+      logLifecycle(`${YEL}[StageLinq] Communication lost — reconnecting...${RST}`);
       try { await bridge.disconnect(); } catch {}
       await connectWithRetry();
       reconnecting = false;
     },
     onTrackChanged: (deck, fileName, rawNetworkPath) => {
-      logLifecycle(`[WAVEFORM] onTrackChanged deck=${deck} file="${fileName}" path="${rawNetworkPath}" inPlaylist=${activePlaylistFiles.has(fileName)}`);
-      if (!activePlaylistFiles.has(fileName)) return;
+      logLifecycle(`[WAVEFORM] onTrackChanged deck=${deck} file="${fileName}" inPlaylist=${activePlaylistFiles.has(fileName)}`);
+      if (!waveformAllTracks && !activePlaylistFiles.has(fileName)) return;
       if (peaksCache.has(fileName)) {
         broadcastWaveformData(deck, fileName, peaksCache.get(fileName)!);
+        if (artworkCache.has(fileName)) {
+          broadcastArtwork(fileName);
+          return;
+        }
+        // Peaks are cached but artwork was never persisted — re-download to extract artwork only.
+        const taskId = ++waveformTaskIds[deck];
+        (async () => {
+          try {
+            const audioBytes = await bridge.downloadFile(rawNetworkPath, () => {});
+            if (waveformTaskIds[deck] !== taskId) return;
+            await generateWaveformPeaks(audioBytes, fileName, bridge.getDeck(deck).totalSec, () => {}, () => {});
+            if (waveformTaskIds[deck] !== taskId) return;
+            broadcastArtwork(fileName);
+          } catch {}
+        })();
         return;
       }
 
       const taskId = ++waveformTaskIds[deck];
-      logLifecycle(`[WAVEFORM] Deck ${deck}: queuing "${fileName}"`);
+      logWaveform(`[WAVEFORM] Deck ${deck}: queuing "${fileName}"`);
 
       (async () => {
         try {
@@ -566,8 +609,9 @@ async function main() {
           );
 
           if (waveformTaskIds[deck] !== taskId) return;
-          logLifecycle(`[WAVEFORM] Deck ${deck}: ready, ${peaks.length} peaks`);
+          logWaveform(`[WAVEFORM] Deck ${deck}: ready, ${peaks.length} peaks`);
           broadcastWaveformData(deck, fileName, peaks);
+          broadcastArtwork(fileName);
         } catch (e: any) {
           if (waveformTaskIds[deck] !== taskId) return;
           logError(`[WAVEFORM] Deck ${deck} failed:`, e?.message || e);
@@ -649,7 +693,7 @@ async function main() {
           process.exit(0);
         });
 
-        logLifecycle(`[sACN] Listening Universe ${sacnUniverse}, Address ${controlAddress}`);
+        logLifecycle(`${GRN}[sACN] Listening Universe ${sacnUniverse}, Address ${controlAddress}${RST}`);
       } else {
         logError('[sACN] Receiver export not found. Deck select via sACN is disabled.');
       }
@@ -671,7 +715,7 @@ async function main() {
       targetPort: oscTargetPort,
       speedMaster: oscSpeedMaster,
     });
-    logLifecycle(`[OSC] BPM -> ${oscTargetIp}:${oscTargetPort} (SpeedMaster ${oscSpeedMaster})`);
+    logLifecycle(`${GRN}[OSC] BPM -> ${oscTargetIp}:${oscTargetPort} (SpeedMaster ${oscSpeedMaster})${RST}`);
   }
 
   await artnet.start(() => {
@@ -705,13 +749,24 @@ async function main() {
     const hello: WsPayload = { type: 'hello', ts: Date.now(), version: '0.1.0', fps: WS_FPS };
     try { ws.send(JSON.stringify(hello)); } catch {}
 
-    // Replay any cached waveforms for currently loaded decks
+    // Replay any cached waveforms and artwork for currently loaded decks
     const currentDecks = bridge.getDecks();
     for (const [dStr, deckState] of Object.entries(currentDecks)) {
       const deck = Number(dStr) as DeckNumber;
       const fn = deckState.fileName;
-      if (fn && peaksCache.has(fn)) {
+      if (!fn) continue;
+      if (peaksCache.has(fn)) {
         const msg: WsPayload = { type: 'waveform_data', deck, fileName: fn, peaks: peaksCache.get(fn)!, peaksPerSec: WAVEFORM_PEAKS_PER_SEC };
+        try { ws.send(JSON.stringify(msg)); } catch {}
+      }
+      if (artworkCache.has(fn)) {
+        const entry = artworkCache.get(fn)!;
+        const msg: WsPayload = {
+          type: 'artwork_data',
+          fileName: fn,
+          data: entry ? entry.data.toString('base64') : null,
+          mime: entry ? entry.mime : null,
+        };
         try { ws.send(JSON.stringify(msg)); } catch {}
       }
     }
@@ -758,6 +813,8 @@ async function main() {
       seq: ++seq,
       ts: Date.now(),
       decks,
+      selectedDeck,
+      nextTrack: computeNextTrack(config, selectedDeck ? decks[selectedDeck].fileName : null),
     };
 
     // Log only when meaningful values changed

@@ -1,7 +1,7 @@
 import type { DeckNumber, DeckState } from "./types.js";
 import path from "node:path";
 import { keyIndexToCamelot } from "./camelot.js";
-import { logBpmDebug, logDiscover, logDiscoverSpeed, logError, logLifecycle, logPlayback } from "./logging.js";
+import { logBpmDebug, logDiscover, logDiscoverSpeed, logError, logLifecycle, logPlayback, logWaveform, GRN, YEL, RST } from "./logging.js";
 import { BEAT_WATCHDOG_TIMEOUT_S, DISCONNECT_DETECT_TIMEOUT_S, ELAPSED_THROTTLE_S } from "./constants.js";
 
 import * as pkg from "@gree44/stagelinq";
@@ -95,6 +95,8 @@ export class StageLinqBridge {
   private lastTriggeredFileNames: Record<DeckNumber, string> = { 1: '', 2: '', 3: '', 4: '' };
 
   private stageLinqDevices: any = null;
+  // Serialize downloads per device: FileTransfer has a single shared buffer and cannot handle concurrent getFile() calls.
+  private downloadQueues = new Map<string, Promise<void>>();
 
   constructor(_opts: BridgeOptions = {}) {
     this.opts = _opts;
@@ -132,15 +134,15 @@ export class StageLinqBridge {
   }
 
   private captureNetPath(deck: DeckNumber, rawValue: unknown) {
-    if (typeof rawValue === 'string' && rawValue.trim()) {
-      this.rawNetworkPaths[deck] = rawValue.trim();
+    if (typeof rawValue === 'string') {
+      const s = rawValue.trim();
+      if (s) this.rawNetworkPaths[deck] = s;
     }
   }
 
   private maybeFireTrackChanged(deck: DeckNumber) {
     const fn = this.decks[deck].fileName;
     const netPath = this.rawNetworkPaths[deck];
-    logLifecycle(`[WAVEFORM] maybeFireTrackChanged deck=${deck} fn="${fn}" netPath="${netPath}" lastTriggered="${this.lastTriggeredFileNames[deck]}"`);
     if (!fn || !netPath) return;
     if (fn !== this.lastTriggeredFileNames[deck]) {
       this.lastTriggeredFileNames[deck] = fn;
@@ -366,7 +368,7 @@ export class StageLinqBridge {
     // Different versions use different lifecycle event names; listen to both.
     devices.on?.("ready", (info: any) => {
       const name = info?.software?.name || "";
-      logLifecycle(`[StageLinq] Device ready${name ? `: ${name}` : ""}`);
+      logLifecycle(`${GRN}[StageLinq] Device ready${name ? `: ${name}` : ""}${RST}`);
     });
 
     devices.on?.("connected", (info: any) => {
@@ -374,7 +376,7 @@ export class StageLinqBridge {
         this.opts.onDeviceIp?.(info.address);
       }
       logLifecycle(
-        `[StageLinq] Device connected: ${info?.address || ""} ${info?.software?.name || ""}`.trimEnd()
+        `${GRN}[StageLinq] Device connected: ${info?.address || ""} ${info?.software?.name || ""}${RST}`.trimEnd()
       );
     });
 
@@ -383,7 +385,7 @@ export class StageLinqBridge {
         this.opts.onDeviceIp?.(info.address);
       }
       logLifecycle(
-        `[StageLinq] Device connected: ${info?.address || ""} ${info?.software?.name || ""}`.trimEnd()
+        `${GRN}[StageLinq] Device connected: ${info?.address || ""} ${info?.software?.name || ""}${RST}`.trimEnd()
       );
     });
 
@@ -977,33 +979,41 @@ export class StageLinqBridge {
     const deviceId = `net://${parts[2]}`;
     const filePath = '/' + parts.slice(3).join('/');
 
-    logLifecycle(`[WAVEFORM] downloadFile deviceId="${deviceId}" filePath="${filePath}"`);
+    logWaveform(`[WAVEFORM] downloadFile deviceId="${deviceId}" filePath="${filePath}"`);
 
-    // FileTransfer is set up asynchronously after device connect. Poll until ready.
-    const POLL_MS = 500;
-    const TIMEOUT_MS = 30_000;
-    const deadline = Date.now() + TIMEOUT_MS;
+    // FileTransfer has a single shared buffer per device — concurrent getFile() calls corrupt
+    // each other's data. Serialize all downloads for the same device via a promise chain.
+    let result!: Uint8Array;
+    const prev = this.downloadQueues.get(deviceId) ?? Promise.resolve();
+    const next = prev.then(async () => {
+      const POLL_MS = 500;
+      const TIMEOUT_MS = 30_000;
+      const deadline = Date.now() + TIMEOUT_MS;
 
-    while (true) {
-      const ft = this.stageLinqDevices?.getFileTransferService?.(deviceId);
-      if (ft) {
-        const handler = (progress: { percentComplete: number }) => {
-          onProgress(Math.round(progress.percentComplete));
-        };
-        ft.on('fileTransferProgress', handler);
-        try {
-          await ft.waitTillAvailable();
-          return await ft.getFile(filePath);
-        } finally {
-          ft.off('fileTransferProgress', handler);
+      while (true) {
+        const ft = this.stageLinqDevices?.getFileTransferService?.(deviceId);
+        if (ft) {
+          const handler = (progress: { percentComplete: number }) => {
+            onProgress(Math.round(progress.percentComplete));
+          };
+          ft.on('fileTransferProgress', handler);
+          try {
+            result = await ft.getFile(filePath);
+            return;
+          } finally {
+            ft.off('fileTransferProgress', handler);
+          }
         }
-      }
 
-      if (Date.now() >= deadline) {
-        throw new Error(`FileTransfer service not available for ${deviceId} after ${TIMEOUT_MS / 1000}s`);
+        if (Date.now() >= deadline) {
+          throw new Error(`FileTransfer service not available for ${deviceId} after ${TIMEOUT_MS / 1000}s`);
+        }
+        logWaveform(`${YEL}[WAVEFORM] FileTransfer not ready yet for ${deviceId}, retrying in ${POLL_MS}ms…${RST}`);
+        await new Promise((r) => setTimeout(r, POLL_MS));
       }
-      logLifecycle(`[WAVEFORM] FileTransfer not ready yet for ${deviceId}, retrying in ${POLL_MS}ms…`);
-      await new Promise((r) => setTimeout(r, POLL_MS));
-    }
+    });
+    this.downloadQueues.set(deviceId, next.catch(() => {}));
+    await next;
+    return result;
   }
 }

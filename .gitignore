@@ -140,3 +140,7 @@ vite.config.ts.timestamp-*
 
 # Local package zips
 *.zip
+
+# Waveform and artwork caches
+waveform-cache/
+artwork-cache/

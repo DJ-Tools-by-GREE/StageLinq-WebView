@@ -6,7 +6,7 @@ import {
   ARTNET_SOCKET_RECOVERY_COOLDOWN_MS,
   ARTNET_SOCKET_RECOVERY_DELAY_MS,
 } from './constants.js';
-import { logError, logLifecycle, logStatus } from './logging.js';
+import { logError, logLifecycle, logStatus, GRN, YEL, RST } from './logging.js';
 
 export interface ArtNetOptions {
   enabled: boolean;
@@ -97,7 +97,7 @@ export class ArtNetTimecodeBroadcaster {
       this.tick(deckState);
     }, intervalMs);
 
-    logLifecycle(`Art-Net TC enabled: ${this.opts.targetIp}:${this.opts.port} @ ${this.opts.fps}fps, send=${sendHz}Hz (deck ${this.opts.deck})`);
+    logLifecycle(`${GRN}Art-Net TC enabled: ${this.opts.targetIp}:${this.opts.port} @ ${this.opts.fps}fps, send=${sendHz}Hz (deck ${this.opts.deck})${RST}`);
   }
 
   stop() {
@@ -110,7 +110,7 @@ export class ArtNetTimecodeBroadcaster {
   }
 
   private async recoverSocket() {
-    logError('[ArtNet] Network error — recreating socket in 5s');
+    logLifecycle(`${YEL}[ArtNet] Network error — recreating socket in 5s${RST}`);
     try { this.socket.close(); } catch {}
     await new Promise<void>(r => setTimeout(r, ARTNET_SOCKET_RECOVERY_DELAY_MS));
     if (!this.loop) return;
@@ -131,7 +131,7 @@ export class ArtNetTimecodeBroadcaster {
     });
     this.lastSocketRecoveryMs = Date.now();
     this.socketFaulted = false;
-    logLifecycle('[ArtNet] Socket recreated');
+    logLifecycle(`${GRN}[ArtNet] Socket recreated${RST}`);
   }
 
   tick(deckState: DeckState) {

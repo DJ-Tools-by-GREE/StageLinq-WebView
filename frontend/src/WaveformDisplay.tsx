@@ -26,38 +26,42 @@ export default function WaveformDisplay({ deck, peaks, peaksPerSec, elapsedSec, 
 
   const color = DECK_COLORS[deck] ?? '#ffffff';
 
-  // Overview: full-song waveform with moving playhead.
+  // Overview: full-song split into two horizontal strips (first half / second half).
   useEffect(() => {
     const canvas = overviewRef.current;
-    if (!canvas || !peaks || peaks.length === 0) return;
+    if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     canvas.width = canvas.offsetWidth || canvas.width;
     const w = canvas.width;
     const h = canvas.height;
-    const mid = h / 2;
-    const barW = w / peaks.length;
 
     ctx.clearRect(0, 0, w, h);
 
-    ctx.fillStyle = color + '99';
-    for (let i = 0; i < peaks.length; i++) {
-      const amp = peaks[i] * mid * 0.9;
-      ctx.fillRect(i * barW, mid - amp, Math.max(1, barW), amp * 2);
+    if (!peaks || peaks.length === 0) return;
+
+    const half = Math.ceil(peaks.length / 2);
+    const frac = totalSec > 0 ? Math.min(1, elapsedSec / totalSec) : 0;
+    const playedIdx = Math.round(frac * peaks.length);
+
+    const barW = w / half;
+    for (let i = 0; i < half; i++) {
+      const played = i < playedIdx;
+      ctx.fillStyle = played ? color + 'cc' : color + '44';
+      const amp = peaks[i] * h * 0.88;
+      ctx.fillRect(i * barW, h - amp, Math.max(1, barW), amp);
     }
 
-    // Playhead
-    const frac = totalSec > 0 ? elapsedSec / totalSec : 0;
-    const px = Math.round(frac * w);
+    const topPx = Math.min(Math.round(frac * 2 * w), w);
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(px - 1, 0, 2, h);
+    ctx.fillRect(topPx - 1, 0, 2, h);
   }, [peaks, elapsedSec, totalSec, color]);
 
-  // Detail: 10-second scrolling window, playhead always centred.
+  // Detail: 10-second scrolling window, playhead at 1/4 from the left.
   useEffect(() => {
     const canvas = detailRef.current;
-    if (!canvas || !peaks || peaks.length === 0) return;
+    if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
@@ -67,13 +71,16 @@ export default function WaveformDisplay({ deck, peaks, peaksPerSec, elapsedSec, 
     const mid = h / 2;
 
     ctx.clearRect(0, 0, w, h);
+
+    if (!peaks || peaks.length === 0) return;
 
     const windowPeaks = DETAIL_HALF_SEC * 2 * peaksPerSec;
     const pxPerPeak = w / windowPeaks;
     const centerIdx = Math.floor(elapsedSec * peaksPerSec);
-    const halfWin = Math.floor(windowPeaks / 2);
-    const startIdx = centerIdx - halfWin;
-    const endIdx = centerIdx + halfWin;
+    const leftPeaks = Math.floor(windowPeaks / 4);
+    const rightPeaks = windowPeaks - leftPeaks;
+    const startIdx = centerIdx - leftPeaks;
+    const endIdx = centerIdx + rightPeaks;
 
     for (let i = startIdx; i <= endIdx; i++) {
       const peak = i >= 0 && i < peaks.length ? peaks[i] : 0;
@@ -85,14 +92,16 @@ export default function WaveformDisplay({ deck, peaks, peaksPerSec, elapsedSec, 
 
     // 1-second tick marks
     ctx.fillStyle = 'rgba(255,255,255,0.18)';
-    for (let offsetSec = -DETAIL_HALF_SEC; offsetSec <= DETAIL_HALF_SEC; offsetSec++) {
+    const lookBackSec = Math.ceil(leftPeaks / peaksPerSec);
+    const lookAheadSec = Math.ceil(rightPeaks / peaksPerSec);
+    for (let offsetSec = -lookBackSec; offsetSec <= lookAheadSec; offsetSec++) {
       const x = (Math.round((elapsedSec + offsetSec) * peaksPerSec) - startIdx) * pxPerPeak;
       ctx.fillRect(x, 0, 1, h);
     }
 
-    // Centred playhead
+    // Playhead at 1/4 from left
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(w / 2 - 1, 0, 2, h);
+    ctx.fillRect(w / 4 - 1, 0, 2, h);
   }, [peaks, elapsedSec, peaksPerSec, color]);
 
   const showLoading = stage === 'downloading' || stage === 'generating';
