@@ -13,7 +13,7 @@ if (!isWindows) {
 } else {
     // Windows: run directly in current terminal
     function spawnApp() {
-        const child = spawn('npm', ['run', '-w', 'backend', 'start'], { stdio: 'inherit', shell: true });
+        const child = spawn(process.execPath, ['backend/dist/index.js'], { stdio: 'inherit' });
         child.on('close', (code) => {
             console.log(`\nProcess exited (code ${code}), restarting in 2s...\n`);
             setTimeout(spawnApp, 2000);
