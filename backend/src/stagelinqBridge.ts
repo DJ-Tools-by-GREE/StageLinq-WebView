@@ -1034,6 +1034,7 @@ export class StageLinqBridge {
         };
         ft.on('fileTransferProgress', handler);
         try {
+          await ft.waitTillAvailable();
           return await ft.getFile(filePath);
         } finally {
           ft.off('fileTransferProgress', handler);
