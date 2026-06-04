@@ -3,8 +3,11 @@
 /** Seconds a playing deck can go without a beatMessage before it is marked stopped. */
 export const BEAT_WATCHDOG_TIMEOUT_S = 5;
 
-/** Seconds of silence across ALL decks before a full StageLinq reconnect is triggered. */
-export const DISCONNECT_DETECT_TIMEOUT_S = 10;
+/** Seconds of beat silence before the status indicator turns red AND a reconnect is triggered. */
+export const DISCONNECT_DETECT_TIMEOUT_S = 2;
+
+/** Seconds to wait for the first beat after connect() before triggering reconnect (StateMap setup takes time). */
+export const CONNECT_BEAT_GRACE_S = 20;
 
 /** Milliseconds to wait between reconnect attempts. */
 export const RECONNECT_DELAY_MS = 3000;
@@ -34,7 +37,7 @@ export const ARTNET_DRIFT_THRESHOLD_RATIO = 0.15;
 // StageLinq bridge
 
 /** Minimum elapsed-time change (seconds) before a BeatInfo update is written to deck state. */
-export const ELAPSED_THROTTLE_S = 0.1;
+export const ELAPSED_THROTTLE_S = 0;
 
 // OSC
 

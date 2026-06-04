@@ -1,9 +1,10 @@
-import type { DeckNumber, DeckState } from './types.js';
+import type { DeckNumber, DeckState, StageLinqStatus } from './types.js';
 
 const DECK_LABEL: Record<DeckNumber, string> = { 1: 'D1', 2: 'D2', 3: 'D3', 4: 'D4' };
 
 interface Props {
   connected: boolean;
+  stagelinqStatus: StageLinqStatus;
   selectedDeck: DeckNumber | null;
   selectedDeckState: DeckState | null;
   nextTrack: string | null;
@@ -14,6 +15,7 @@ interface Props {
 
 export default function HeaderBar({
   connected,
+  stagelinqStatus,
   selectedDeck,
   selectedDeckState,
   nextTrack,
@@ -29,11 +31,27 @@ export default function HeaderBar({
     ? nextTrack.replace(/\.[^/.]+$/, '')
     : null;
 
+  let dotClass: string;
+  let label: string;
+  if (!connected) {
+    dotClass = 'connDot--offline';
+    label = 'Offline (no socket connection)';
+  } else if (stagelinqStatus === 'reconnecting') {
+    dotClass = 'connDot--reconnecting';
+    label = 'Reconnecting to StageLinq';
+  } else if (stagelinqStatus === 'no-device') {
+    dotClass = 'connDot--nodevice';
+    label = 'No StageLinq connection';
+  } else {
+    dotClass = 'connDot--live';
+    label = 'Live';
+  }
+
   return (
     <div className="headerBar">
       <div className="headerLeft">
-        <span className={`connDot ${connected ? 'connDot--live' : 'connDot--offline'}`} />
-        <span className="headerLabel">{connected ? 'LIVE' : 'OFFLINE'}</span>
+        <span className={`connDot ${dotClass}`} />
+        <span className="headerLabel">{label}</span>
       </div>
 
       <div className="headerCenter">

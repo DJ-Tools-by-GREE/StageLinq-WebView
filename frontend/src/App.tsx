@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import type { DeckNumber, DeckState, WsPayload } from './types.js';
+import type { DeckNumber, DeckState, StageLinqStatus, WsPayload } from './types.js';
 import type { WaveformState } from './appTypes.js';
 import DeckCard from './DeckCard.js';
 import HeaderBar from './HeaderBar.js';
@@ -23,6 +23,11 @@ function makeBlankDeck(deck: DeckNumber): DeckState {
     fader: 0,
     play: false,
     updatedAt: 0,
+    hotCues: [],
+    loopActive: false,
+    loopInSec: null,
+    loopOutSec: null,
+    savedLoops: [],
   };
 }
 
@@ -46,10 +51,10 @@ export default function App() {
     3: makeBlankWaveform(),
     4: makeBlankWaveform(),
   });
-  // fileName → object URL for artwork received over WebSocket
   const artworkObjectUrlsRef = useRef<Record<string, string>>({});
   const [artworkUrls, setArtworkUrls] = useState<Record<string, string>>({});
   const [connected, setConnected] = useState(false);
+  const [stagelinqStatus, setStagelinqStatus] = useState<StageLinqStatus>('no-device');
   const [selectedDeck, setSelectedDeck] = useState<DeckNumber | null>(null);
   const [nextTrack, setNextTrack] = useState<string | null>(null);
   const [sendWhenStopped, setSendWhenStopped] = useState(false);
@@ -59,11 +64,18 @@ export default function App() {
   const lastSeq = useRef(-1);
   const unmounting = useRef(false);
   const retryTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const heartbeatTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastMsgAt = useRef(0);
   const wsRef = useRef<WebSocket | null>(null);
   const prevLoadedRef = useRef<Record<DeckNumber, boolean>>({ 1: false, 2: false, 3: false, 4: false });
   const prevFileNameRef = useRef<Record<DeckNumber, string>>({ 1: '', 2: '', 3: '', 4: '' });
+  const elapsedRefs = useRef<Record<DeckNumber, { current: number }>>({
+    1: { current: 0 },
+    2: { current: 0 },
+    3: { current: 0 },
+    4: { current: 0 },
+  });
 
-  // Revoke all object URLs on unmount
   useEffect(() => {
     return () => {
       for (const url of Object.values(artworkObjectUrlsRef.current)) {
@@ -81,19 +93,32 @@ export default function App() {
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
-    ws.onopen = () => setConnected(true);
+    ws.onopen = () => {
+      lastMsgAt.current = Date.now();
+      setConnected(true);
+      heartbeatTimer.current = setInterval(() => {
+        if (Date.now() - lastMsgAt.current > 3000) {
+          ws.close();
+        }
+      }, 1000);
+    };
 
     ws.onmessage = (ev) => {
       let msg: WsPayload;
       try { msg = JSON.parse(ev.data as string); } catch { return; }
 
       if (msg.type === 'snapshot') {
+        lastMsgAt.current = Date.now();
         if (msg.seq <= lastSeq.current) return;
         lastSeq.current = msg.seq;
         const nextDecks = msg.decks as DecksState;
+        for (const d of DECK_NUMBERS) {
+          elapsedRefs.current[d].current = nextDecks[d].elapsedSec;
+        }
         setDecks(nextDecks);
         setSelectedDeck(msg.selectedDeck ?? null);
         setNextTrack(msg.nextTrack ?? null);
+        setStagelinqStatus(msg.stagelinqStatus);
         const prev = prevLoadedRef.current;
         const prevFile = prevFileNameRef.current;
         for (const d of DECK_NUMBERS) {
@@ -133,7 +158,6 @@ export default function App() {
       } else if (msg.type === 'artwork_data') {
         const { fileName, data, mime } = msg;
         if (!data || !mime) return;
-        // Revoke previous object URL for this fileName if any
         const prev = artworkObjectUrlsRef.current[fileName];
         if (prev) URL.revokeObjectURL(prev);
         const blob = new Blob([Uint8Array.from(atob(data), (c) => c.charCodeAt(0))], { type: mime });
@@ -145,6 +169,7 @@ export default function App() {
 
     ws.onclose = () => {
       setConnected(false);
+      if (heartbeatTimer.current) { clearInterval(heartbeatTimer.current); heartbeatTimer.current = null; }
       if (!unmounting.current) {
         retryTimeout.current = setTimeout(connect, 800);
       }
@@ -159,6 +184,7 @@ export default function App() {
     return () => {
       unmounting.current = true;
       if (retryTimeout.current) clearTimeout(retryTimeout.current);
+      if (heartbeatTimer.current) clearInterval(heartbeatTimer.current);
       wsRef.current?.close();
     };
   }, [connect]);
@@ -194,6 +220,7 @@ export default function App() {
       {headerVisible && (
         <HeaderBar
           connected={connected}
+          stagelinqStatus={stagelinqStatus}
           selectedDeck={selectedDeck}
           selectedDeckState={selectedDeck ? decks[selectedDeck] : null}
           nextTrack={nextTrack}
@@ -210,6 +237,7 @@ export default function App() {
             waveform={waveforms[d]}
             selected={selectedDeck === d}
             artworkUrl={artworkUrls[decks[d].fileName] ?? null}
+            elapsedSecRef={elapsedRefs.current[d]}
           />
         ))}
       </div>

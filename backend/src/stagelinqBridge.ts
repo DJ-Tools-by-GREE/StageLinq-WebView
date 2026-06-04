@@ -1,8 +1,35 @@
+import { fileURLToPath } from "node:url";
 import type { DeckNumber, DeckState } from "./types.js";
+import fs from "node:fs";
 import path from "node:path";
 import { keyIndexToCamelot } from "./camelot.js";
 import { logBpmDebug, logDiscover, logDiscoverSpeed, logError, logLifecycle, logPlayback, logWaveform, logCues, GRN, YEL, RST } from "./logging.js";
-import { BEAT_WATCHDOG_TIMEOUT_S, DISCONNECT_DETECT_TIMEOUT_S, ELAPSED_THROTTLE_S } from "./constants.js";
+import { BEAT_WATCHDOG_TIMEOUT_S, DISCONNECT_DETECT_TIMEOUT_S, CONNECT_BEAT_GRACE_S, ELAPSED_THROTTLE_S } from "./constants.js";
+
+// Beat-gap instrumentation: log each inter-beat interval so we can determine the
+// safe minimum for DISCONNECT_DETECT_TIMEOUT_S.
+// backend/src/ → backend/ → repo root
+const BEAT_GAP_LOG = path.resolve(fileURLToPath(import.meta.url), '..', '..', '..', 'beat-gap.log');
+const beatGapStream = fs.createWriteStream(BEAT_GAP_LOG, { flags: 'a' });
+beatGapStream.write(`\n--- session start ${new Date().toISOString()} ---\n`);
+let beatGapMaxMs = 0;
+const beatGapWindow: number[] = [];
+const BEAT_GAP_WINDOW = 10;
+let beatGapCount = 0;
+function recordBeatGap(gapMs: number) {
+  if (gapMs > beatGapMaxMs) {
+    beatGapMaxMs = gapMs;
+    const ts = new Date().toISOString().slice(11, 23);
+    beatGapStream.write(`[${ts}] new max gap: ${gapMs.toFixed(1)} ms\n`);
+  }
+  beatGapWindow.push(gapMs);
+  if (beatGapWindow.length > BEAT_GAP_WINDOW) beatGapWindow.shift();
+  beatGapCount++;
+  if (beatGapCount % BEAT_GAP_WINDOW === 0) {
+    const avg = beatGapWindow.reduce((a, b) => a + b, 0) / beatGapWindow.length;
+    logBpmDebug(`[beatMsg] avg interval: ${avg.toFixed(1)} ms (${(1000 / avg).toFixed(1)} Hz) over last ${BEAT_GAP_WINDOW} msgs`);
+  }
+}
 
 import * as pkg from "@gree44/stagelinq";
 
@@ -94,6 +121,7 @@ export class StageLinqBridge {
   // Watchdog: timestamps of last beatMessage received per deck and across all decks
   private lastBeatAtMs: Record<DeckNumber, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
   private lastAnyBeatAtMs = 0;
+  private realBeatReceivedSinceConnect = false;
   private watchdogInterval: NodeJS.Timeout | null = null;
 
   // Captured full net:// paths (before basename stripping) and change-tracking for onTrackChanged.
@@ -368,13 +396,14 @@ export class StageLinqBridge {
   private wire() {
     // Set options (including logger) before the static instance is created via devices access.
     StageLinq.options = {
+      maxRetries: 999,
       downloadDbSources: false,
       enableFileTranfer: true,
       logger: {
         trace: () => {},
         debug: () => {},
         info:  (msg: string, ...args: unknown[]) => logLifecycle('[StageLinq]', msg, ...args),
-        warn:  (msg: string, ...args: unknown[]) => logError('[StageLinq]', msg, ...args),
+        warn:  (msg: string, ...args: unknown[]) => logLifecycle('[StageLinq]', msg, ...args),
         error: (msg: string, ...args: unknown[]) => logError('[StageLinq]', msg, ...args),
       },
     };
@@ -850,7 +879,11 @@ export class StageLinqBridge {
       // Some emitters provide (info, payload), others (payload) only.
       const payload = b ?? a;
       const now = Date.now();
+      if (this.realBeatReceivedSinceConnect && this.lastAnyBeatAtMs > 0) {
+        recordBeatGap(now - this.lastAnyBeatAtMs);
+      }
       this.lastAnyBeatAtMs = now;
+      this.realBeatReceivedSinceConnect = true;
 
       // A) flattened payload: has deck index
       if (payload && (typeof payload.deck === "number" || typeof payload.deck === "string")) {
@@ -1129,6 +1162,7 @@ export class StageLinqBridge {
   }
 
   async connect() {
+    this.realBeatReceivedSinceConnect = false;
     await StageLinq.connect();
     this.lastAnyBeatAtMs = Date.now();
     this.startWatchdog();
@@ -1137,7 +1171,12 @@ export class StageLinqBridge {
   async disconnect() {
     this.stopWatchdog();
     this.resetState();
-    await StageLinq.disconnect();
+    try { await StageLinq.disconnect(); } catch {}
+    // Force-null the singleton regardless of _isConnected state — disconnect() and
+    // reset() both bail out when the network is gone (unannounce throws, isConnected
+    // stays true). Direct property access is the only reliable escape hatch.
+    try { (StageLinq as any)._instance = null; } catch {}
+    this.wire();
   }
 
   private stopWatchdog() {
@@ -1151,8 +1190,11 @@ export class StageLinqBridge {
     for (const d of DECKS) {
       this.decks[d] = this.blankDeck(d);
       this.lastBeatAtMs[d] = 0;
+      this.lastTriggeredFileNames[d] = '';
+      this.rawNetworkPaths[d] = '';
     }
     this.lastAnyBeatAtMs = 0;
+    this.realBeatReceivedSinceConnect = false;
   }
 
   private startWatchdog() {
@@ -1176,7 +1218,10 @@ export class StageLinqBridge {
 
       if (this.lastAnyBeatAtMs > 0) {
         const silenceMs = now - this.lastAnyBeatAtMs;
-        if (silenceMs > DISCONNECT_DETECT_TIMEOUT_S * 1000) {
+        const threshold = this.realBeatReceivedSinceConnect
+          ? DISCONNECT_DETECT_TIMEOUT_S * 1000
+          : CONNECT_BEAT_GRACE_S * 1000;
+        if (silenceMs > threshold) {
           logError(`[Watchdog] No beat for ${(silenceMs / 1000).toFixed(1)}s — triggering reconnect`);
           this.lastAnyBeatAtMs = 0; // prevent re-trigger before disconnect completes
           this.opts.onCommunicationLost?.();
@@ -1197,6 +1242,13 @@ export class StageLinqBridge {
 
   getRawNetworkPath(deck: DeckNumber): string {
     return this.rawNetworkPaths[deck];
+  }
+
+  /** Ms since last beat received. Returns Infinity if no real beat has arrived since last connect. */
+  getLastBeatAgeMs(): number {
+    if (!this.realBeatReceivedSinceConnect) return Infinity;
+    if (this.lastAnyBeatAtMs === 0) return Infinity;
+    return Date.now() - this.lastAnyBeatAtMs;
   }
 
   async downloadFile(

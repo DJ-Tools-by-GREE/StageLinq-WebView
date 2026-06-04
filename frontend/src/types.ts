@@ -35,6 +35,8 @@ export interface DeckState {
   savedLoops: SavedLoop[];
 }
 
+export type StageLinqStatus = 'connected' | 'no-device' | 'reconnecting';
+
 export interface HelloPayload {
   type: 'hello';
   ts: number;
@@ -49,6 +51,7 @@ export interface SnapshotPayload {
   decks: Record<DeckNumber, DeckState>;
   selectedDeck: DeckNumber | null;
   nextTrack: string | null;
+  stagelinqStatus: StageLinqStatus;
 }
 
 export type WaveformStage = 'downloading' | 'generating' | 'ready' | 'error';

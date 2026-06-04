@@ -35,6 +35,11 @@ export interface DeckState {
   savedLoops: SavedLoop[];
 }
 
+// 'connected'    — beats arriving within threshold
+// 'no-device'    — WS up, announce sent, but no beats (cable pulled, device off)
+// 'reconnecting' — actively in reconnect loop (bridge.disconnect() was called)
+export type StageLinqStatus = 'connected' | 'no-device' | 'reconnecting';
+
 export interface SnapshotPayload {
   type: 'snapshot';
   seq: number;
@@ -42,6 +47,7 @@ export interface SnapshotPayload {
   decks: Record<DeckNumber, DeckState>;
   selectedDeck: DeckNumber | null;
   nextTrack: string | null;
+  stagelinqStatus: StageLinqStatus;
 }
 
 export interface HelloPayload {

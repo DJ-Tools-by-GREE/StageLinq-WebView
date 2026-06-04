@@ -9,10 +9,10 @@ import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { StageLinqBridge } from './stagelinqBridge.js';
-import type { DeckNumber, SnapshotPayload, WaveformDataPayload, WaveformStatusPayload, WsPayload } from './types.js';
+import type { DeckNumber, SnapshotPayload, WaveformStatusPayload, WsPayload } from './types.js';
 import { ArtNetTimecodeBroadcaster } from './artnetTimecode.js';
 import { OscBpmSender } from './oscBpm.js';
-import { RECONNECT_DELAY_MS, WS_FPS, WAVEFORM_PEAKS_PER_SEC } from './constants.js';
+import { RECONNECT_DELAY_MS, WS_FPS, WAVEFORM_PEAKS_PER_SEC, DISCONNECT_DETECT_TIMEOUT_S } from './constants.js';
 import { States, StageLinqValue } from "@gree44/stagelinq";
 import { logError, logLifecycle, logWaveform, logUiOut, applyLoggingConfig, applyDisplayConfig, DISPLAY_ENABLED, logDashboard, deckColor, getStatusSlot, DIM, R, GRN, YEL, RED, RST } from './logging.js';
 import { generateWaveformPeaks, peaksCache, artworkCache, initWaveformCache } from './waveformService.js';
@@ -593,7 +593,8 @@ async function main() {
         logLifecycle(`${GRN}StageLinq: listening for devices.${RST}`);
         return;
       } catch (e: any) {
-        logError('StageLinq connect failed:', e?.message || e);
+        const msg = e?.message || String(e);
+        logError('StageLinq connect failed:', msg);
         await new Promise((r) => setTimeout(r, RECONNECT_DELAY_MS));
       }
     }
@@ -757,8 +758,27 @@ async function main() {
     logLifecycle(`[CONTROL] mode=${controlMode} not implemented, using fixed deck ${selectedDeck}.`);
   }
 
+  await new Promise<void>((resolve) => {
+    server.listen(PORT, '0.0.0.0', () => {
+      const ips = getLocalIpv4Addresses();
+      if (ips.length === 0) {
+        uiUrls = [`http://localhost:${PORT}/`];
+        logLifecycle(`Web UI: http://localhost:${PORT}/`);
+        logLifecycle(`WS: ws://localhost:${PORT}/ws`);
+      } else {
+        for (const ip of ips) {
+          uiUrls.push(`http://${ip}:${PORT}/`);
+          logLifecycle(`Web UI: http://${ip}:${PORT}/`);
+          logLifecycle(`WS: ws://${ip}:${PORT}/ws`);
+          if (sacnSimEnabled) logLifecycle(`sACN Sim: http://${ip}:${PORT}/sacn-sim`);
+        }
+      }
+      resolve();
+    });
+  });
+
   // Initial connect (retries indefinitely with RECONNECT_DELAY_MS between attempts)
-  await connectWithRetry();
+  void connectWithRetry();
 
   if (oscEnabled && !oscBpm) {
     oscBpm = new OscBpmSender({
@@ -778,10 +798,6 @@ async function main() {
 
     const fileKey = normalizeTrackName(deck.fileName || '');
     const offset = trackOffsets.get(fileKey);
-    // logLifecycle(
-    //   `[TRACK MATCH] Deck ${selectedDeck} file="${deck.fileName}" key="${fileKey}" ` +
-    //   `match=${offset ? 'exact' : 'none'}`
-    // );
     if (!offset) return deck;
 
     const offsetSec = offset.offsetSec + offset.offsetFrame / artnetFps;
@@ -867,6 +883,9 @@ async function main() {
       decks,
       selectedDeck,
       nextTrack: computeNextTrack(config, selectedDeck ? decks[selectedDeck].fileName : null),
+      stagelinqStatus: reconnecting ? 'reconnecting'
+        : bridge.getLastBeatAgeMs() <= DISCONNECT_DETECT_TIMEOUT_S * 1000 ? 'connected'
+        : 'no-device',
     };
 
     // Log only when meaningful values changed
@@ -949,22 +968,6 @@ async function main() {
 
 
 
-  server.listen(PORT, '0.0.0.0', () => {
-    const ips = getLocalIpv4Addresses();
-    if (ips.length === 0) {
-      uiUrls = [`http://localhost:${PORT}/`];
-      logLifecycle(`Web UI: http://localhost:${PORT}/`);
-      logLifecycle(`WS: ws://localhost:${PORT}/ws`);
-      return;
-    }
-
-    for (const ip of ips) {
-      uiUrls.push(`http://${ip}:${PORT}/`);
-      logLifecycle(`Web UI: http://${ip}:${PORT}/`);
-      logLifecycle(`WS: ws://${ip}:${PORT}/ws`);
-      if (sacnSimEnabled) logLifecycle(`sACN Sim: http://${ip}:${PORT}/sacn-sim`);
-    }
-  });
 }
 
 main().catch((e) => {

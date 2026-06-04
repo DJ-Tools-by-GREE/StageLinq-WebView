@@ -71,6 +71,11 @@ export class ArtNetTimecodeBroadcaster {
     this.sendWhenStopped = enabled;
   }
 
+  /** Returns the current interpolated elapsed position in seconds (without latency compensation). */
+  getElapsedSec(): number {
+    return this.timelineFrames !== null ? this.timelineFrames / this.opts.fps : 0;
+  }
+
   async start(getDeckState: () => DeckState | undefined) {
     if (!this.opts.enabled) return;
     this.socket.on('error', (err) => {
@@ -156,7 +161,6 @@ export class ArtNetTimecodeBroadcaster {
       }
 
       if (wasPlaying) {
-        // Just stopped — record position without sending.
         this.lastSentStoppedFrames = stoppedFrame;
       } else if (this.lastSentStoppedFrames !== stoppedFrame) {
         this.lastSentStoppedFrames = stoppedFrame;
@@ -185,7 +189,6 @@ export class ArtNetTimecodeBroadcaster {
       this.timelineFrames = sourceFrames;
     }
 
-    // Warm-up tick: avoid emitting a single packet right when sender starts/resumes.
     if (this.lastTickMs == null) {
       this.lastTickMs = nowMs;
       this.timelineFrames = sourceFrames;
@@ -193,20 +196,18 @@ export class ArtNetTimecodeBroadcaster {
     }
 
     const dtSec = Math.max(0, (nowMs - this.lastTickMs) / 1000);
-    this.timelineFrames += dtSec * this.opts.fps;
+    const playRate = 1 + (deckState.speedState ?? 0) / 100;
+    this.timelineFrames += dtSec * this.opts.fps * playRate;
 
-    // Re-sync on seeks/jumps to keep sender aligned with deck timeline.
     const drift = Math.abs(sourceFrames - this.timelineFrames);
     if (drift > this.opts.fps * ARTNET_DRIFT_THRESHOLD_RATIO) {
       this.timelineFrames = sourceFrames;
     }
 
-    // Never trail behind the source while playing.
     if (this.timelineFrames < sourceFrames) {
       this.timelineFrames = sourceFrames;
     }
 
-    // Do not emit before song position 00:00 (raw, pre-offset/pre-latency domain).
     if (this.timelineFrames <= 0) {
       return;
     }
@@ -215,21 +216,14 @@ export class ArtNetTimecodeBroadcaster {
 
     const latencyCompFrames = (this.opts.fps * (this.opts.latencyCompMs ?? 80)) / 1000;
     const rawFramePos = this.timelineFrames + latencyCompFrames;
-    if (rawFramePos < 0) {
-      // Do not emit timecode before 00:00:00:00.
-      return;
-    }
+    if (rawFramePos < 0) return;
 
     let totalFrames = Math.floor(rawFramePos);
-
-    // Prevent running past track end (can trigger after-roll warnings on some desks).
     const totalSec = Number(deckState.totalSec) || 0;
     if (totalSec > 0) {
       const maxFrame = Math.max(0, Math.floor(totalSec * this.opts.fps) - 1);
       totalFrames = Math.min(totalFrames, maxFrame);
     }
-
-    // Send every loop tick (no frame-skipping), so receivers get continuous TC updates.
 
     const tc = framesToHMSF(totalFrames, this.opts.fps);
     logStatus('artnet',

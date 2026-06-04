@@ -2395,3 +2395,1562 @@
 [12:15:49.747] [WAVEFORM] Deck 4: queuing "4 Hangover [Intro Clean].mp3"
 [12:15:49.752] [WAVEFORM] downloadFile deviceId="net://a6d673d1-2443-4709-aeaf-96fad98585e3" filePath="/NO NAME (SD)/Engine Library/Music/Taio Cruz ft Flo-Rida/BPMsupreme_com/4 Hangover [Intro Clean].mp3"
 [12:15:51.827] [WAVEFORM] Deck 4: ready, 52010 peaks
+
+--- session start 2026-06-04T12:28:48.477Z ---
+[12:28:48.448] [StageLinq] Non-fatal library error. Continuing: No broadcast targets have been found
+[12:28:49.356] [StageLinq] Non-fatal library error. Continuing: No broadcast targets have been found
+[12:28:50.359] [StageLinq] Non-fatal library error. Continuing: No broadcast targets have been found
+[12:28:51.357] [StageLinq] Non-fatal library error. Continuing: No broadcast targets have been found
+[12:28:52.357] [StageLinq] Non-fatal library error. Continuing: No broadcast targets have been found
+[12:28:52.500] [Watchdog] Deck 2: playing but no beat for 5.1s — marking stopped
+[12:28:53.363] [StageLinq] Non-fatal library error. Continuing: No broadcast targets have been found
+[12:28:54.359] [StageLinq] Non-fatal library error. Continuing: No broadcast targets have been found
+[12:28:55.358] [StageLinq] Non-fatal library error. Continuing: No broadcast targets have been found
+[12:28:56.361] [StageLinq] Non-fatal library error. Continuing: No broadcast targets have been found
+[12:28:57.362] [StageLinq] Non-fatal library error. Continuing: No broadcast targets have been found
+[12:28:57.506] [Watchdog] No beat for 10.1s — triggering reconnect
+[12:28:57.518] [StageLinq] Already connected
+[12:29:07.527] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:29:07.566] [StageLinq] Already connected
+[12:29:17.576] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:29:17.579] [StageLinq] Already connected
+[12:29:27.589] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:29:27.590] [StageLinq] Already connected
+[12:29:37.599] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:29:37.620] [StageLinq] Already connected
+[12:29:47.629] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:29:47.633] [StageLinq] Already connected
+[12:29:57.642] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:29:57.647] [StageLinq] Already connected
+[12:30:07.654] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:30:07.656] [StageLinq] Already connected
+[12:30:17.663] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:30:17.668] [StageLinq] Already connected
+[12:30:27.676] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:30:27.680] [StageLinq] Already connected
+[12:30:37.689] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:30:37.692] [StageLinq] Already connected
+[12:30:47.701] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:30:47.705] [StageLinq] Already connected
+[12:30:57.713] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:30:57.730] [StageLinq] Already connected
+[12:31:07.739] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:31:07.741] [StageLinq] Already connected
+[12:31:17.749] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:31:17.751] [StageLinq] Already connected
+[12:31:27.760] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:31:27.762] [StageLinq] Already connected
+[12:31:37.770] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:31:37.773] [StageLinq] Already connected
+[12:31:47.780] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:31:47.781] [StageLinq] Already connected
+[12:31:57.789] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:31:57.794] [StageLinq] Already connected
+[12:32:07.805] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:32:07.806] [StageLinq] Already connected
+[12:32:17.812] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:32:17.815] [StageLinq] Already connected
+[12:32:27.824] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:32:27.826] [StageLinq] Already connected
+[12:32:37.833] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:32:37.836] [StageLinq] Already connected
+[12:32:47.847] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:32:47.863] [StageLinq] Already connected
+[12:32:57.878] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:32:57.882] [StageLinq] Already connected
+[12:33:07.891] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:33:07.896] [StageLinq] Already connected
+[12:33:17.905] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:33:17.908] [StageLinq] Already connected
+[12:33:27.919] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:33:27.922] [StageLinq] Already connected
+[12:33:37.929] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:33:37.931] [StageLinq] Already connected
+[12:33:47.939] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:33:47.942] [StageLinq] Already connected
+[12:33:57.948] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:33:57.954] [StageLinq] Already connected
+[12:34:07.964] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:34:07.967] [StageLinq] Already connected
+[12:34:17.971] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:34:17.973] [StageLinq] Already connected
+[12:34:27.983] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:34:27.987] [StageLinq] Already connected
+[12:34:38.000] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:34:38.003] [StageLinq] Already connected
+[12:34:48.015] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:34:48.020] [StageLinq] Already connected
+[12:34:58.028] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:34:58.030] [StageLinq] Already connected
+[12:35:08.041] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:35:08.045] [StageLinq] Already connected
+[12:35:18.111] [Watchdog] No beat for 10.1s — triggering reconnect
+[12:35:18.113] [StageLinq] Already connected
+[12:35:28.122] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:35:28.126] [StageLinq] Already connected
+[12:35:38.133] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:35:38.135] [StageLinq] Already connected
+[12:35:48.146] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:35:48.152] [StageLinq] Already connected
+[12:35:58.159] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:35:58.164] [StageLinq] Already connected
+[12:36:08.172] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:36:08.174] [StageLinq] Already connected
+[12:36:18.182] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:36:18.183] [StageLinq] Already connected
+[12:36:28.196] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:36:28.206] [StageLinq] Already connected
+[12:36:38.215] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:36:38.217] [StageLinq] Already connected
+[12:36:48.229] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:36:48.231] [StageLinq] Already connected
+[12:36:58.242] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:36:58.243] [StageLinq] Already connected
+[12:37:08.269] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:37:08.273] [StageLinq] Already connected
+[12:37:18.281] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:37:18.282] [StageLinq] Already connected
+[12:37:28.297] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:37:28.299] [StageLinq] Already connected
+[12:37:38.316] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:37:38.320] [StageLinq] Already connected
+[12:37:48.329] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:37:48.331] [StageLinq] Already connected
+[12:37:58.340] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:37:58.341] [StageLinq] Already connected
+[12:38:08.348] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:38:08.350] [StageLinq] Already connected
+[12:38:18.358] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:38:18.359] [StageLinq] Already connected
+[12:38:28.365] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:38:28.368] [StageLinq] Already connected
+[12:38:38.378] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:38:38.387] [StageLinq] Already connected
+[12:38:48.395] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:38:48.397] [StageLinq] Already connected
+[12:38:58.405] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:38:58.412] [StageLinq] Already connected
+[12:39:08.424] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:39:08.428] [StageLinq] Already connected
+[12:39:18.433] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:39:18.435] [StageLinq] Already connected
+[12:39:28.463] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:39:28.464] [StageLinq] Already connected
+
+--- session start 2026-06-04T12:40:06.562Z ---
+[12:40:06.560] [Watchdog] Deck 2: playing but no beat for 5.4s — marking stopped
+[12:40:11.560] [Watchdog] No beat for 10.4s — triggering reconnect
+[12:40:21.624] [Watchdog] No beat for 10.0s — triggering reconnect
+[12:40:24.848] [StageLinq] Could not connect to 192.168.178.53:42755:[prime4plus/JC11] (1/3): Error: Failed to requestServices for prime4plus 192.168.178.53:42755
+
+--- session start 2026-06-04T13:01:03.949Z ---
+[13:01:03.945] [ArtNet] Average output below target: 29.44fps (target 30fps, samples 30/1019ms)
+[13:01:10.023] [ArtNet] Average output below target: 29.47fps (target 30fps, samples 30/1018ms)
+[13:01:15.092] [ArtNet] Average output below target: 29.50fps (target 30fps, samples 30/1017ms)
+[13:01:16.114] [ArtNet] Average output below target: 29.35fps (target 30fps, samples 30/1022ms)
+[13:01:17.134] [ArtNet] Average output below target: 29.41fps (target 30fps, samples 30/1020ms)
+[13:01:19.166] [ArtNet] Average output below target: 29.47fps (target 30fps, samples 30/1018ms)
+[13:01:19.251] [Watchdog] Deck 2: playing but no beat for 5.9s — marking stopped
+[13:01:24.256] [Watchdog] No beat for 10.9s — triggering reconnect
+[13:01:34.288] [Watchdog] No beat for 10.0s — triggering reconnect
+[13:01:40.402] [ArtNet] Average output below target: 29.47fps (target 30fps, samples 30/1018ms)
+[13:01:41.413] [ArtNet] Average output below target: 28.68fps (target 30fps, samples 29/1011ms)
+[13:01:46.467] [ArtNet] Average output below target: 29.47fps (target 30fps, samples 30/1018ms)
+[13:01:51.532] [ArtNet] Average output below target: 29.50fps (target 30fps, samples 30/1017ms)
+[13:02:07.747] [ArtNet] Average output below target: 29.47fps (target 30fps, samples 30/1018ms)
+[13:02:10.781] [ArtNet] Average output below target: 28.52fps (target 30fps, samples 29/1017ms)
+[13:02:12.816] [ArtNet] Average output below target: 29.38fps (target 30fps, samples 30/1021ms)
+[13:02:18.520] [ArtNet] Cadence drop detected: 11.11fps (target 30fps, interval 90.0ms)
+[13:02:18.903] [ArtNet] Average output below target: 27.29fps (target 30fps, samples 28/1026ms)
+[13:02:28.030] [ArtNet] Average output below target: 29.41fps (target 30fps, samples 30/1020ms)
+[13:02:44.246] [ArtNet] Average output below target: 29.27fps (target 30fps, samples 30/1025ms)
+[13:02:50.336] [ArtNet] Average output below target: 29.44fps (target 30fps, samples 30/1019ms)
+[13:02:53.227] [ArtNet] Cadence drop detected: 4.85fps (target 30fps, interval 206.0ms)
+[13:02:53.365] [ArtNet] Average output below target: 22.89fps (target 30fps, samples 23/1005ms)
+[13:02:54.382] [ArtNet] Average output below target: 29.50fps (target 30fps, samples 30/1017ms)
+[13:02:55.077] [ArtNet] Cadence drop detected: 3.07fps (target 30fps, interval 326.0ms)
+[13:02:55.466] [ArtNet] Average output below target: 16.61fps (target 30fps, samples 18/1084ms)
+[13:02:56.498] [ArtNet] Average output below target: 29.07fps (target 30fps, samples 30/1032ms)
+[13:02:58.529] [ArtNet] Average output below target: 29.50fps (target 30fps, samples 30/1017ms)
+[13:03:01.566] [ArtNet] Average output below target: 29.44fps (target 30fps, samples 30/1019ms)
+[13:03:03.597] [ArtNet] Average output below target: 29.44fps (target 30fps, samples 30/1019ms)
+[13:03:10.679] [ArtNet] Average output below target: 29.47fps (target 30fps, samples 30/1018ms)
+[13:03:15.737] [ArtNet] Average output below target: 28.74fps (target 30fps, samples 29/1009ms)
+[13:03:20.799] [ArtNet] Average output below target: 29.47fps (target 30fps, samples 30/1018ms)
+[13:03:24.847] [ArtNet] Average output below target: 29.50fps (target 30fps, samples 30/1017ms)
+[13:03:31.938] [ArtNet] Average output below target: 29.44fps (target 30fps, samples 30/1019ms)
+[13:03:44.095] [ArtNet] Average output below target: 29.50fps (target 30fps, samples 30/1017ms)
+[13:03:46.119] [ArtNet] Average output below target: 29.41fps (target 30fps, samples 30/1020ms)
+[13:03:48.533] [ArtNet] Cadence drop detected: 11.24fps (target 30fps, interval 89.0ms)
+[13:03:49.176] [ArtNet] Average output below target: 25.19fps (target 30fps, samples 26/1032ms)
+[13:03:51.211] [ArtNet] Average output below target: 29.35fps (target 30fps, samples 30/1022ms)
+[13:04:15.029] [ArtNet] Cadence drop detected: 18.87fps (target 30fps, interval 53.0ms)
+[13:04:15.507] [ArtNet] Average output below target: 23.58fps (target 30fps, samples 24/1018ms)
+[13:04:16.410] [ArtNet] Cadence drop detected: 1.75fps (target 30fps, interval 572.0ms)
+[13:04:16.518] [ArtNet] Average output below target: 11.87fps (target 30fps, samples 12/1011ms)
+[13:04:17.525] [ArtNet] Average output below target: 26.81fps (target 30fps, samples 27/1007ms)
+[13:04:19.554] [ArtNet] Average output below target: 29.47fps (target 30fps, samples 30/1018ms)
+[13:04:23.601] [ArtNet] Average output below target: 29.50fps (target 30fps, samples 30/1017ms)
+[13:04:30.689] [ArtNet] Average output below target: 29.47fps (target 30fps, samples 30/1018ms)
+[13:04:35.755] [ArtNet] Average output below target: 29.47fps (target 30fps, samples 30/1018ms)
+[13:04:36.772] [ArtNet] Average output below target: 29.50fps (target 30fps, samples 30/1017ms)
+[13:04:42.594] [ArtNet] Cadence drop detected: 11.36fps (target 30fps, interval 88.0ms)
+[13:04:42.842] [ArtNet] Average output below target: 25.72fps (target 30fps, samples 26/1011ms)
+[13:04:50.926] [ArtNet] Average output below target: 29.50fps (target 30fps, samples 30/1017ms)
+[13:04:58.004] [ArtNet] Average output below target: 29.50fps (target 30fps, samples 30/1017ms)
+[13:05:03.072] [ArtNet] Average output below target: 29.38fps (target 30fps, samples 30/1021ms)
+[13:05:08.140] [ArtNet] Average output below target: 29.44fps (target 30fps, samples 30/1019ms)
+[13:05:08.792] [ArtNet] Cadence drop detected: 16.39fps (target 30fps, interval 61.0ms)
+[13:05:09.169] [ArtNet] Average output below target: 27.21fps (target 30fps, samples 28/1029ms)
+[13:05:17.273] [ArtNet] Average output below target: 29.47fps (target 30fps, samples 30/1018ms)
+[13:05:19.307] [ArtNet] Average output below target: 29.44fps (target 30fps, samples 30/1019ms)
+[13:05:20.330] [ArtNet] Average output below target: 29.33fps (target 30fps, samples 30/1023ms)
+[13:05:25.395] [ArtNet] Average output below target: 29.41fps (target 30fps, samples 30/1020ms)
+[13:05:38.551] [ArtNet] Average output below target: 29.35fps (target 30fps, samples 30/1022ms)
+[13:05:46.371] [ArtNet] Cadence drop detected: 18.87fps (target 30fps, interval 53.0ms)
+[13:05:46.645] [ArtNet] Average output below target: 27.89fps (target 30fps, samples 28/1004ms)
+[13:05:52.725] [ArtNet] Average output below target: 29.50fps (target 30fps, samples 30/1017ms)
+[13:05:54.756] [ArtNet] Average output below target: 29.50fps (target 30fps, samples 30/1017ms)
+[13:05:56.740] [ArtNet] Cadence drop detected: 16.67fps (target 30fps, interval 60.0ms)
+[13:05:56.798] [ArtNet] Average output below target: 28.10fps (target 30fps, samples 29/1032ms)
+[13:05:57.815] [ArtNet] Cadence drop detected: 12.20fps (target 30fps, interval 82.0ms)
+[13:05:57.816] [ArtNet] Average output below target: 21.63fps (target 30fps, samples 22/1017ms)
+[13:05:58.839] [ArtNet] Average output below target: 29.30fps (target 30fps, samples 30/1024ms)
+
+--- session start 2026-06-04T13:11:49.759Z ---
+[13:11:49.758] [Watchdog] Deck 2: playing but no beat for 5.4s — marking stopped
+[13:11:54.764] [Watchdog] No beat for 10.4s — triggering reconnect
+[13:12:04.801] [Watchdog] No beat for 10.0s — triggering reconnect
+[13:12:15.501] [Watchdog] No beat for 10.7s — triggering reconnect
+[13:12:25.516] [Watchdog] No beat for 10.0s — triggering reconnect
+[13:12:35.532] [Watchdog] No beat for 10.0s — triggering reconnect
+[13:12:45.549] [Watchdog] No beat for 10.0s — triggering reconnect
+[13:12:55.563] [Watchdog] No beat for 10.0s — triggering reconnect
+[13:13:05.575] [Watchdog] No beat for 10.0s — triggering reconnect
+[13:13:15.595] [Watchdog] No beat for 10.0s — triggering reconnect
+[13:13:25.730] [Watchdog] No beat for 10.1s — triggering reconnect
+[13:13:35.765] [Watchdog] No beat for 10.0s — triggering reconnect
+
+--- session start 2026-06-04T13:17:57.619Z ---
+[13:17:57.618] [Watchdog] Deck 2: playing but no beat for 5.2s — marking stopped
+[13:18:02.623] [Watchdog] No beat for 10.3s — triggering reconnect
+[13:18:12.650] [Watchdog] No beat for 10.0s — triggering reconnect
+
+--- session start 2026-06-04T13:27:11.412Z ---
+[13:27:11.412] [Watchdog] No beat for 2.0s — triggering reconnect
+[13:27:13.421] [Watchdog] No beat for 2.0s — triggering reconnect
+[13:27:15.430] [Watchdog] No beat for 2.0s — triggering reconnect
+[13:27:17.464] [Watchdog] No beat for 2.0s — triggering reconnect
+[13:27:19.474] [Watchdog] No beat for 2.0s — triggering reconnect
+[13:27:21.485] [Watchdog] No beat for 2.0s — triggering reconnect
+[13:27:23.494] [Watchdog] No beat for 2.0s — triggering reconnect
+[13:27:25.499] [Watchdog] No beat for 2.0s — triggering reconnect
+[13:27:27.506] [Watchdog] No beat for 2.0s — triggering reconnect
+[13:27:29.519] [Watchdog] No beat for 2.0s — triggering reconnect
+[13:27:31.527] [Watchdog] No beat for 2.0s — triggering reconnect
+[13:27:33.538] [Watchdog] No beat for 2.0s — triggering reconnect
+
+--- session start 2026-06-04T13:27:48.303Z ---
+[13:27:48.302] [Watchdog] No beat for 2.0s — triggering reconnect
+[13:27:50.321] [Watchdog] No beat for 2.0s — triggering reconnect
+[13:27:52.335] [Watchdog] No beat for 2.0s — triggering reconnect
+[13:27:54.350] [Watchdog] No beat for 2.0s — triggering reconnect
+[13:27:56.755] [Watchdog] No beat for 2.4s — triggering reconnect
+[13:27:58.765] [Watchdog] No beat for 2.0s — triggering reconnect
+[13:28:00.773] [Watchdog] No beat for 2.0s — triggering reconnect
+[13:28:02.795] [Watchdog] No beat for 2.0s — triggering reconnect
+[13:28:04.863] [Watchdog] No beat for 2.1s — triggering reconnect
+[13:28:06.872] [Watchdog] No beat for 2.0s — triggering reconnect
+[13:28:09.888] [Watchdog] No beat for 2.0s — triggering reconnect
+[13:28:12.898] [Watchdog] No beat for 2.0s — triggering reconnect
+[13:28:14.915] [Watchdog] No beat for 2.0s — triggering reconnect
+[13:28:16.928] [Watchdog] No beat for 2.0s — triggering reconnect
+[13:28:18.936] [Watchdog] No beat for 2.0s — triggering reconnect
+[13:28:20.943] [Watchdog] No beat for 2.0s — triggering reconnect
+[13:28:22.952] [Watchdog] No beat for 2.0s — triggering reconnect
+[13:28:24.967] [Watchdog] No beat for 2.0s — triggering reconnect
+[13:28:26.980] [Watchdog] No beat for 2.0s — triggering reconnect
+[13:28:28.988] [Watchdog] No beat for 2.0s — triggering reconnect
+[13:28:30.999] [Watchdog] No beat for 2.0s — triggering reconnect
+[13:28:33.017] [Watchdog] No beat for 2.0s — triggering reconnect
+[13:28:35.031] [Watchdog] No beat for 2.0s — triggering reconnect
+[13:28:37.043] [Watchdog] No beat for 2.0s — triggering reconnect
+[13:28:39.048] [Watchdog] No beat for 2.0s — triggering reconnect
+[13:28:41.057] [Watchdog] No beat for 2.0s — triggering reconnect
+[13:28:43.063] [Watchdog] No beat for 2.0s — triggering reconnect
+[13:28:45.070] [Watchdog] No beat for 2.0s — triggering reconnect
+[13:28:47.076] [Watchdog] No beat for 2.0s — triggering reconnect
+
+--- session start 2026-06-04T13:42:34.185Z ---
+[13:42:34.177] [WAVEFORM] Deck 3: queuing "David Guetta - One Love (Club Version) - 01 - When Love Takes Over (feat. Kelly Rowland) (Original Extended).flac"
+[13:42:34.189] [WAVEFORM] downloadFile deviceId="net://a6d673d1-2443-4709-aeaf-96fad98585e3" filePath="/NO NAME (SD)/Engine Library/Music/David Guetta; Kelly Rowland/One Love (Club Version)/David Guetta - One Love (Club Version) - 01 - When Love Takes Over (feat. Kelly Rowland) (Original Extended).flac"
+[13:42:37.786] [Watchdog] No beat for 2.2s — triggering reconnect
+[13:42:41.413] [WAVEFORM] Deck 3: queuing "David Guetta - One Love (Club Version) - 01 - When Love Takes Over (feat. Kelly Rowland) (Original Extended).flac"
+[13:42:41.414] [WAVEFORM] downloadFile deviceId="net://a6d673d1-2443-4709-aeaf-96fad98585e3" filePath="/NO NAME (SD)/Engine Library/Music/David Guetta; Kelly Rowland/One Love (Club Version)/David Guetta - One Love (Club Version) - 01 - When Love Takes Over (feat. Kelly Rowland) (Original Extended).flac"
+[13:43:34.227] [StageLinq] Could not read database from /NO NAME (SD)/Engine Library/Music/David Guetta; Kelly Rowland/One Love (Club Version)/David Guetta - One Love (Club Version) - 01 - When Love Takes Over (feat. Kelly Rowland) (Original Extended).flac: Failed to download '/NO NAME (SD)/Engine Library/Music/David Guetta; Kelly Rowland/One Love (Club Version)/David Guetta - One Love (Club Version) - 01 - When Love Takes Over (feat. Kelly Rowland) (Original Extended).flac'
+[13:43:41.778] [WAVEFORM] Deck 3: ready, 93218 peaks
+[14:24:42.438] [Watchdog] No beat for 2.5s — triggering reconnect
+
+--- session start 2026-06-04T14:53:25.633Z ---
+[14:53:25.631] [StageLinq] Non-fatal library error. Continuing: No broadcast targets have been found
+[14:53:26.667] [StageLinq] Non-fatal library error. Continuing: No broadcast targets have been found
+[14:53:26.918] [Watchdog] No beat for 2.2s — triggering reconnect
+[14:53:48.427] [Watchdog] No beat for 20.4s — triggering reconnect
+[15:10:56.780] [Watchdog] No beat for 1028.3s — triggering reconnect
+[15:11:16.825] [Watchdog] No beat for 20.0s — triggering reconnect
+[15:27:02.739] [Watchdog] No beat for 945.9s — triggering reconnect
+[15:27:22.903] [Watchdog] No beat for 20.0s — triggering reconnect
+[15:43:21.739] [Watchdog] No beat for 958.8s — triggering reconnect
+[15:43:41.787] [Watchdog] No beat for 20.0s — triggering reconnect
+[15:59:00.048] [Watchdog] No beat for 918.2s — triggering reconnect
+[15:59:21.286] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:16:06.991] [Watchdog] No beat for 1005.7s — triggering reconnect
+[16:16:27.127] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:16:47.190] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:17:07.219] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:17:27.242] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:17:47.266] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:18:07.289] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:18:27.309] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:18:47.327] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:19:07.351] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:19:27.375] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:19:47.401] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:20:07.432] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:20:27.710] [Watchdog] No beat for 20.3s — triggering reconnect
+[16:20:48.171] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:21:08.223] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:21:28.310] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:21:48.379] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:22:08.421] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:22:28.461] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:22:48.491] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:23:08.518] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:23:28.538] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:23:48.561] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:24:08.583] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:24:28.618] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:24:48.637] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:25:08.660] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:25:28.686] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:25:48.709] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:26:08.729] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:26:28.759] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:26:48.795] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:27:08.824] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:27:28.869] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:27:48.972] [Watchdog] No beat for 20.1s — triggering reconnect
+[16:28:09.001] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:28:29.040] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:28:49.065] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:29:09.089] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:29:29.127] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:29:49.158] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:30:09.249] [Watchdog] No beat for 20.1s — triggering reconnect
+[16:30:29.265] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:30:49.286] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:31:09.306] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:31:29.323] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:31:49.349] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:32:09.517] [Watchdog] No beat for 20.1s — triggering reconnect
+[16:32:29.580] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:32:49.624] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:33:09.754] [Watchdog] No beat for 20.1s — triggering reconnect
+[16:33:29.782] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:33:49.813] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:34:09.848] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:34:29.864] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:34:49.886] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:35:09.991] [Watchdog] No beat for 20.1s — triggering reconnect
+[16:35:30.015] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:35:50.036] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:36:10.048] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:36:30.068] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:36:50.086] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:37:10.103] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:37:30.146] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:37:50.163] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:38:10.183] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:38:30.199] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:38:50.222] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:39:10.245] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:39:30.278] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:39:50.299] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:40:10.314] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:40:30.338] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:40:50.364] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:41:10.389] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:41:30.417] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:41:50.452] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:42:10.478] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:42:30.517] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:42:50.541] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:43:10.567] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:43:30.599] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:43:50.639] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:44:10.673] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:44:30.722] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:44:50.774] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:45:10.803] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:45:30.838] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:45:50.877] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:46:10.921] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:46:30.962] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:46:51.007] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:47:11.039] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:47:31.081] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:47:51.122] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:48:11.162] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:48:31.200] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:48:51.235] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:49:11.270] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:49:31.305] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:49:51.349] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:50:11.399] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:50:31.434] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:50:51.466] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:51:11.506] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:51:31.544] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:51:51.580] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:52:11.611] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:52:31.654] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:52:51.696] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:53:11.745] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:53:31.791] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:53:51.813] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:54:11.848] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:54:31.891] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:54:51.946] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:55:11.986] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:55:32.026] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:55:52.060] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:56:12.100] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:56:32.140] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:56:52.171] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:57:12.207] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:57:32.260] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:57:52.302] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:58:12.342] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:58:32.371] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:58:52.407] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:59:12.445] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:59:32.481] [Watchdog] No beat for 20.0s — triggering reconnect
+[16:59:52.523] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:00:12.549] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:00:32.592] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:00:52.627] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:01:12.661] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:01:32.695] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:01:52.738] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:02:12.781] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:02:32.812] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:02:52.847] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:03:12.875] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:03:32.916] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:03:52.958] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:04:12.999] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:04:33.047] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:04:53.088] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:05:13.125] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:05:33.160] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:05:53.197] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:06:13.255] [Watchdog] No beat for 20.1s — triggering reconnect
+[17:06:33.299] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:06:53.363] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:07:13.421] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:07:33.453] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:07:53.493] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:08:13.541] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:08:33.572] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:08:53.597] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:09:13.686] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:09:33.756] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:09:53.772] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:10:13.790] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:10:33.834] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:10:53.853] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:11:13.866] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:11:33.889] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:11:53.919] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:12:13.974] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:12:34.006] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:12:54.031] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:13:14.064] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:13:34.088] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:13:54.119] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:14:14.156] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:14:34.202] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:14:54.245] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:15:14.292] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:15:34.325] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:15:54.367] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:16:14.417] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:16:34.457] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:16:54.495] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:17:14.543] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:17:34.590] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:17:54.638] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:18:14.679] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:18:34.728] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:18:54.760] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:19:14.794] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:19:34.831] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:19:54.872] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:20:14.921] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:20:34.957] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:20:54.996] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:21:15.037] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:21:35.072] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:21:55.120] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:22:15.164] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:22:35.195] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:22:55.229] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:23:15.261] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:23:35.300] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:23:55.360] [Watchdog] No beat for 20.1s — triggering reconnect
+[17:24:15.397] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:24:35.432] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:24:55.469] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:25:15.501] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:25:35.534] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:25:55.599] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:26:15.643] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:26:35.679] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:26:55.719] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:27:15.749] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:27:35.790] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:27:55.825] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:28:15.858] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:28:35.899] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:28:55.931] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:29:15.966] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:29:36.004] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:29:56.024] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:30:16.059] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:30:36.096] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:30:56.134] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:31:16.178] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:31:36.219] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:31:56.262] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:32:16.324] [Watchdog] No beat for 20.1s — triggering reconnect
+[17:32:36.359] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:32:56.391] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:33:16.426] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:33:36.465] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:33:56.502] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:34:16.539] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:34:36.577] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:34:56.608] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:35:16.643] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:35:36.677] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:35:56.717] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:36:16.757] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:36:36.791] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:36:56.825] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:37:16.862] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:37:36.894] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:37:56.927] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:38:16.966] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:38:36.998] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:38:57.044] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:39:17.080] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:39:37.105] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:39:57.143] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:40:17.177] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:40:37.227] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:40:57.254] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:41:17.284] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:41:37.333] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:41:57.430] [Watchdog] No beat for 20.1s — triggering reconnect
+[17:42:17.503] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:42:37.539] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:42:57.577] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:43:17.614] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:43:37.653] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:43:57.728] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:44:17.792] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:44:37.830] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:44:57.866] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:45:17.909] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:45:37.934] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:45:57.985] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:46:18.012] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:46:38.063] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:46:58.120] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:47:18.164] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:47:38.217] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:47:58.247] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:48:18.281] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:48:38.317] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:48:58.393] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:49:18.417] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:49:38.455] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:49:58.506] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:50:18.563] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:50:38.606] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:50:58.661] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:51:18.691] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:51:38.732] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:51:58.912] [Watchdog] No beat for 20.2s — triggering reconnect
+[17:52:18.948] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:52:38.981] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:52:59.010] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:53:19.036] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:53:39.071] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:53:59.113] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:54:19.169] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:54:39.223] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:54:59.268] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:55:19.308] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:55:39.353] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:55:59.403] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:56:19.452] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:56:39.522] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:56:59.582] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:57:19.614] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:57:39.639] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:57:59.680] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:58:19.733] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:58:39.760] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:58:59.805] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:59:19.851] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:59:39.888] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:59:59.927] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:00:19.969] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:00:40.001] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:01:00.050] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:01:20.100] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:01:40.139] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:02:00.195] [Watchdog] No beat for 20.1s — triggering reconnect
+[18:02:20.237] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:02:40.273] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:03:00.311] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:03:20.349] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:03:40.402] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:04:00.450] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:04:20.484] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:04:40.521] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:05:00.566] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:05:20.610] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:05:40.654] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:06:00.691] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:06:20.727] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:06:40.761] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:07:00.805] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:07:20.841] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:07:40.885] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:08:00.937] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:08:20.975] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:08:41.025] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:09:01.065] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:09:21.104] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:09:41.134] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:10:01.173] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:10:21.209] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:10:41.247] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:11:01.281] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:11:21.310] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:11:41.348] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:12:01.390] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:12:21.423] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:12:41.458] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:13:01.496] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:13:21.529] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:13:41.567] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:14:01.622] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:14:21.696] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:14:41.746] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:15:01.786] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:15:21.824] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:15:41.869] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:16:01.911] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:16:21.949] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:16:41.981] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:17:02.025] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:17:22.071] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:17:42.109] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:18:02.147] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:18:22.185] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:18:42.222] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:19:02.265] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:19:22.317] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:19:42.354] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:20:02.398] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:20:22.442] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:20:42.481] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:21:02.531] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:21:22.565] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:21:42.638] [Watchdog] No beat for 20.1s — triggering reconnect
+[18:22:02.702] [Watchdog] No beat for 20.1s — triggering reconnect
+[18:22:23.624] [Watchdog] No beat for 20.9s — triggering reconnect
+[18:22:43.686] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:23:03.699] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:23:23.710] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:23:43.727] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:24:03.748] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:24:23.771] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:24:43.802] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:25:03.828] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:25:23.846] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:25:43.874] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:26:03.897] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:26:23.915] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:26:43.946] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:27:03.963] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:27:24.002] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:27:44.060] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:28:04.096] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:28:24.153] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:28:44.189] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:29:04.220] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:29:24.252] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:29:44.292] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:30:04.331] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:30:24.364] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:30:44.402] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:31:04.441] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:31:24.478] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:31:44.513] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:32:04.597] [Watchdog] No beat for 20.1s — triggering reconnect
+[18:32:24.633] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:32:44.673] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:33:04.722] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:33:24.766] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:33:44.808] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:34:04.847] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:34:24.889] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:34:44.921] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:35:04.968] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:35:25.012] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:35:45.059] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:36:05.098] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:36:25.134] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:36:45.173] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:37:05.217] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:37:25.264] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:37:45.301] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:38:05.343] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:38:25.383] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:38:45.422] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:39:05.462] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:39:25.509] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:39:45.549] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:40:05.585] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:40:25.620] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:40:45.661] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:41:05.699] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:41:25.734] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:41:45.778] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:42:05.874] [Watchdog] No beat for 20.1s — triggering reconnect
+[18:42:25.910] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:42:45.958] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:43:05.998] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:43:26.040] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:43:46.076] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:44:06.110] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:44:26.150] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:44:46.191] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:45:06.227] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:45:26.266] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:45:46.306] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:46:06.351] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:46:26.394] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:46:46.430] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:47:06.472] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:47:26.519] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:47:46.557] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:48:06.593] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:48:26.636] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:48:46.672] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:49:06.708] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:49:26.741] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:49:46.779] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:50:06.820] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:50:26.855] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:50:46.900] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:51:06.946] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:51:26.993] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:51:47.036] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:52:07.076] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:52:27.114] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:52:47.155] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:53:07.191] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:53:27.252] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:53:47.291] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:54:07.331] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:54:27.367] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:54:47.433] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:55:07.476] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:55:27.516] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:55:47.553] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:56:07.599] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:56:27.642] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:56:47.679] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:57:07.713] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:57:27.747] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:57:47.785] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:58:07.823] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:58:27.896] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:58:47.944] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:59:07.984] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:59:28.021] [Watchdog] No beat for 20.0s — triggering reconnect
+[18:59:48.082] [Watchdog] No beat for 20.1s — triggering reconnect
+[19:00:08.127] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:00:28.164] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:00:48.208] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:01:08.247] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:01:28.281] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:01:48.320] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:02:08.396] [Watchdog] No beat for 20.1s — triggering reconnect
+[19:02:28.434] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:02:48.479] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:03:08.521] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:03:28.560] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:03:48.609] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:04:08.648] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:04:28.684] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:04:48.721] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:05:08.789] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:05:28.828] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:05:48.864] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:06:08.901] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:06:28.947] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:06:49.042] [Watchdog] No beat for 20.1s — triggering reconnect
+[19:07:09.078] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:07:29.125] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:07:49.184] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:08:09.226] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:08:29.274] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:08:49.311] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:09:09.346] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:09:29.391] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:09:49.437] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:10:09.473] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:10:29.510] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:10:49.546] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:11:09.583] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:11:29.622] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:11:49.667] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:12:09.750] [Watchdog] No beat for 20.1s — triggering reconnect
+[19:12:29.797] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:12:49.835] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:13:09.873] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:13:29.907] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:13:49.951] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:14:09.994] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:14:30.044] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:14:50.081] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:15:10.117] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:15:30.162] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:15:50.195] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:16:10.239] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:16:30.279] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:16:50.317] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:17:10.350] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:17:30.390] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:17:50.432] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:18:10.469] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:18:30.509] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:18:50.553] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:19:10.586] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:19:30.639] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:19:50.678] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:20:10.716] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:20:30.764] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:20:50.801] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:21:10.832] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:21:30.872] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:21:50.912] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:22:10.957] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:22:31.002] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:22:51.044] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:23:11.082] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:23:31.123] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:23:51.174] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:24:11.244] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:24:31.304] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:24:51.339] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:25:11.389] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:25:31.436] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:25:51.465] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:26:11.499] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:26:31.539] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:26:51.573] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:27:11.609] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:27:31.648] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:27:51.686] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:28:11.723] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:28:31.763] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:28:51.802] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:29:11.846] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:29:31.878] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:29:51.911] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:30:11.946] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:30:31.988] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:30:52.023] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:31:12.063] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:31:32.105] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:31:52.138] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:32:12.213] [Watchdog] No beat for 20.1s — triggering reconnect
+[19:32:32.251] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:32:52.295] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:33:12.331] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:33:32.367] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:33:52.407] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:34:12.472] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:34:32.507] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:34:52.543] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:35:12.587] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:35:32.625] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:35:52.662] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:36:12.701] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:36:32.750] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:36:52.789] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:37:12.829] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:37:32.865] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:37:52.901] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:38:12.939] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:38:32.969] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:38:53.016] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:39:13.050] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:39:33.094] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:39:53.130] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:40:13.164] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:40:33.199] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:40:53.238] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:41:13.283] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:41:33.330] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:41:53.365] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:42:13.422] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:42:33.460] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:42:53.496] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:43:13.535] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:43:33.588] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:43:53.636] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:44:13.676] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:44:33.717] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:44:53.754] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:45:13.790] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:45:33.823] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:45:53.861] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:46:13.895] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:46:33.935] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:46:53.970] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:47:14.010] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:47:34.057] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:47:54.095] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:48:14.130] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:48:34.170] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:48:54.208] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:49:14.252] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:49:34.297] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:49:54.342] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:50:14.382] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:50:34.428] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:50:54.477] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:51:14.505] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:51:34.545] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:51:54.594] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:52:14.666] [Watchdog] No beat for 20.1s — triggering reconnect
+[19:52:34.702] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:52:54.750] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:53:14.787] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:53:34.816] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:53:54.858] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:54:14.899] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:54:34.939] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:54:54.978] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:55:15.023] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:55:35.060] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:55:55.096] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:56:15.120] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:56:35.158] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:56:55.187] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:57:15.237] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:57:35.273] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:57:55.313] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:58:15.354] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:58:35.396] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:58:55.435] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:59:15.475] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:59:35.508] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:59:55.549] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:00:15.587] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:00:35.625] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:00:55.669] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:01:15.715] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:01:35.757] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:01:55.794] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:02:15.828] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:02:35.858] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:02:55.894] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:03:15.936] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:03:35.974] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:03:56.020] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:04:16.057] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:04:36.096] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:04:56.133] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:05:16.169] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:05:36.213] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:05:56.263] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:06:16.287] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:06:36.312] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:06:56.346] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:07:16.388] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:07:36.426] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:07:56.467] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:08:16.506] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:08:36.538] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:08:56.583] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:09:16.617] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:09:36.663] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:09:56.703] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:10:16.742] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:10:36.787] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:10:56.834] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:11:16.872] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:11:36.905] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:11:56.947] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:12:16.990] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:12:37.032] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:12:57.076] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:13:17.122] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:13:37.156] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:13:57.199] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:14:17.242] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:14:37.278] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:14:57.325] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:15:17.367] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:15:37.412] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:15:57.453] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:16:17.498] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:16:37.527] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:16:57.572] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:17:17.607] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:17:37.642] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:17:57.679] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:18:17.726] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:18:37.762] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:18:57.799] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:19:17.833] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:19:37.878] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:19:57.905] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:20:17.945] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:20:37.982] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:20:58.019] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:21:18.054] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:21:38.095] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:21:58.206] [Watchdog] No beat for 20.1s — triggering reconnect
+[20:22:18.248] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:22:38.282] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:22:58.320] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:23:18.350] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:23:38.385] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:23:58.425] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:24:18.486] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:24:38.522] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:24:58.554] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:25:18.583] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:25:38.612] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:25:58.652] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:26:18.680] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:26:38.717] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:26:58.756] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:27:18.795] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:27:38.826] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:27:58.861] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:28:18.889] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:28:38.935] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:28:58.966] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:29:18.988] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:29:39.020] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:29:59.051] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:30:19.085] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:30:39.138] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:30:59.162] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:31:19.191] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:31:39.254] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:31:59.284] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:32:19.319] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:32:39.349] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:32:59.375] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:33:19.412] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:33:39.482] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:33:59.529] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:34:19.576] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:34:39.617] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:34:59.656] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:35:19.694] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:35:39.745] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:35:59.775] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:36:19.808] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:36:39.849] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:36:59.901] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:37:19.952] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:37:39.995] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:38:00.045] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:38:20.105] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:38:40.140] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:39:00.177] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:39:20.209] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:39:40.254] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:40:00.302] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:40:20.333] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:40:40.365] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:41:00.403] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:41:20.478] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:41:40.509] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:42:00.578] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:42:20.607] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:42:40.644] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:43:00.672] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:43:20.717] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:43:40.739] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:44:00.778] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:44:20.808] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:44:40.842] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:45:00.865] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:45:20.914] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:45:40.952] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:46:01.014] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:46:21.041] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:46:41.085] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:47:01.141] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:47:21.198] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:47:41.221] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:48:01.249] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:48:21.288] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:48:41.326] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:49:01.356] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:49:21.389] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:49:41.425] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:50:01.444] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:50:21.483] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:50:41.507] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:51:01.553] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:51:21.617] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:51:41.649] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:52:01.702] [Watchdog] No beat for 20.1s — triggering reconnect
+[20:52:21.743] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:52:41.770] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:53:01.801] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:53:21.857] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:53:41.886] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:54:01.913] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:54:21.951] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:54:41.988] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:55:02.050] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:55:22.098] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:55:42.150] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:56:02.195] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:56:22.243] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:56:42.267] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:57:02.312] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:57:22.349] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:57:42.381] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:58:02.420] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:58:22.460] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:58:42.487] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:59:02.522] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:59:22.549] [Watchdog] No beat for 20.0s — triggering reconnect
+[20:59:42.588] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:00:02.609] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:00:22.661] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:00:42.706] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:01:02.727] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:01:22.765] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:01:42.808] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:02:02.872] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:02:22.906] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:02:42.938] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:03:02.980] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:03:23.028] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:03:43.077] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:04:03.113] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:04:23.155] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:04:43.202] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:05:03.227] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:05:23.265] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:05:43.310] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:06:03.365] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:06:23.409] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:06:43.466] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:07:03.520] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:07:23.543] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:07:43.574] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:08:03.613] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:08:23.649] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:08:43.700] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:09:03.742] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:09:23.806] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:09:43.837] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:10:03.891] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:10:23.952] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:10:43.993] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:11:04.067] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:11:24.116] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:11:44.156] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:12:04.220] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:12:24.251] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:12:44.286] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:13:04.313] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:13:24.351] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:13:44.407] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:14:04.430] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:14:24.457] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:14:44.488] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:15:04.532] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:15:24.584] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:15:44.643] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:16:04.678] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:16:24.706] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:16:44.754] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:17:04.801] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:17:24.828] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:17:44.869] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:18:04.896] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:18:24.935] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:18:44.983] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:19:05.040] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:19:25.087] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:19:45.116] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:20:05.158] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:20:25.185] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:20:45.213] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:21:05.248] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:21:25.283] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:21:45.323] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:22:05.396] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:22:25.434] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:22:45.477] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:23:05.501] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:23:25.555] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:23:45.611] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:24:05.704] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:24:25.769] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:24:45.853] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:25:05.919] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:25:25.977] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:25:46.035] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:26:06.088] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:26:26.130] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:26:46.165] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:27:06.211] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:27:26.242] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:27:46.277] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:28:06.310] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:28:26.340] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:28:46.373] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:29:06.425] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:29:26.486] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:29:46.529] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:30:06.561] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:30:26.633] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:30:46.692] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:31:06.722] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:31:26.763] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:31:46.797] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:32:06.869] [Watchdog] No beat for 20.1s — triggering reconnect
+[21:32:26.901] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:32:46.931] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:33:06.967] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:33:26.999] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:33:47.033] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:34:07.072] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:34:27.105] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:34:47.133] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:35:07.160] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:35:27.191] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:35:47.226] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:36:07.254] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:36:27.296] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:36:47.329] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:37:07.385] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:37:27.412] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:37:47.446] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:38:07.477] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:38:27.511] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:38:47.540] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:39:07.577] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:39:27.650] [Watchdog] No beat for 20.1s — triggering reconnect
+[21:39:47.685] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:40:07.729] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:40:27.759] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:40:47.794] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:41:07.821] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:41:27.870] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:41:47.903] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:42:08.026] [Watchdog] No beat for 20.1s — triggering reconnect
+[21:42:28.056] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:42:48.086] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:43:08.119] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:43:28.212] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:43:48.246] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:44:08.286] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:44:28.319] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:44:48.355] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:45:08.388] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:45:28.435] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:45:48.468] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:46:08.498] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:46:28.542] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:46:48.627] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:47:08.679] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:47:28.709] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:47:48.738] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:48:08.764] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:48:28.798] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:48:48.838] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:49:08.876] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:49:28.918] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:49:48.956] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:50:08.981] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:50:29.019] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:50:49.074] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:51:09.098] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:51:29.136] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:51:49.167] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:52:09.279] [Watchdog] No beat for 20.1s — triggering reconnect
+[21:52:29.312] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:52:49.342] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:53:09.376] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:53:29.432] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:53:49.504] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:54:09.553] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:54:29.581] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:54:49.621] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:55:09.651] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:55:29.690] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:55:49.749] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:56:09.778] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:56:29.803] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:56:49.861] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:57:09.905] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:57:29.939] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:57:49.976] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:58:10.002] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:58:30.040] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:58:50.070] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:59:10.094] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:59:30.136] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:59:50.195] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:00:10.235] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:00:30.268] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:00:50.321] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:01:10.365] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:01:30.409] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:01:50.445] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:02:10.488] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:02:30.530] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:02:50.570] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:03:10.612] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:03:30.647] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:03:50.693] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:04:10.757] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:04:30.806] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:04:50.881] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:05:10.910] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:05:30.943] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:05:50.988] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:06:11.022] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:06:31.061] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:06:51.099] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:07:11.137] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:07:31.166] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:07:51.204] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:08:11.239] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:08:31.277] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:08:51.306] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:09:11.362] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:09:31.401] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:09:51.473] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:10:11.521] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:10:31.554] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:10:51.594] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:11:11.648] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:11:31.688] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:11:51.725] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:12:11.771] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:12:31.814] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:12:51.849] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:13:11.898] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:13:31.930] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:13:51.964] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:14:12.000] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:14:32.040] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:14:52.077] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:15:12.112] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:15:32.162] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:15:52.210] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:16:12.239] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:16:32.297] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:16:52.327] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:17:12.389] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:17:32.420] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:17:52.459] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:18:12.512] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:18:32.546] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:18:52.586] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:19:12.617] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:19:32.649] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:19:52.678] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:20:12.706] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:20:32.734] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:20:52.777] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:21:12.838] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:21:32.885] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:21:52.935] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:22:13.149] [Watchdog] No beat for 20.2s — triggering reconnect
+[22:22:33.182] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:22:53.221] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:23:13.251] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:23:33.284] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:23:53.314] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:24:13.353] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:24:33.390] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:24:53.416] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:25:13.445] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:25:33.485] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:25:53.515] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:26:13.553] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:26:33.585] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:26:53.622] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:27:13.654] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:27:33.692] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:27:53.732] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:28:13.767] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:28:33.825] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:28:53.862] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:29:13.899] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:29:33.937] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:29:53.973] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:30:14.011] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:30:34.051] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:30:54.091] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:31:14.129] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:31:34.160] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:31:54.199] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:32:14.237] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:32:34.274] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:32:54.312] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:33:14.353] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:33:34.389] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:33:54.429] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:34:14.465] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:34:34.500] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:34:54.530] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:35:14.589] [Watchdog] No beat for 20.1s — triggering reconnect
+[22:35:34.625] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:35:54.663] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:36:14.700] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:36:34.734] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:36:54.765] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:37:14.825] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:37:34.853] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:37:54.891] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:38:14.922] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:38:35.062] [Watchdog] No beat for 20.1s — triggering reconnect
+[22:38:55.112] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:39:15.146] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:39:35.176] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:39:55.207] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:40:15.237] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:40:35.271] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:40:55.304] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:41:15.340] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:41:35.415] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:41:55.451] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:42:15.482] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:42:35.516] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:42:55.549] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:43:15.579] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:43:35.611] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:43:55.645] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:44:15.682] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:44:35.706] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:44:55.741] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:45:15.766] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:45:35.805] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:45:55.843] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:46:15.876] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:46:35.966] [Watchdog] No beat for 20.1s — triggering reconnect
+[22:46:56.017] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:47:16.069] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:47:36.103] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:47:56.130] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:48:16.167] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:48:36.219] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:48:56.254] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:49:16.289] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:49:36.318] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:49:56.349] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:50:16.381] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:50:36.440] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:50:56.513] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:51:16.546] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:51:36.575] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:51:56.610] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:52:16.825] [Watchdog] No beat for 20.1s — triggering reconnect
+[22:52:36.858] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:52:56.910] [Watchdog] No beat for 20.0s — triggering reconnect
+
+--- session start 2026-06-04T23:24:35.700Z ---
+[23:24:35.696] [ArtNet] Average output below target: 29.47fps (target 30fps, samples 30/1018ms)
+[23:24:36.712] [ArtNet] Average output below target: 29.50fps (target 30fps, samples 30/1017ms)
+[23:24:38.738] [ArtNet] Cadence drop detected: 13.70fps (target 30fps, interval 73.0ms)
+[23:24:38.738] [ArtNet] Average output below target: 28.63fps (target 30fps, samples 29/1013ms)
+[23:24:40.761] [ArtNet] Average output below target: 29.47fps (target 30fps, samples 30/1018ms)
+[23:24:41.553] [ArtNet] Cadence drop detected: 18.52fps (target 30fps, interval 54.0ms)
+[23:24:41.761] [ArtNet] Average output below target: 27.00fps (target 30fps, samples 27/1000ms)
+[23:24:42.778] [ArtNet] Average output below target: 29.50fps (target 30fps, samples 30/1017ms)
+[23:24:43.796] [ArtNet] Average output below target: 29.47fps (target 30fps, samples 30/1018ms)
+[23:24:44.815] [ArtNet] Average output below target: 29.44fps (target 30fps, samples 30/1019ms)
+[23:24:49.858] [ArtNet] Cadence drop detected: 0.28fps (target 30fps, interval 3561.0ms)
+[23:24:49.859] [ArtNet] Average output below target: 3.72fps (target 30fps, samples 15/4030ms)
+[23:27:38.950] [StageLinq] Non-fatal library error. Continuing: No broadcast targets have been found
+[23:27:39.899] [StageLinq] Non-fatal library error. Continuing: No broadcast targets have been found
+[23:27:40.157] [Watchdog] No beat for 2.5s — triggering reconnect
+[23:27:40.202] StageLinq connect failed: No broadcast targets have been found
+[23:27:43.208] StageLinq connect failed: No broadcast targets have been found
+[23:27:46.216] StageLinq connect failed: No broadcast targets have been found
+[23:27:49.220] StageLinq connect failed: No broadcast targets have been found
+[23:27:52.226] StageLinq connect failed: No broadcast targets have been found
+
+--- session start 2026-06-04T23:29:43.622Z ---
+[23:29:43.621] [StageLinq] Non-fatal library error. Continuing: No broadcast targets have been found
+[23:29:44.620] [StageLinq] Non-fatal library error. Continuing: No broadcast targets have been found
+[23:29:44.623] [Watchdog] No beat for 2.2s — triggering reconnect
+[23:29:44.642] StageLinq connect failed: No broadcast targets have been found
+[23:29:47.646] StageLinq connect failed: No broadcast targets have been found
+[23:29:50.650] StageLinq connect failed: No broadcast targets have been found
+[23:29:53.663] StageLinq connect failed: No broadcast targets have been found
+
+--- session start 2026-06-04T23:30:39.795Z ---
+[23:30:39.794] [StageLinq] Non-fatal library error. Continuing: No broadcast targets have been found
+[23:30:40.788] [StageLinq] Non-fatal library error. Continuing: No broadcast targets have been found
+[23:30:41.789] [StageLinq] Non-fatal library error. Continuing: No broadcast targets have been found
+[23:30:41.800] [Watchdog] No beat for 2.7s — triggering reconnect
+[23:30:41.808] StageLinq connect failed: No broadcast targets have been found
+[23:30:44.811] StageLinq connect failed: No broadcast targets have been found
+[23:30:47.815] StageLinq connect failed: No broadcast targets have been found
+[23:30:50.829] StageLinq connect failed: No broadcast targets have been found
+[23:30:53.833] StageLinq connect failed: No broadcast targets have been found
+
+--- session start 2026-06-04T23:32:15.155Z ---
+[23:32:15.153] [StageLinq] Non-fatal library error. Continuing: No broadcast targets have been found
+[23:32:16.134] [StageLinq] Non-fatal library error. Continuing: No broadcast targets have been found
+[23:32:17.134] [StageLinq] Non-fatal library error. Continuing: No broadcast targets have been found
+[23:32:17.156] [Watchdog] No beat for 3.0s — triggering reconnect
+[23:32:17.163] StageLinq connect failed: No broadcast targets have been found
+[23:32:20.166] StageLinq connect failed: No broadcast targets have been found
+[23:32:23.179] StageLinq connect failed: No broadcast targets have been found
+[23:32:26.184] StageLinq connect failed: No broadcast targets have been found
+[23:32:29.192] StageLinq connect failed: No broadcast targets have been found
+[23:32:32.195] StageLinq connect failed: No broadcast targets have been found
+[23:32:52.229] [StageLinq] Non-fatal library error. Continuing: No broadcast targets have been found
+[23:32:53.226] [StageLinq] Non-fatal library error. Continuing: No broadcast targets have been found
+[23:32:54.229] [StageLinq] Non-fatal library error. Continuing: No broadcast targets have been found
+[23:32:54.231] [Watchdog] No beat for 2.6s — triggering reconnect
+[23:32:54.244] StageLinq connect failed: No broadcast targets have been found
+[23:32:57.251] StageLinq connect failed: No broadcast targets have been found
+[23:33:00.261] StageLinq connect failed: No broadcast targets have been found

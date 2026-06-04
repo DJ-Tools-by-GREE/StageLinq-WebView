@@ -83,8 +83,15 @@ html, body {
   flex-shrink: 0;
 }
 
-.connDot--live    { background: #00e676; box-shadow: 0 0 6px 1px rgba(0,230,118,0.5); }
-.connDot--offline { background: var(--muted); }
+.connDot--live         { background: #00e676; box-shadow: 0 0 6px 1px rgba(0,230,118,0.5); }
+.connDot--offline      { background: var(--muted); }
+.connDot--nodevice     { background: #ff2d2d; box-shadow: 0 0 6px 1px rgba(255,45,45,0.5); }
+.connDot--reconnecting { background: #ffab00; box-shadow: 0 0 6px 1px rgba(255,171,0,0.5); animation: reconnPulse 1s ease-in-out infinite; }
+
+@keyframes reconnPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
+}
 
 .headerLabel {
   font-family: var(--font-mono);

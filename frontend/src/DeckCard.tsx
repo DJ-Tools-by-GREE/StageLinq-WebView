@@ -51,9 +51,10 @@ interface Props {
   waveform: WaveformState;
   selected: boolean;
   artworkUrl: string | null;
+  elapsedSecRef: { current: number };
 }
 
-export default function DeckCard({ state, waveform, selected, artworkUrl }: Props) {
+export default function DeckCard({ state, waveform, selected, artworkUrl, elapsedSecRef }: Props) {
   const { deck, trackLoaded, title, artist, elapsedSec, totalSec, currentBpm,
           trackBpm, speedState, keyCamelot, fader, play } = state;
 
@@ -81,7 +82,7 @@ export default function DeckCard({ state, waveform, selected, artworkUrl }: Prop
     return null;
   }
 
-  const displayArtwork = artworkUrl ?? artistFallbackUrl();
+  const displayArtwork = trackLoaded ? (artworkUrl ?? artistFallbackUrl()) : null;
 
   return (
     <div className={`card theme-d${deck}`}>
@@ -154,7 +155,7 @@ export default function DeckCard({ state, waveform, selected, artworkUrl }: Prop
 
       <WaveformDisplay
         deck={deck}
-        peaks={waveform.peaks}
+        peaks={trackLoaded ? waveform.peaks : null}
         peaksPerSec={waveform.peaksPerSec}
         elapsedSec={elapsedSec}
         totalSec={totalSec}
@@ -165,6 +166,7 @@ export default function DeckCard({ state, waveform, selected, artworkUrl }: Prop
         loopInSec={state.loopInSec ?? null}
         loopOutSec={state.loopOutSec ?? null}
         savedLoops={state.savedLoops ?? []}
+        elapsedSecRef={elapsedSecRef}
       />
     </div>
   );
