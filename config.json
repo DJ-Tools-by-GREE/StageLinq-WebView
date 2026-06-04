@@ -14,11 +14,12 @@
     "logging": {
         "lifecycle": true,
         "playback": true,
-        "discover": false,
+        "discover": true,
         "discoverSpeed": false,
         "bpmDebug": false,
         "uiOut": false,
-        "errors": true
+        "errors": true,
+        "cues": false
     },
     "timecode": {
         "fps": 30,

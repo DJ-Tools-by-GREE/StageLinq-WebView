@@ -48,7 +48,7 @@ export class OscBpmSender {
       this.heartbeatTimer = null;
     }
     try { this.socket.close(); } catch {}
-    logLifecycle(`${GRN}[OSC] Sender stopped${RST}`);
+    logLifecycle('[OSC] Sender stopped');
   }
 
   sendDeckBpm(deck: DeckState | undefined) {

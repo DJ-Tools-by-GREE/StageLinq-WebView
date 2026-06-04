@@ -207,8 +207,7 @@ html, body {
 /* ── Card header: art | title+artist | stats ────────────────────── */
 .cardHeader {
   display: grid;
-  grid-template-columns: 1fr 190px;
-  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) 190px;
   padding: 14px 16px 12px 20px;
   align-items: center;
   border-bottom: 1px solid var(--border);
@@ -227,6 +226,7 @@ html, body {
   width: 72px;
   height: 72px;
   border-radius: 6px;
+  overflow: hidden;
   background: var(--surface2);
   border: 1px solid var(--border);
   display: grid;
@@ -274,22 +274,41 @@ html, body {
 .titleBlock { min-width: 0; }
 
 .title {
+  display: flex;
+  align-items: center;
   font-size: 18px;
   font-weight: 600;
   line-height: 1.2;
   letter-spacing: -0.01em;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .artist {
   margin-top: 5px;
   font-size: 13px;
   color: var(--mid);
+}
+
+/* ── Marquee ticker ─────────────────────────────────────────────── */
+.marqueeWrap {
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+}
+
+.marqueeText {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.marqueeText--active {
+  animation: marquee var(--dur, 10s) linear 1.5s infinite alternate;
+}
+
+@keyframes marquee {
+  0%, 15%   { transform: translateX(0); }
+  85%, 100% { transform: translateX(var(--md, 0)); }
 }
 
 /* ── Now-playing pulse dot ──────────────────────────────────────── */

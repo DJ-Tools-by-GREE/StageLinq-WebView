@@ -1,5 +1,17 @@
 export type DeckNumber = 1 | 2 | 3 | 4;
 
+export interface HotCue {
+  index: number; // 1–8
+  sec: number;
+}
+
+export interface SavedLoop {
+  index: number; // 1–8
+  inSec: number;
+  outSec: number;
+  active: boolean;
+}
+
 export interface DeckState {
   deck: DeckNumber;
   trackLoaded: boolean;
@@ -16,6 +28,11 @@ export interface DeckState {
   fader: number;      // 0..1 (ExternalMixerVolume)
   play: boolean;
   updatedAt: number;  // ms
+  hotCues: HotCue[];
+  loopActive: boolean;
+  loopInSec: number | null;
+  loopOutSec: number | null;
+  savedLoops: SavedLoop[];
 }
 
 export interface SnapshotPayload {

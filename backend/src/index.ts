@@ -66,6 +66,57 @@ function ensureState(state: StageLinqValue) {
   StageLinqValue.EngineDeck2TrackCurrentKeyIndex,
   StageLinqValue.EngineDeck3TrackCurrentKeyIndex,
   StageLinqValue.EngineDeck4TrackCurrentKeyIndex,
+
+  StageLinqValue.EngineDeck1TrackCurrentLoopInPosition,
+  StageLinqValue.EngineDeck2TrackCurrentLoopInPosition,
+  StageLinqValue.EngineDeck3TrackCurrentLoopInPosition,
+  StageLinqValue.EngineDeck4TrackCurrentLoopInPosition,
+
+  StageLinqValue.EngineDeck1TrackCurrentLoopOutPosition,
+  StageLinqValue.EngineDeck2TrackCurrentLoopOutPosition,
+  StageLinqValue.EngineDeck3TrackCurrentLoopOutPosition,
+  StageLinqValue.EngineDeck4TrackCurrentLoopOutPosition,
+
+  StageLinqValue.EngineDeck1TrackLoopEnableState,
+  StageLinqValue.EngineDeck2TrackLoopEnableState,
+  StageLinqValue.EngineDeck3TrackLoopEnableState,
+  StageLinqValue.EngineDeck4TrackLoopEnableState,
+
+  StageLinqValue.EngineDeck1TrackLoopQuickLoop1,
+  StageLinqValue.EngineDeck1TrackLoopQuickLoop2,
+  StageLinqValue.EngineDeck1TrackLoopQuickLoop3,
+  StageLinqValue.EngineDeck1TrackLoopQuickLoop4,
+  StageLinqValue.EngineDeck1TrackLoopQuickLoop5,
+  StageLinqValue.EngineDeck1TrackLoopQuickLoop6,
+  StageLinqValue.EngineDeck1TrackLoopQuickLoop7,
+  StageLinqValue.EngineDeck1TrackLoopQuickLoop8,
+
+  StageLinqValue.EngineDeck2TrackLoopQuickLoop1,
+  StageLinqValue.EngineDeck2TrackLoopQuickLoop2,
+  StageLinqValue.EngineDeck2TrackLoopQuickLoop3,
+  StageLinqValue.EngineDeck2TrackLoopQuickLoop4,
+  StageLinqValue.EngineDeck2TrackLoopQuickLoop5,
+  StageLinqValue.EngineDeck2TrackLoopQuickLoop6,
+  StageLinqValue.EngineDeck2TrackLoopQuickLoop7,
+  StageLinqValue.EngineDeck2TrackLoopQuickLoop8,
+
+  StageLinqValue.EngineDeck3TrackLoopQuickLoop1,
+  StageLinqValue.EngineDeck3TrackLoopQuickLoop2,
+  StageLinqValue.EngineDeck3TrackLoopQuickLoop3,
+  StageLinqValue.EngineDeck3TrackLoopQuickLoop4,
+  StageLinqValue.EngineDeck3TrackLoopQuickLoop5,
+  StageLinqValue.EngineDeck3TrackLoopQuickLoop6,
+  StageLinqValue.EngineDeck3TrackLoopQuickLoop7,
+  StageLinqValue.EngineDeck3TrackLoopQuickLoop8,
+
+  StageLinqValue.EngineDeck4TrackLoopQuickLoop1,
+  StageLinqValue.EngineDeck4TrackLoopQuickLoop2,
+  StageLinqValue.EngineDeck4TrackLoopQuickLoop3,
+  StageLinqValue.EngineDeck4TrackLoopQuickLoop4,
+  StageLinqValue.EngineDeck4TrackLoopQuickLoop5,
+  StageLinqValue.EngineDeck4TrackLoopQuickLoop6,
+  StageLinqValue.EngineDeck4TrackLoopQuickLoop7,
+  StageLinqValue.EngineDeck4TrackLoopQuickLoop8,
 ].forEach(ensureState);
 
 
@@ -113,6 +164,7 @@ interface RootConfig {
     bpmDebug?: boolean;
     uiOut?: boolean;
     errors?: boolean;
+    cues?: boolean;
   };
   display?: {
     dashboard?: boolean;
@@ -555,7 +607,7 @@ async function main() {
     onCommunicationLost: async () => {
       if (reconnecting) return;
       reconnecting = true;
-      logLifecycle(`${YEL}[StageLinq] Communication lost — reconnecting...${RST}`);
+      logLifecycle(`${RED}[StageLinq] Communication lost — reconnecting...${RST}`);
       try { await bridge.disconnect(); } catch {}
       await connectWithRetry();
       reconnecting = false;
@@ -693,7 +745,7 @@ async function main() {
           process.exit(0);
         });
 
-        logLifecycle(`${GRN}[sACN] Listening Universe ${sacnUniverse}, Address ${controlAddress}${RST}`);
+        logLifecycle(`[sACN] Listening Universe ${sacnUniverse}, Address ${controlAddress}`);
       } else {
         logError('[sACN] Receiver export not found. Deck select via sACN is disabled.');
       }
@@ -715,7 +767,7 @@ async function main() {
       targetPort: oscTargetPort,
       speedMaster: oscSpeedMaster,
     });
-    logLifecycle(`${GRN}[OSC] BPM -> ${oscTargetIp}:${oscTargetPort} (SpeedMaster ${oscSpeedMaster})${RST}`);
+    logLifecycle(`[OSC] BPM -> ${oscTargetIp}:${oscTargetPort} (SpeedMaster ${oscSpeedMaster})`);
   }
 
   await artnet.start(() => {

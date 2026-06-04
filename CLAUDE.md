@@ -66,6 +66,7 @@ StageLinq-WebView/
 │   │   ├── stagelinqBridge.ts  # StageLinq event wiring, deck state, watchdog
 │   │   ├── artnetTimecode.ts   # Art-Net SMPTE timecode broadcaster (UDP)
 │   │   ├── oscBpm.ts           # OSC BPM sender (UDP)
+│   │   ├── waveformService.ts  # waveform peak extraction + artwork extraction; in-memory + disk cache
 │   │   ├── camelot.ts          # key index (0–23) → Camelot notation string
 │   │   ├── constants.ts        # all tunable timing/threshold values in one place
 │   │   ├── logging.ts          # configurable debug-channel logging
@@ -77,7 +78,10 @@ StageLinq-WebView/
     ├── src/
     │   ├── App.tsx             # WebSocket client, 4-quadrant layout
     │   ├── DeckCard.tsx        # per-deck display component
+    │   ├── HeaderBar.tsx       # top bar: selected deck, BPM, next track display
+    │   ├── WaveformDisplay.tsx # waveform peak renderer
     │   ├── types.ts            # shared types (mirrors backend types.ts)
+    │   ├── appTypes.ts         # frontend-only types (WaveformState, etc.)
     │   ├── main.tsx            # React entry point
     │   └── styles.css          # global styles
     ├── index.html
@@ -203,6 +207,8 @@ Port `8090` (configurable via `PORT` env). Path `/ws`.
   "type": "snapshot",
   "seq": 42,
   "ts": 1234567890,
+  "selectedDeck": 1,       // DeckNumber | null — currently sACN-selected deck
+  "nextTrack": "song.mp3", // string | null — next track filename if available
   "decks": {
     "1": DeckState,
     "2": DeckState,
@@ -210,9 +216,18 @@ Port `8090` (configurable via `PORT` env). Path `/ws`.
     "4": DeckState
   }
 }
+
+// waveform_status (sent during peak analysis)
+{ "type": "waveform_status", "deck": 1, "stage": "downloading" | "analyzing" | "done" | "error", "progress": 0.0–1.0, "fileName": "..." }
+
+// waveform_data (sent when peaks are ready)
+{ "type": "waveform_data", "deck": 1, "fileName": "...", "peaks": number[], "peaksPerSec": number }
+
+// artwork_data (sent when artwork is ready or absent)
+{ "type": "artwork_data", "deck": 1, "fileName": "...", "data": "<base64>" | null }
 ```
 
-`DeckState` fields: `deck`, `trackLoaded`, `fileName`, `title`, `artist`, `elapsedSec`, `totalSec`, `currentBpm`, `trackBpm`, `speedState`, `keyIndex`, `keyCamelot`, `fader`, `play`, `updatedAt`.
+`DeckState` fields: `deck`, `trackLoaded`, `fileName`, `title`, `artist`, `elapsedSec`, `totalSec`, `currentBpm`, `trackBpm`, `speedState`, `keyIndex`, `keyCamelot`, `fader`, `play`, `updatedAt`, `hotCues`, `loopActive`, `loopInSec`, `loopOutSec`, `savedLoops`.
 
 ---
 
@@ -223,6 +238,7 @@ Port `8090` (configurable via `PORT` env). Path `/ws`.
 | `GET` | `/api/health` | Health check → `{ ok: true, ts: number }` |
 | `GET` | `/api/timecode/send-when-stopped` | Query "send timecode while paused" flag |
 | `POST` | `/api/timecode/send-when-stopped` | Set flag; body: `{ "enabled": true \| false }` |
+| `GET` | `/api/artwork/:deck` | Serve cached artwork image for deck 1–4 (Content-Type from file) |
 
 ---
 

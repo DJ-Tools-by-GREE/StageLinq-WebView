@@ -1,6 +1,39 @@
+import { useRef, useState, useLayoutEffect } from 'react';
 import type { DeckState } from './types.js';
 import type { WaveformState } from './appTypes.js';
 import WaveformDisplay from './WaveformDisplay.js';
+
+function MarqueeText({ text, className = '' }: { text: string; className?: string }) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLSpanElement>(null);
+  const [dist, setDist] = useState(0);
+
+  useLayoutEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const measure = () => setDist(Math.max(0, textRef.current!.scrollWidth - el.clientWidth));
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [text]);
+
+  const dur = dist > 0 ? Math.max(7, 4 + dist / 50) : 0;
+
+  return (
+    <div ref={wrapRef} className={`marqueeWrap${className ? ' ' + className : ''}`}>
+      <span
+        ref={textRef}
+        className={dist > 0 ? 'marqueeText marqueeText--active' : 'marqueeText'}
+        style={dist > 0
+          ? { '--md': `-${dist}px`, '--dur': `${dur}s` } as React.CSSProperties
+          : undefined}
+      >
+        {text}
+      </span>
+    </div>
+  );
+}
 
 function formatMMSS(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds <= 0) return '00:00';
@@ -40,6 +73,16 @@ export default function DeckCard({ state, waveform, selected, artworkUrl }: Prop
   const dispArtist = trackLoaded ? (artist || '—') : '—';
   const dispKey    = trackLoaded ? (keyCamelot || '--') : '--';
 
+  function artistFallbackUrl(): string | null {
+    if (!trackLoaded) return null;
+    const haystack = `${title ?? ''} ${artist ?? ''}`.toLowerCase();
+    if (haystack.includes('don diablo')) return '/fallbacks/dondiablo_hex_logo.jpg';
+    if (haystack.includes('martin garrix')) return '/fallbacks/martin_garrix_logo.jpg';
+    return null;
+  }
+
+  const displayArtwork = artworkUrl ?? artistFallbackUrl();
+
   return (
     <div className={`card theme-d${deck}`}>
       <div className="deckBorder" />
@@ -47,18 +90,18 @@ export default function DeckCard({ state, waveform, selected, artworkUrl }: Prop
       <div className="cardHeader">
         <div className="trackInfo">
           <div className={`art${selected ? ' art--selected' : ''}`}>
-            {artworkUrl
-              ? <img src={artworkUrl} alt="" className="artImg" />
+            {displayArtwork
+              ? <img src={displayArtwork} alt="" className="artImg" />
               : <span>D{deck}</span>
             }
           </div>
 
           <div className="titleBlock">
-            <div className="title" title={dispTitle}>
+            <div className="title">
               {isPlaying && <span className="playDot" />}
-              {dispTitle}
+              <MarqueeText text={dispTitle} />
             </div>
-            <div className="artist" title={dispArtist}>{dispArtist}</div>
+            <MarqueeText text={dispArtist} className="artist" />
           </div>
         </div>
 
@@ -117,6 +160,11 @@ export default function DeckCard({ state, waveform, selected, artworkUrl }: Prop
         totalSec={totalSec}
         stage={waveform.stage}
         progress={waveform.progress}
+        hotCues={state.hotCues ?? []}
+        loopActive={state.loopActive ?? false}
+        loopInSec={state.loopInSec ?? null}
+        loopOutSec={state.loopOutSec ?? null}
+        savedLoops={state.savedLoops ?? []}
       />
     </div>
   );

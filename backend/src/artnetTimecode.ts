@@ -6,7 +6,7 @@ import {
   ARTNET_SOCKET_RECOVERY_COOLDOWN_MS,
   ARTNET_SOCKET_RECOVERY_DELAY_MS,
 } from './constants.js';
-import { logError, logLifecycle, logStatus, GRN, YEL, RST } from './logging.js';
+import { logError, logLifecycle, logStatus, GRN, RST } from './logging.js';
 
 export interface ArtNetOptions {
   enabled: boolean;
@@ -110,7 +110,7 @@ export class ArtNetTimecodeBroadcaster {
   }
 
   private async recoverSocket() {
-    logLifecycle(`${YEL}[ArtNet] Network error — recreating socket in 5s${RST}`);
+    logError('[ArtNet] Network error — recreating socket in 5s');
     try { this.socket.close(); } catch {}
     await new Promise<void>(r => setTimeout(r, ARTNET_SOCKET_RECOVERY_DELAY_MS));
     if (!this.loop) return;

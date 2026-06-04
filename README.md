@@ -6,7 +6,8 @@ Real-time DJ deck visualizer for Denon Prime 4+ (Engine DJ / StageLinq). Display
 
 **Web UI**
 - 4-quadrant dark-theme layout, one deck per quadrant
-- Per deck: title, artist, artwork placeholder, elapsed/total/remaining time, key (Camelot notation), current BPM, derived track BPM, relative pitch %, channel fader, waveform placeholder
+- Per deck: title, artist, album artwork, elapsed/total/remaining time, key (Camelot notation), current BPM, derived track BPM, relative pitch %, channel fader, scrollable waveform with playhead
+- Header bar showing selected deck, live BPM, and next-track name
 - Live connection status badge (LIVE / OFFLINE)
 - Overlay button to toggle timecode transmission while playback is stopped
 - WebSocket stream at 30 Hz
@@ -184,6 +185,18 @@ All settings can also be placed in `config.json` at the repo root (or in `backen
 
 Tracks are matched by normalized filename (basename only, case-insensitive). `current_playlist` selects which playlist entry from the array is active (0-indexed).
 
+### Waveform and artwork cache
+
+Waveforms and artwork are extracted automatically when a track loads and cached to disk under `~/.cache/stagelinq-webview/` (or `WAVEFORM_CACHE_DIR` env var). By default all tracks are processed. To restrict processing to tracks in the active playlist only, set `waveform.all_tracks` to `false` in `config.json`:
+
+```json
+{
+  "waveform": {
+    "all_tracks": false
+  }
+}
+```
+
 ## API endpoints
 
 | Method | Path | Description |
@@ -191,6 +204,7 @@ Tracks are matched by normalized filename (basename only, case-insensitive). `cu
 | `GET` | `/api/health` | Health check |
 | `GET` | `/api/timecode/send-when-stopped` | Query current "send when stopped" state |
 | `POST` | `/api/timecode/send-when-stopped` | Set state; body: `{ "enabled": true \| false }` |
+| `GET` | `/api/artwork/:deck` | Serve cached album artwork for deck 1–4 |
 
 ## Deck color accents
 
@@ -210,6 +224,7 @@ StageLinq-WebView/
 │   ├── stagelinqBridge.ts  # StageLinq protocol handler
 │   ├── artnetTimecode.ts   # Art-Net SMPTE timecode broadcaster
 │   ├── oscBpm.ts           # OSC BPM sender
+│   ├── waveformService.ts  # Waveform peak extraction and artwork cache
 │   ├── camelot.ts          # Key index → Camelot string
 │   ├── constants.ts        # Tunable timing and threshold constants
 │   ├── logging.ts          # Configurable debug logging
@@ -217,19 +232,31 @@ StageLinq-WebView/
 └── frontend/src/
     ├── App.tsx             # WebSocket client, 4-quadrant layout
     ├── DeckCard.tsx        # Per-deck display component
+    ├── HeaderBar.tsx       # Top bar: selected deck, BPM, next track
+    ├── WaveformDisplay.tsx # Waveform peak renderer
+    ├── appTypes.ts         # Frontend-only types (WaveformState)
     └── types.ts            # Shared types (mirrors backend)
 ```
 
 ## WebSocket protocol
 
-On connect the server sends a hello frame, then snapshot frames at 30 Hz:
+On connect the server sends a hello frame, then snapshot frames at 30 Hz. Additional one-shot frames are sent when waveform analysis or artwork extraction completes:
 
 ```jsonc
 // hello
 { "type": "hello", "ts": 1234567890, "version": "1.0.0", "fps": 30 }
 
-// snapshot
-{ "type": "snapshot", "seq": 42, "ts": 1234567890, "decks": { "1": DeckState, "2": DeckState, "3": DeckState, "4": DeckState } }
+// snapshot (30 Hz)
+{ "type": "snapshot", "seq": 42, "ts": 1234567890, "selectedDeck": 1, "nextTrack": "song.mp3", "decks": { "1": DeckState, ... } }
+
+// waveform_status — progress during peak analysis
+{ "type": "waveform_status", "deck": 1, "stage": "downloading|analyzing|done|error", "progress": 0.0, "fileName": "..." }
+
+// waveform_data — peak array when analysis is complete
+{ "type": "waveform_data", "deck": 1, "fileName": "...", "peaks": [...], "peaksPerSec": 10 }
+
+// artwork_data — album art (base64) or null if unavailable
+{ "type": "artwork_data", "deck": 1, "fileName": "...", "data": "<base64>" | null }
 ```
 
 ## Notes

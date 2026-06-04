@@ -129,6 +129,7 @@ export const LOG_ENABLED = {
     bpmDebug: false,
     uiOut: false,
     errors: true,
+    cues: false,
 };
 
 export function applyLoggingConfig(cfg: {
@@ -139,6 +140,7 @@ export function applyLoggingConfig(cfg: {
     bpmDebug?: boolean;
     uiOut?: boolean;
     errors?: boolean;
+    cues?: boolean;
 }) {
     if (cfg.lifecycle     !== undefined) LOG_ENABLED.lifecycle     = cfg.lifecycle;
     if (cfg.playback      !== undefined) LOG_ENABLED.playback      = cfg.playback;
@@ -147,6 +149,7 @@ export function applyLoggingConfig(cfg: {
     if (cfg.bpmDebug      !== undefined) LOG_ENABLED.bpmDebug      = cfg.bpmDebug;
     if (cfg.uiOut         !== undefined) LOG_ENABLED.uiOut         = cfg.uiOut;
     if (cfg.errors        !== undefined) LOG_ENABLED.errors        = cfg.errors;
+    if (cfg.cues          !== undefined) LOG_ENABLED.cues          = cfg.cues;
 }
 
 export const LOG_DECK_FILTER = {
@@ -203,38 +206,20 @@ export function logPlayback(...args: any[]) {
 
 export function logDiscover(...args: any[]) {
     if (!LOG_ENABLED.discover) return;
-    const { shouldLog, deck, payload } = splitDeckArgs(args);
-    if (!shouldLog) return;
-    if (deck !== null && isTTY) {
-        const col = DECK_COLORS[(deck - 1) & 3];
-        printLog('log', `${col}${utilFormat(...payload)}${R}`);
-    } else {
-        printLog('log', ...payload);
-    }
+    const { shouldLog, payload } = splitDeckArgs(args);
+    if (shouldLog) printLog('log', ...payload);
 }
 
 export function logDiscoverSpeed(...args: any[]) {
     if (!(LOG_ENABLED.discover && LOG_ENABLED.discoverSpeed)) return;
-    const { shouldLog, deck, payload } = splitDeckArgs(args);
-    if (!shouldLog) return;
-    if (deck !== null && isTTY) {
-        const col = DECK_COLORS[(deck - 1) & 3];
-        printLog('log', `${col}${utilFormat(...payload)}${R}`);
-    } else {
-        printLog('log', ...payload);
-    }
+    const { shouldLog, payload } = splitDeckArgs(args);
+    if (shouldLog) printLog('log', ...payload);
 }
 
 export function logBpmDebug(...args: any[]) {
     if (!LOG_ENABLED.bpmDebug) return;
-    const { shouldLog, deck, payload } = splitDeckArgs(args);
-    if (!shouldLog) return;
-    if (deck !== null && isTTY) {
-        const col = DECK_COLORS[(deck - 1) & 3];
-        printLog('log', `${col}${utilFormat(...payload)}${R}`);
-    } else {
-        printLog('log', ...payload);
-    }
+    const { shouldLog, payload } = splitDeckArgs(args);
+    if (shouldLog) printLog('log', ...payload);
 }
 
 export function logUiOut(...args: any[]) {
@@ -254,4 +239,16 @@ export function logError(...args: any[]) {
 export function logWaveform(...args: any[]) {
     writeToFile(...args);
     if (LOG_ENABLED.lifecycle) printLog('log', ...args);
+}
+
+export function logCues(...args: any[]) {
+    if (!LOG_ENABLED.cues) return;
+    const { shouldLog, deck, payload } = splitDeckArgs(args);
+    if (!shouldLog) return;
+    if (deck !== null && isTTY) {
+        const col = DECK_COLORS[(deck - 1) & 3];
+        printLog('log', `${col}${utilFormat(...payload)}${R}`);
+    } else {
+        printLog('log', ...payload);
+    }
 }

@@ -100,7 +100,11 @@ export default function App() {
           const unloaded = prev[d] && !nextDecks[d].trackLoaded;
           const fileChanged = prevFile[d] !== '' && nextDecks[d].fileName !== '' && nextDecks[d].fileName !== prevFile[d];
           if (unloaded || fileChanged) {
-            setWaveforms((w) => ({ ...w, [d]: makeBlankWaveform() }));
+            const newFileName = nextDecks[d].fileName;
+            setWaveforms((w) => {
+              if (w[d].fileName === newFileName && newFileName !== '') return w;
+              return { ...w, [d]: makeBlankWaveform() };
+            });
           }
           prev[d] = nextDecks[d].trackLoaded;
           prevFile[d] = nextDecks[d].fileName;

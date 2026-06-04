@@ -1,7 +1,7 @@
 import type { DeckNumber, DeckState } from "./types.js";
 import path from "node:path";
 import { keyIndexToCamelot } from "./camelot.js";
-import { logBpmDebug, logDiscover, logDiscoverSpeed, logError, logLifecycle, logPlayback, logWaveform, GRN, YEL, RST } from "./logging.js";
+import { logBpmDebug, logDiscover, logDiscoverSpeed, logError, logLifecycle, logPlayback, logWaveform, logCues, GRN, YEL, RST } from "./logging.js";
 import { BEAT_WATCHDOG_TIMEOUT_S, DISCONNECT_DETECT_TIMEOUT_S, ELAPSED_THROTTLE_S } from "./constants.js";
 
 import * as pkg from "@gree44/stagelinq";
@@ -54,6 +54,8 @@ export class StageLinqBridge {
     total: false,
     key: false,
     speed: false,
+    cues: false,
+    loops: false,
   };
 
   // Sample rate comes from StateMap: /Engine/DeckX/Track/SampleRate
@@ -81,6 +83,10 @@ export class StageLinqBridge {
   // TrackLength is sometimes published in *samples* (not seconds).
   // If we see a "too large" number, we keep it here until we have SampleRate.
   private pendingTrackLengthSamples: Record<DeckNumber, number | null> = { 1: null, 2: null, 3: null, 4: null };
+
+  // Loop positions arrive in samples before SampleRate is known — defer conversion.
+  private pendingLoopInSamples: Record<DeckNumber, number | null> = { 1: null, 2: null, 3: null, 4: null };
+  private pendingLoopOutSamples: Record<DeckNumber, number | null> = { 1: null, 2: null, 3: null, 4: null };
 
   // Throttle elapsedSec updates (we don't need frame-accurate like timecode)
   private lastElapsedEmitSec: Record<DeckNumber, number> = { 1: -1, 2: -1, 3: -1, 4: -1 };
@@ -115,10 +121,8 @@ export class StageLinqBridge {
       title: "—",
       artist: "—",
       elapsedSec: 0,
-
       totalSec: 0,
       currentBpm: 0,
-
       trackBpm: 0,
       speedState: 0,
       keyIndex: null,
@@ -126,6 +130,11 @@ export class StageLinqBridge {
       fader: 0,
       play: false,
       updatedAt: Date.now(),
+      hotCues: [],
+      loopActive: false,
+      loopInSec: null,
+      loopOutSec: null,
+      savedLoops: [],
     };
   }
 
@@ -146,6 +155,13 @@ export class StageLinqBridge {
     if (!fn || !netPath) return;
     if (fn !== this.lastTriggeredFileNames[deck]) {
       this.lastTriggeredFileNames[deck] = fn;
+      this.decks[deck].hotCues = [];
+      this.decks[deck].loopActive = false;
+      this.decks[deck].loopInSec = null;
+      this.decks[deck].loopOutSec = null;
+      this.decks[deck].savedLoops = [];
+      this.pendingLoopInSamples[deck] = null;
+      this.pendingLoopOutSamples[deck] = null;
       this.opts.onTrackChanged?.(deck, fn, netPath);
     }
   }
@@ -512,6 +528,22 @@ export class StageLinqBridge {
             }
           }
 
+          // If loop positions arrived before SampleRate, convert now.
+          const pendingIn = this.pendingLoopInSamples[deck];
+          if (typeof pendingIn === "number") {
+            ds.loopInSec = pendingIn / rawValue;
+            this.pendingLoopInSamples[deck] = null;
+            this.touch(deck);
+            logDiscover(deck, "[DISCOVER] LoopIn resolved from pending samples:", pendingIn, "sr=", rawValue, "->", ds.loopInSec.toFixed(3) + "s");
+          }
+          const pendingOut = this.pendingLoopOutSamples[deck];
+          if (typeof pendingOut === "number") {
+            ds.loopOutSec = pendingOut / rawValue;
+            this.pendingLoopOutSamples[deck] = null;
+            this.touch(deck);
+            logDiscover(deck, "[DISCOVER] LoopOut resolved from pending samples:", pendingOut, "sr=", rawValue, "->", ds.loopOutSec.toFixed(3) + "s");
+          }
+
           if (!this.seen.elapsed) {
             logDiscover(deck, "[DISCOVER] SampleRate path:", name, "=", rawValue);
           }
@@ -631,6 +663,109 @@ export class StageLinqBridge {
           ds.play = playing2;
           this.touch(deck);
           this.maybeLogPlayChange(deck, playing2);
+        }
+      }
+
+      // ---- Discover unmatched cue/loop paths ----
+      if (/cue|hotcue|loop/i.test(tail)) {
+        if (!this.seen.cues && /cue|hotcue/i.test(tail)) {
+          this.seen.cues = true;
+          logDiscover(deck, "[DISCOVER] First cue path (message):", name, "=", JSON.stringify(rawValue));
+        }
+        if (!this.seen.loops && /loop/i.test(tail)) {
+          this.seen.loops = true;
+          logDiscover(deck, "[DISCOVER] First loop path (message):", name, "=", JSON.stringify(rawValue));
+        }
+      }
+
+      // ---- HotCues (samples → seconds) ----
+      const hotCueMatch = tail.match(/^(?:Track\/)?HotCue([1-8])$/i);
+      if (hotCueMatch) {
+        const idx = Number(hotCueMatch[1]);
+        const samples = typeof rawValue === "number" ? rawValue
+          : (typeof rawValue === "object" && rawValue !== null ? (rawValue as any).value ?? (rawValue as any).samples ?? (rawValue as any).position : undefined);
+        if (typeof samples === "number" && samples >= 0) {
+          const sr = this.sampleRateHz[deck];
+          const sec = (typeof sr === "number" && sr > 0) ? samples / sr : samples;
+          ds.hotCues = [
+            ...ds.hotCues.filter((c) => c.index !== idx),
+            { index: idx, sec },
+          ].sort((a, b) => a.index - b.index);
+          this.touch(deck);
+          logCues(deck, `[CUE] Deck ${deck} HotCue${idx} set @ ${sec.toFixed(3)}s`);
+        } else if (samples === -1 || samples === null || samples === undefined) {
+          ds.hotCues = ds.hotCues.filter((c) => c.index !== idx);
+          this.touch(deck);
+          logCues(deck, `[CUE] Deck ${deck} HotCue${idx} cleared`);
+        }
+      }
+
+      // ---- Active loop ----
+      if (/^(?:Track\/)?LoopEnableState$/i.test(tail)) {
+        const active = this.coerceBool(rawValue);
+        if (typeof active === "boolean") {
+          ds.loopActive = active;
+          this.touch(deck);
+          logCues(deck, `[CUE] Deck ${deck} loop ${active ? 'ENABLED' : 'DISABLED'}`);
+        }
+      }
+
+      if (/^(?:Track\/)?CurrentLoopInPosition$/i.test(tail) && typeof rawValue === "number") {
+        const sr = this.sampleRateHz[deck];
+        if (typeof sr === "number" && sr > 0) {
+          ds.loopInSec = rawValue / sr;
+          this.touch(deck);
+          logDiscover(deck, "[DISCOVER] LoopIn set:", rawValue, "samples / sr=", sr, "->", ds.loopInSec.toFixed(3) + "s");
+          logCues(deck, `[CUE] Deck ${deck} loop in @ ${ds.loopInSec.toFixed(3)}s`);
+        } else {
+          this.pendingLoopInSamples[deck] = rawValue;
+          logDiscover(deck, "[DISCOVER] LoopIn deferred (no SampleRate yet):", rawValue, "samples");
+        }
+      }
+
+      if (/^(?:Track\/)?CurrentLoopOutPosition$/i.test(tail) && typeof rawValue === "number") {
+        const sr = this.sampleRateHz[deck];
+        if (typeof sr === "number" && sr > 0) {
+          ds.loopOutSec = rawValue / sr;
+          this.touch(deck);
+          logDiscover(deck, "[DISCOVER] LoopOut set:", rawValue, "samples / sr=", sr, "->", ds.loopOutSec.toFixed(3) + "s");
+          logCues(deck, `[CUE] Deck ${deck} loop out @ ${ds.loopOutSec.toFixed(3)}s`);
+        } else {
+          this.pendingLoopOutSamples[deck] = rawValue;
+          logDiscover(deck, "[DISCOVER] LoopOut deferred (no SampleRate yet):", rawValue, "samples");
+        }
+      }
+
+      // ---- Saved loops (QuickLoop1–8, samples → seconds) ----
+      const quickLoopMatch = tail.match(/^(?:Track\/)?Loop\/QuickLoop([1-8])$/i);
+      if (quickLoopMatch) {
+        const idx = Number(quickLoopMatch[1]);
+        let inSamples: number | undefined;
+        let outSamples: number | undefined;
+        let active: boolean | undefined;
+        if (typeof rawValue === "object" && rawValue !== null) {
+          const obj = rawValue as any;
+          inSamples = obj.startPosition ?? obj.inPosition ?? obj.in;
+          outSamples = obj.endPosition ?? obj.outPosition ?? obj.out;
+          active = typeof obj.isActive === "boolean" ? obj.isActive : (obj.active === true);
+        } else if (typeof rawValue === "number") {
+          inSamples = rawValue;
+        }
+        const sr = this.sampleRateHz[deck];
+        const toSec = (s: number) => (typeof sr === "number" && sr > 0) ? s / sr : s;
+        if (typeof inSamples === "number" && inSamples >= 0) {
+          const entry = {
+            index: idx,
+            inSec: toSec(inSamples),
+            outSec: typeof outSamples === "number" && outSamples >= 0 ? toSec(outSamples) : toSec(inSamples),
+            active: active ?? false,
+          };
+          ds.savedLoops = [
+            ...ds.savedLoops.filter((l) => l.index !== idx),
+            entry,
+          ].sort((a, b) => a.index - b.index);
+          this.touch(deck);
+          logCues(deck, `[CUE] Deck ${deck} QuickLoop${idx} ${entry.inSec.toFixed(3)}s–${entry.outSec.toFixed(3)}s active=${entry.active}`);
         }
       }
 
@@ -881,6 +1016,103 @@ export class StageLinqBridge {
         if (typeof playing === "boolean") {
           ds.play = playing;
           this.maybeLogPlayChange(deck, playing);
+        }
+      }
+
+      // ---- Discover unmatched cue/loop paths via stateChanged ----
+      if (/cue|hotcue|loop/i.test(tail)) {
+        if (!this.seen.cues && /cue|hotcue/i.test(tail)) {
+          this.seen.cues = true;
+          logDiscover(deck, "[DISCOVER] First cue path (stateChanged):", name, "=", JSON.stringify(value));
+        }
+        if (!this.seen.loops && /loop/i.test(tail)) {
+          this.seen.loops = true;
+          logDiscover(deck, "[DISCOVER] First loop path (stateChanged):", name, "=", JSON.stringify(value));
+        }
+      }
+
+      // ---- HotCues via stateChanged ----
+      const hotCueMatch2 = tail.match(/^(?:Track\/)?HotCue([1-8])$/i);
+      if (hotCueMatch2) {
+        const idx = Number(hotCueMatch2[1]);
+        const samples = typeof value === "number" ? value
+          : (typeof value === "object" && value !== null ? (value as any).value ?? (value as any).samples ?? (value as any).position : undefined);
+        if (typeof samples === "number" && samples >= 0) {
+          const sr = this.sampleRateHz[deck];
+          const sec = (typeof sr === "number" && sr > 0) ? samples / sr : samples;
+          ds.hotCues = [
+            ...ds.hotCues.filter((c) => c.index !== idx),
+            { index: idx, sec },
+          ].sort((a, b) => a.index - b.index);
+          logCues(deck, `[CUE] Deck ${deck} HotCue${idx} set @ ${sec.toFixed(3)}s`);
+        } else if (samples === -1) {
+          ds.hotCues = ds.hotCues.filter((c) => c.index !== idx);
+          logCues(deck, `[CUE] Deck ${deck} HotCue${idx} cleared`);
+        }
+      }
+
+      // ---- Active loop via stateChanged ----
+      if (tail === "Track/LoopEnableState" || tail === "LoopEnableState") {
+        const active = this.coerceBool(value);
+        if (typeof active === "boolean") {
+          ds.loopActive = active;
+          logCues(deck, `[CUE] Deck ${deck} loop ${active ? 'ENABLED' : 'DISABLED'}`);
+        }
+      }
+      if ((tail === "Track/CurrentLoopInPosition" || tail === "CurrentLoopInPosition") && typeof value === "number") {
+        const sr = this.sampleRateHz[deck];
+        if (typeof sr === "number" && sr > 0) {
+          ds.loopInSec = value / sr;
+          this.touch(deck);
+          logDiscover(deck, "[DISCOVER] LoopIn set (stateChanged):", value, "/ sr=", sr, "->", ds.loopInSec.toFixed(3) + "s");
+          logCues(deck, `[CUE] Deck ${deck} loop in @ ${ds.loopInSec.toFixed(3)}s`);
+        } else {
+          this.pendingLoopInSamples[deck] = value;
+          logDiscover(deck, "[DISCOVER] LoopIn deferred (stateChanged, no SampleRate):", value, "samples");
+        }
+      }
+      if ((tail === "Track/CurrentLoopOutPosition" || tail === "CurrentLoopOutPosition") && typeof value === "number") {
+        const sr = this.sampleRateHz[deck];
+        if (typeof sr === "number" && sr > 0) {
+          ds.loopOutSec = value / sr;
+          this.touch(deck);
+          logDiscover(deck, "[DISCOVER] LoopOut set (stateChanged):", value, "/ sr=", sr, "->", ds.loopOutSec.toFixed(3) + "s");
+          logCues(deck, `[CUE] Deck ${deck} loop out @ ${ds.loopOutSec.toFixed(3)}s`);
+        } else {
+          this.pendingLoopOutSamples[deck] = value;
+          logDiscover(deck, "[DISCOVER] LoopOut deferred (stateChanged, no SampleRate):", value, "samples");
+        }
+      }
+
+      // ---- Saved loops via stateChanged ----
+      const quickLoopMatch2 = tail.match(/^(?:Track\/)?Loop\/QuickLoop([1-8])$/i);
+      if (quickLoopMatch2) {
+        const idx = Number(quickLoopMatch2[1]);
+        let inSamples: number | undefined;
+        let outSamples: number | undefined;
+        let active: boolean | undefined;
+        if (typeof value === "object" && value !== null) {
+          const obj = value as any;
+          inSamples = obj.startPosition ?? obj.inPosition ?? obj.in;
+          outSamples = obj.endPosition ?? obj.outPosition ?? obj.out;
+          active = typeof obj.isActive === "boolean" ? obj.isActive : (obj.active === true);
+        } else if (typeof value === "number") {
+          inSamples = value;
+        }
+        const sr = this.sampleRateHz[deck];
+        const toSec = (s: number) => (typeof sr === "number" && sr > 0) ? s / sr : s;
+        if (typeof inSamples === "number" && inSamples >= 0) {
+          const entry = {
+            index: idx,
+            inSec: toSec(inSamples),
+            outSec: typeof outSamples === "number" && outSamples >= 0 ? toSec(outSamples) : toSec(inSamples),
+            active: active ?? false,
+          };
+          ds.savedLoops = [
+            ...ds.savedLoops.filter((l) => l.index !== idx),
+            entry,
+          ].sort((a, b) => a.index - b.index);
+          logCues(deck, `[CUE] Deck ${deck} QuickLoop${idx} ${entry.inSec.toFixed(3)}s–${entry.outSec.toFixed(3)}s active=${entry.active}`);
         }
       }
 
