@@ -23,7 +23,7 @@
     },
     "timecode": {
         "fps": 30,
-        "target_ip": "10.15.10.109",
+        "target_ip": "192.168.178.33",
         "target_port": 6454,
         "stream_id": 0
     },
@@ -34,7 +34,7 @@
     },
     "osc": {
         "enabled": true,
-        "target_ip": "10.15.10.109",
+        "target_ip": "192.168.178.33",
         "target_port": 8000,
         "speedmaster": 15
     },
@@ -232,7 +232,7 @@
                     }
                 },
                 {
-                    "song_index": "06. Shake It Off.flac",
+                    "song_index": "06. Shake It Off (Extended Mix).flac",
                     "offset_sec": 23400,
                     "offset_frame": 0,
                     "note": {
@@ -250,7 +250,7 @@
                     }
                 },
                 {
-                    "song_index": "Zara Larsson - Lush Life.mp3",
+                    "song_index": "014. Bonez MC & RAF Camora - Palmen aus Plastik.flac",
                     "offset_sec": 24600,
                     "offset_frame": 0,
                     "note": {
@@ -259,7 +259,7 @@
                     }
                 },
                 {
-                    "song_index": "TLC - No Scrubs.flac",
+                    "song_index": "Dynamite.mp3",
                     "offset_sec": 25200,
                     "offset_frame": 0,
                     "note": {
@@ -268,7 +268,7 @@
                     }
                 },
                 {
-                    "song_index": "04 - Unwritten.flac",
+                    "song_index": "Good Feeling.mp3",
                     "offset_sec": 25800,
                     "offset_frame": 0,
                     "note": {
@@ -277,7 +277,7 @@
                     }
                 },
                 {
-                    "song_index": "2558. Shakira Ft. Wyclef Jean - Hips Don't Lie [2006].flac",
+                    "song_index": "2 Avicii - Levels (Clean Extended) (Short Edit).mp3",
                     "offset_sec": 26400,
                     "offset_frame": 0,
                     "note": {
@@ -286,7 +286,7 @@
                     }
                 },
                 {
-                    "song_index": "05 - Dua Lipa - Levitating.flac",
+                    "song_index": "On The Floor (Short Edit).mp3",
                     "offset_sec": 27000,
                     "offset_frame": 0,
                     "note": {
@@ -295,134 +295,8 @@
                     }
                 },
                 {
-                    "song_index": "014. Bonez MC & RAF Camora - Palmen aus Plastik.flac",
+                    "song_index": "05. Clocks (Added Silence to Start).mp3",
                     "offset_sec": 27600,
-                    "offset_frame": 0,
-                    "note": {
-                        "description": "",
-                        "show_secs_before_transition_starts": 600
-                    }
-                },
-                {
-                    "song_index": "James Hype, Miggy Dela Rosa - Ferrari (Extended Mix).mp3",
-                    "offset_sec": 28200,
-                    "offset_frame": 0,
-                    "note": {
-                        "description": "",
-                        "show_secs_before_transition_starts": 600
-                    }
-                },
-                {
-                    "song_index": "05 - Ohne mein Team.mp3",
-                    "offset_sec": 28800,
-                    "offset_frame": 0,
-                    "note": {
-                        "description": "",
-                        "show_secs_before_transition_starts": 600
-                    }
-                },
-                {
-                    "song_index": "Disco_Lines__Tinashe-No_Broke_Boys-Extended_Mix-75639505.mp3",
-                    "offset_sec": 29400,
-                    "offset_frame": 0,
-                    "note": {
-                        "description": "",
-                        "show_secs_before_transition_starts": 600
-                    }
-                },
-                {
-                    "song_index": "03. Von Party zu Party.flac",
-                    "offset_sec": 30000,
-                    "offset_frame": 0,
-                    "note": {
-                        "description": "",
-                        "show_secs_before_transition_starts": 600
-                    }
-                },
-                {
-                    "song_index": "Better Off Alone.mp3",
-                    "offset_sec": 30600,
-                    "offset_frame": 0,
-                    "note": {
-                        "description": "",
-                        "show_secs_before_transition_starts": 600
-                    }
-                },
-                {
-                    "song_index": "2 David Guetta ft Kid Cudi - Memories (Clean Extended).mp3",
-                    "offset_sec": 31200,
-                    "offset_frame": 0,
-                    "note": {
-                        "description": "",
-                        "show_secs_before_transition_starts": 600
-                    }
-                },
-                {
-                    "song_index": "4 Rihanna - S&M (Intro Clean).mp3",
-                    "offset_sec": 31800,
-                    "offset_frame": 0,
-                    "note": {
-                        "description": "",
-                        "show_secs_before_transition_starts": 600
-                    }
-                },
-                {
-                    "song_index": "Water.mp3",
-                    "offset_sec": 32400,
-                    "offset_frame": 0,
-                    "note": {
-                        "description": "",
-                        "show_secs_before_transition_starts": 600
-                    }
-                },
-                {
-                    "song_index": "On The Floor.mp3",
-                    "offset_sec": 33000,
-                    "offset_frame": 0,
-                    "note": {
-                        "description": "",
-                        "show_secs_before_transition_starts": 600
-                    }
-                },
-                {
-                    "song_index": "Pump It Up - Dastic Remix.mp3",
-                    "offset_sec": 33600,
-                    "offset_frame": 0,
-                    "note": {
-                        "description": "",
-                        "show_secs_before_transition_starts": 600
-                    }
-                },
-                {
-                    "song_index": "Rather Be (feat. Jess Glynne) - OVERWERK Remix.mp3",
-                    "offset_sec": 34200,
-                    "offset_frame": 0,
-                    "note": {
-                        "description": "",
-                        "show_secs_before_transition_starts": 600
-                    }
-                },
-                {
-                    "song_index": "Without You (feat. Sandro Cavazza).mp3",
-                    "offset_sec": 34800,
-                    "offset_frame": 0,
-                    "note": {
-                        "description": "",
-                        "show_secs_before_transition_starts": 600
-                    }
-                },
-                {
-                    "song_index": "4 Nelly Furtado - Maneater (Intro Clean).mp3",
-                    "offset_sec": 35400,
-                    "offset_frame": 0,
-                    "note": {
-                        "description": "",
-                        "show_secs_before_transition_starts": 600
-                    }
-                },
-                {
-                    "song_index": "005 - Dirty Diana (2012 Remaster).mp3",
-                    "offset_sec": 36000,
                     "offset_frame": 0,
                     "note": {
                         "description": "",
