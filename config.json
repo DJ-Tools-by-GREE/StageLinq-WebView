@@ -23,7 +23,7 @@
     },
     "timecode": {
         "fps": 30,
-        "target_ip": "192.168.178.33",
+        "target_ip": "192.168.178.255",
         "target_port": 6454,
         "stream_id": 0
     },
