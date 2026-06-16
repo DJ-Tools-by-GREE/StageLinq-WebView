@@ -82,11 +82,15 @@ function applyScrollRegion() {
 function drawDashboard() {
     if (!rows || lastDashboardLines.length === 0) return;
     const startRow = rows - lastDashboardLines.length + 1;
-    let out = '\x1b7'; // save cursor (DECSC)
+    // DECAWM off (\x1b[?7l) so a dashboard line wider than the terminal is
+    // truncated at the right edge instead of wrapping onto the next row and
+    // corrupting the line above. Re-enabled before restoring the cursor so
+    // log lines in the scroll region wrap normally.
+    let out = '\x1b7\x1b[?7l'; // save cursor (DECSC) + autowrap off
     for (let i = 0; i < lastDashboardLines.length; i++) {
         out += `\x1b[${startRow + i};1H\x1b[2K${lastDashboardLines[i]}`;
     }
-    out += '\x1b8'; // restore cursor (DECRC)
+    out += '\x1b[?7h\x1b8'; // autowrap on + restore cursor (DECRC)
     process.stdout.write(out);
 }
 
