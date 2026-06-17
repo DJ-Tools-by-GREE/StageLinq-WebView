@@ -24,7 +24,7 @@
     },
     "timecode": {
         "fps": 30,
-        "target_ips": ["192.168.178.255", "192.168.178.50"],
+        "target_ips": ["192.168.178.33", "192.168.178.34"],
         "target_port": 6454,
         "stream_id": 0
     },
@@ -179,7 +179,7 @@
                     }
                 },
                 {
-                    "song_index": "Starships.mp3",
+                    "song_index": "Starships (Extended Outro).mp3",
                     "offset_sec": 19800,
                     "offset_frame": 0,
                     "note": {
