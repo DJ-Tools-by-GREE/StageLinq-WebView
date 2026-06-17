@@ -47,6 +47,18 @@ const DASHBOARD_THROTTLE_MS = 100; // ~10Hz
 let rows = isTTY ? (process.stdout.rows ?? 0) : 0;
 let scrollBottom = 0;
 
+// Most recent Art-Net TC reading (HH:MM:SS), prefixed onto every terminal log line.
+// Updated at 10 Hz from the Art-Net worker via setArtnetTcHms().
+let artnetTcHms = '--:--:--';
+
+export function setArtnetTcHms(hms: string) {
+    artnetTcHms = hms;
+}
+
+function tcPrefix(): string {
+    return isTTY ? `${DIM}[${artnetTcHms}]${R} ` : `[${artnetTcHms}] `;
+}
+
 export const DISPLAY_ENABLED = {
     dashboard: true,
     artnet: true,
@@ -182,10 +194,10 @@ function splitDeckArgs(args: any[]): { shouldLog: boolean; deck: number | null; 
 
 function printLog(method: 'log' | 'error', ...args: any[]) {
     if (!isTTY || scrollBottom <= 0) {
-        console[method](...args);
+        console[method](tcPrefix() + utilFormat(...args));
         return;
     }
-    const text = utilFormat(...args);
+    const text = tcPrefix() + utilFormat(...args);
     // Move to bottom of scroll region, clear line, print.
     // The trailing \n at scrollBottom causes the scroll region [1..scrollBottom] to scroll up by one;
     // the dashboard lives below scrollBottom and is unaffected.

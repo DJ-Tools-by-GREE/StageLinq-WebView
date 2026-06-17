@@ -5,7 +5,7 @@ import { logError, logLifecycle, logStatus, GRN, RST } from './logging.js';
 
 export interface OscBpmOptions {
   enabled: boolean;
-  targetIp: string;
+  targetIps: string[];
   targetPort: number;
   speedMaster: number;
 }
@@ -84,9 +84,11 @@ export class OscBpmSender {
 
   private transmit(command: string) {
     const packet = buildOscMessage('/cmd', [command]);
-    logStatus('osc', `[OSC] /cmd -> ${command} (${this.opts.targetIp}:${this.opts.targetPort})`);
-    this.socket.send(packet, 0, packet.length, this.opts.targetPort, this.opts.targetIp, (err) => {
-      if (err) logError('[OSC] Send error:', err.message);
-    });
+    logStatus('osc', `[OSC] /cmd -> ${command} (${this.opts.targetIps.join(', ')}:${this.opts.targetPort})`);
+    for (const ip of this.opts.targetIps) {
+      this.socket.send(packet, 0, packet.length, this.opts.targetPort, ip, (err) => {
+        if (err) logError(`[OSC] Send error to ${ip}:`, err.message);
+      });
+    }
   }
 }

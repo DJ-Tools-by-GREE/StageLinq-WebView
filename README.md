@@ -17,6 +17,7 @@ Real-time DJ deck visualizer for Denon Prime 4+ (Engine DJ / StageLinq). Display
 - Configurable FPS, target IP/port, deck selection, and latency compensation
 - Drift detection and re-sync; suppresses frames before 00:00:00:00 and after track end
 - Per-track offset mapping via `config.json` for alignment with external systems
+- **Runs in a dedicated Node worker thread** with its own dgram socket and a self-correcting deadline timer, so the timecode cadence is unaffected by waveform extraction, WebSocket broadcasts, or any other main-thread work
 
 **sACN / DMX control input** (optional)
 - Receives a single DMX channel over sACN to select which deck's timecode is broadcast
@@ -116,7 +117,7 @@ Hot-reload: press **Ctrl+R** in the terminal running the backend to reload `conf
 | Variable | Default | Description |
 |---|---|---|
 | `ARTNET_ENABLED` | `true` | Enable Art-Net timecode output |
-| `ARTNET_TARGET_IP` | `255.255.255.255` | Destination IP (broadcast or unicast) |
+| `ARTNET_TARGET_IP` | `255.255.255.255` | Destination IP(s) — single IP or comma-separated list (e.g. `192.168.1.10,192.168.1.11`) for multi-host fan-out |
 | `ARTNET_PORT` | `6454` | Destination UDP port |
 | `ARTNET_DECK` | `1` | Deck to broadcast (overridden by sACN input) |
 | `ARTNET_FPS` | `30` | Timecode frame rate — valid values: `24`, `25`, `29.97`, `30` |
@@ -136,7 +137,7 @@ Hot-reload: press **Ctrl+R** in the terminal running the backend to reload `conf
 | Variable | Default | Description |
 |---|---|---|
 | `OSC_ENABLED` | `false` | Enable OSC BPM sender |
-| `OSC_TARGET_IP` | `127.0.0.1` | OSC target IP |
+| `OSC_TARGET_IP` | `127.0.0.1` | OSC target IP(s) — single IP or comma-separated list for multi-host fan-out |
 | `OSC_TARGET_PORT` | `8000` | OSC target UDP port |
 | `OSC_SPEEDMASTER` | `15` | SpeedMaster channel number in the OSC command |
 
@@ -157,7 +158,7 @@ All settings can also be placed in `config.json` at the repo root (or in `backen
   "current_playlist": 0,
   "timecode": {
     "fps": 30,
-    "target_ip": "192.168.1.100",
+    "target_ips": ["192.168.1.100", "192.168.1.101"],
     "target_port": 6454
   },
   "control_input": {
@@ -167,7 +168,7 @@ All settings can also be placed in `config.json` at the repo root (or in `backen
   },
   "osc": {
     "enabled": true,
-    "target_ip": "192.168.1.100",
+    "target_ips": ["192.168.1.100"],
     "target_port": 8000,
     "speedmaster": 15
   },
@@ -184,6 +185,8 @@ All settings can also be placed in `config.json` at the repo root (or in `backen
 ```
 
 Tracks are matched by normalized filename (basename only, case-insensitive). `current_playlist` selects which playlist entry from the array is active (0-indexed).
+
+Both `timecode` and `osc` accept either a single `target_ip` (string) or a `target_ips` array — when both are present, `target_ips` wins. The same packets are fanned out to every listed host. The env vars `ARTNET_TARGET_IP` / `OSC_TARGET_IP` accept a comma-separated list for the same purpose and override the config file.
 
 ### Waveform and artwork cache
 
@@ -222,7 +225,9 @@ StageLinq-WebView/
 ├── backend/src/
 │   ├── index.ts            # Express server, WebSocket, snapshot loop
 │   ├── stagelinqBridge.ts  # StageLinq protocol handler
-│   ├── artnetTimecode.ts   # Art-Net SMPTE timecode broadcaster
+│   ├── artnetTimecode.ts   # Art-Net broadcaster (main-thread harness around the worker)
+│   ├── artnetWorker.ts     # Art-Net SMPTE worker (owns dgram socket + self-correcting tick)
+│   ├── artnetWorkerMessages.ts # typed message contract between main thread and worker
 │   ├── oscBpm.ts           # OSC BPM sender
 │   ├── waveformService.ts  # Waveform peak extraction and artwork cache
 │   ├── camelot.ts          # Key index → Camelot string
@@ -275,6 +280,18 @@ The backend has a built-in watchdog that monitors the StageLinq connection and a
 **Global disconnect detection:** if no `beatMessage` arrives from *any* deck for `DISCONNECT_DETECT_TIMEOUT_S` (default 10 s), the bridge disconnects and retries with `RECONNECT_DELAY_MS` (default 3 s) between attempts. This handles cable pulls, power-cycles, and device sleep without requiring a process restart.
 
 All three values — plus `WS_FPS`, `ARTNET_BIND_TIMEOUT_MS`, `ARTNET_DRIFT_THRESHOLD_RATIO`, and `ELAPSED_THROTTLE_S` — are collected in [`backend/src/constants.ts`](backend/src/constants.ts) so they can be adjusted in one place.
+
+## Diagnostics
+
+To make timecode-cadence problems observable, the backend logs:
+
+- **`[ArtNet/wk] tick stats`** — emitted every 10 s by the Art-Net worker. Shows tick count, average interval, p50, p95, max interval, max "behind" (how late the worker self-corrected from), and any hard stalls. A healthy line at 30 fps reads roughly `avg=33.33ms (30.00fps) p95<35 max<40 maxBehind<5 hardStalls=0`.
+- **`[ArtNet/wk] Late tick`** — single late tick warning, rate-limited to 1/s.
+- **`[main] event-loop lag Xms`** — main-thread event-loop lag warning. The Art-Net worker is unaffected by main-thread stalls; this log just tells you where to look when the WS UI feels sluggish (typical cause: ffmpeg-done callback or a large JSON serialization).
+- **`[WAVEFORM] track-change deck=N download=Xms ffmpeg=Yms total=Zms`** — per-track-change timing breakdown. Useful to see whether download or PCM extraction is the bottleneck.
+- **`[main] WS broadcast slow`** — WebSocket broadcast warning if a single snapshot send takes longer than `WS_BROADCAST_WARN_MS` (default 5 ms).
+
+Tunable thresholds for the diagnostics live alongside the existing tunables in [`backend/src/constants.ts`](backend/src/constants.ts): `ARTNET_TICK_STATS_LOG_INTERVAL_MS`, `MAIN_EVENT_LOOP_LAG_WARN_MS`, `WS_BROADCAST_WARN_MS`, `ARTNET_HARD_STALL_INTERVALS`.
 
 ## License
 

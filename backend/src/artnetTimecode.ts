@@ -1,16 +1,15 @@
-import dgram from 'node:dgram';
+import { Worker } from 'node:worker_threads';
 import type { DeckState } from './types.js';
-import {
-  ARTNET_BIND_TIMEOUT_MS,
-  ARTNET_DRIFT_THRESHOLD_RATIO,
-  ARTNET_SOCKET_RECOVERY_COOLDOWN_MS,
-  ARTNET_SOCKET_RECOVERY_DELAY_MS,
-} from './constants.js';
-import { logError, logLifecycle, logStatus, GRN, RST } from './logging.js';
+import type {
+  ArtNetWorkerInitOptions,
+  MainToWorker,
+  WorkerToMain,
+} from './artnetWorkerMessages.js';
+import { logError, logLifecycle, logStatus, setArtnetTcHms, GRN, RST } from './logging.js';
 
 export interface ArtNetOptions {
   enabled: boolean;
-  targetIp: string;
+  targetIps: string[];
   port: number;
   fps: number;
   sendHz?: number;
@@ -21,46 +20,22 @@ export interface ArtNetOptions {
   sendWhenStopped?: boolean;
 }
 
-function buildArtNetTimecode(hours: number, minutes: number, seconds: number, frames: number, fpsType: number, streamId: number): Buffer {
-  const buffer = Buffer.alloc(19);
-  buffer.write('Art-Net\0', 0, 8, 'ascii');
-  buffer.writeUInt16LE(0x9700, 8);
-  buffer.writeUInt16BE(14, 10);
-  buffer[12] = 0x00;
-  buffer[13] = streamId & 0xff;
-  buffer[14] = frames & 0xff;
-  buffer[15] = seconds & 0xff;
-  buffer[16] = minutes & 0xff;
-  buffer[17] = hours & 0xff;
-  buffer[18] = fpsType & 0xff;
-  return buffer;
-}
-
-function framesToHMSF(totalFrames: number, fps: number) {
-  const frames = ((totalFrames % fps) + fps) % fps;
-  const totalSeconds = Math.floor(totalFrames / fps);
-  const seconds = ((totalSeconds % 60) + 60) % 60;
-  const totalMinutes = Math.floor(totalSeconds / 60);
-  const minutes = ((totalMinutes % 60) + 60) % 60;
-  const hours = ((Math.floor(totalMinutes / 60) % 24) + 24) % 24;
-  return { hours, minutes, seconds, frames };
-}
-
+/**
+ * Owns the Art-Net worker thread. The actual UDP send loop runs entirely off the main thread,
+ * so waveform extraction, WebSocket broadcasts, and JSON serialization can never starve it.
+ *
+ * The main thread only does two things:
+ *  - poll getDeckState() at sendHz and post it to the worker (a few µs per tick)
+ *  - forward setSendWhenStopped() and stop() lifecycle calls
+ *
+ * The worker holds the dgram socket, the self-correcting tick deadline, and all stats.
+ */
 export class ArtNetTimecodeBroadcaster {
-  private socket = dgram.createSocket('udp4');
   private opts: ArtNetOptions;
-  private loop: NodeJS.Timeout | null = null;
-  private timelineFrames: number | null = null;
-  private lastTickMs: number | null = null;
+  private worker: Worker | null = null;
+  private pollTimer: NodeJS.Timeout | null = null;
+  private getDeckState: (() => DeckState | undefined) | null = null;
   private sendWhenStopped: boolean;
-  private expectedIntervalMs = 0;
-  private fpsWindowStartMs: number | null = null;
-  private sentInWindow = 0;
-  private lastCadenceWarnMs = 0;
-  private lastSendAtMs: number | null = null;
-  private socketFaulted = false;
-  private lastSocketRecoveryMs = 0;
-  private lastSentStoppedFrames: number | null = null;
 
   constructor(opts: ArtNetOptions) {
     this.opts = opts;
@@ -69,211 +44,126 @@ export class ArtNetTimecodeBroadcaster {
 
   setSendWhenStopped(enabled: boolean) {
     this.sendWhenStopped = enabled;
+    this.post({ type: 'setSendWhenStopped', enabled });
   }
 
-  /** Returns the current interpolated elapsed position in seconds (without latency compensation). */
+  /** Compatibility shim — kept so callers don't need to change. The real timeline lives in the worker. */
   getElapsedSec(): number {
-    return this.timelineFrames !== null ? this.timelineFrames / this.opts.fps : 0;
+    return 0;
   }
 
-  async start(getDeckState: () => DeckState | undefined) {
+  async start(getDeckState: () => DeckState | undefined): Promise<void> {
     if (!this.opts.enabled) return;
-    this.socket.on('error', (err) => {
-      logError('[ArtNet] Socket error:', err.message);
+
+    this.getDeckState = getDeckState;
+
+    // tsx propagates its loader to worker_threads automatically (tsx 4.x), so we can resolve
+    // both the .ts (dev under tsx watch) and the .js (compiled dist) source from the same path
+    // by switching extensions at runtime.
+    const isTs = import.meta.url.endsWith('.ts');
+    const workerUrl = new URL(`./artnetWorker.${isTs ? 'ts' : 'js'}`, import.meta.url);
+
+    const worker = new Worker(workerUrl);
+    this.worker = worker;
+
+    worker.on('message', (m: WorkerToMain) => this.handleWorkerMessage(m));
+    worker.on('error', (err) => {
+      logError('[ArtNet] Worker error:', err?.message || err);
     });
-    await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(
-        () => reject(new Error('[ArtNet] socket.bind() timed out after 5s')),
-        ARTNET_BIND_TIMEOUT_MS,
-      );
-      this.socket.bind(() => {
-        clearTimeout(timeout);
-        try { this.socket.setBroadcast(true); } catch {}
-        resolve();
-      });
+    worker.on('exit', (code) => {
+      if (code !== 0) {
+        logError(`[ArtNet] Worker exited with code ${code}`);
+      }
+      this.worker = null;
     });
 
     const sendHz = Math.max(1, Number(this.opts.sendHz ?? this.opts.fps));
-    const intervalMs = Math.max(1, Math.round(1000 / sendHz));
-    this.expectedIntervalMs = intervalMs;
-    this.loop = setInterval(() => {
-      const deckState = getDeckState();
-      if (!deckState) return;
-      this.tick(deckState);
-    }, intervalMs);
+    const initOpts: ArtNetWorkerInitOptions = {
+      enabled: this.opts.enabled,
+      targetIps: this.opts.targetIps,
+      port: this.opts.port,
+      fps: this.opts.fps,
+      sendHz,
+      fpsType: this.opts.fpsType,
+      streamId: this.opts.streamId ?? 0x00,
+      latencyCompMs: this.opts.latencyCompMs ?? 80,
+      sendWhenStopped: this.sendWhenStopped,
+    };
 
-    logLifecycle(`${GRN}Art-Net TC enabled: ${this.opts.targetIp}:${this.opts.port} @ ${this.opts.fps}fps, send=${sendHz}Hz (deck ${this.opts.deck})${RST}`);
-  }
-
-  stop() {
-    if (this.loop) {
-      clearInterval(this.loop);
-      this.loop = null;
-    }
-    this.socketFaulted = false;
-    try { this.socket.close(); } catch {}
-  }
-
-  private async recoverSocket() {
-    logError('[ArtNet] Network error — recreating socket in 5s');
-    try { this.socket.close(); } catch {}
-    await new Promise<void>(r => setTimeout(r, ARTNET_SOCKET_RECOVERY_DELAY_MS));
-    if (!this.loop) return;
-    this.socket = dgram.createSocket('udp4');
-    this.socket.on('error', (err) => {
-      logError('[ArtNet] Socket error:', err.message);
+    // Wait for ready before starting the polling pump so we don't enqueue updateDeck
+    // messages against an un-bound socket.
+    await new Promise<void>((resolve, reject) => {
+      const onMessage = (m: WorkerToMain) => {
+        if (m.type === 'ready') {
+          worker.off('message', onMessage);
+          worker.off('error', onError);
+          resolve();
+        }
+      };
+      const onError = (err: Error) => {
+        worker.off('message', onMessage);
+        worker.off('error', onError);
+        reject(err);
+      };
+      worker.on('message', onMessage);
+      worker.on('error', onError);
+      this.post({ type: 'init', opts: initOpts });
     });
+
+    const pollIntervalMs = Math.max(1, Math.round(1000 / sendHz));
+    this.pollTimer = setInterval(() => this.pumpDeckState(), pollIntervalMs);
+
+    logLifecycle(`${GRN}Art-Net TC enabled: ${this.opts.targetIps.join(', ')}:${this.opts.port} @ ${this.opts.fps}fps, send=${sendHz}Hz (worker thread, deck ${this.opts.deck})${RST}`);
+  }
+
+  async stop(): Promise<void> {
+    if (this.pollTimer) { clearInterval(this.pollTimer); this.pollTimer = null; }
+    if (!this.worker) return;
+    this.post({ type: 'shutdown' });
+    const w = this.worker;
     await new Promise<void>((resolve) => {
-      const timeout = setTimeout(() => {
-        logError('[ArtNet] Socket rebind timed out');
+      const t = setTimeout(() => {
+        try { w.terminate(); } catch {}
         resolve();
-      }, ARTNET_BIND_TIMEOUT_MS);
-      this.socket.bind(() => {
-        clearTimeout(timeout);
-        try { this.socket.setBroadcast(true); } catch {}
+      }, 1000);
+      w.once('exit', () => {
+        clearTimeout(t);
         resolve();
       });
     });
-    this.lastSocketRecoveryMs = Date.now();
-    this.socketFaulted = false;
-    logLifecycle(`${GRN}[ArtNet] Socket recreated${RST}`);
+    this.worker = null;
   }
 
-  tick(deckState: DeckState) {
-    if (!this.opts.enabled) return;
+  private pumpDeckState() {
+    if (!this.getDeckState || !this.worker) return;
+    const ds = this.getDeckState();
+    this.post({ type: 'updateDeck', deck: ds ?? null });
+  }
 
-    const nowMs = Date.now();
-    const sourceSec = Number(deckState.elapsedSec) || 0;
-    const sourceFrames = Math.max(0, sourceSec * this.opts.fps);
-
-    if (!this.sendWhenStopped && deckState.play !== true) {
-      const wasPlaying = this.lastTickMs !== null;
-      this.timelineFrames = sourceFrames;
-      this.lastTickMs = null;
-      this.fpsWindowStartMs = null;
-      this.sentInWindow = 0;
-      this.lastSendAtMs = null;
-
-      let stoppedFrame = Math.floor(sourceFrames);
-      const totalSec = Number(deckState.totalSec) || 0;
-      if (totalSec > 0) {
-        stoppedFrame = Math.min(stoppedFrame, Math.max(0, Math.floor(totalSec * this.opts.fps) - 1));
-      }
-
-      if (wasPlaying) {
-        this.lastSentStoppedFrames = stoppedFrame;
-      } else if (this.lastSentStoppedFrames !== stoppedFrame) {
-        this.lastSentStoppedFrames = stoppedFrame;
-        if (stoppedFrame > 0 && !this.socketFaulted) {
-          const tc = framesToHMSF(stoppedFrame, this.opts.fps);
-          const pkt = buildArtNetTimecode(tc.hours, tc.minutes, tc.seconds, tc.frames, this.opts.fpsType, this.opts.streamId ?? 0x00);
-          this.socket.send(pkt, 0, pkt.length, this.opts.port, this.opts.targetIp, (err) => {
-            if (err) {
-              logError('[ArtNet] Send error:', err.message);
-              const code = (err as NodeJS.ErrnoException).code;
-              if ((code === 'ENETUNREACH' || code === 'EADDRNOTAVAIL') && !this.socketFaulted) {
-                const now = Date.now();
-                if (now - this.lastSocketRecoveryMs > ARTNET_SOCKET_RECOVERY_COOLDOWN_MS) {
-                  this.socketFaulted = true;
-                  void this.recoverSocket();
-                }
-              }
-            }
-          });
-        }
-      }
-      return;
+  private post(msg: MainToWorker) {
+    if (!this.worker) return;
+    try {
+      this.worker.postMessage(msg);
+    } catch (e: any) {
+      logError('[ArtNet] postMessage failed:', e?.message || e);
     }
+  }
 
-    if (this.timelineFrames == null) {
-      this.timelineFrames = sourceFrames;
-    }
-
-    if (this.lastTickMs == null) {
-      this.lastTickMs = nowMs;
-      this.timelineFrames = sourceFrames;
-      return;
-    }
-
-    const dtSec = Math.max(0, (nowMs - this.lastTickMs) / 1000);
-    const playRate = 1 + (deckState.speedState ?? 0) / 100;
-    this.timelineFrames += dtSec * this.opts.fps * playRate;
-
-    const drift = Math.abs(sourceFrames - this.timelineFrames);
-    if (drift > this.opts.fps * ARTNET_DRIFT_THRESHOLD_RATIO) {
-      this.timelineFrames = sourceFrames;
-    }
-
-    if (this.timelineFrames < sourceFrames) {
-      this.timelineFrames = sourceFrames;
-    }
-
-    if (this.timelineFrames <= 0) {
-      return;
-    }
-
-    this.lastTickMs = nowMs;
-
-    const latencyCompFrames = (this.opts.fps * (this.opts.latencyCompMs ?? 80)) / 1000;
-    const rawFramePos = this.timelineFrames + latencyCompFrames;
-    if (rawFramePos < 0) return;
-
-    let totalFrames = Math.floor(rawFramePos);
-    const totalSec = Number(deckState.totalSec) || 0;
-    if (totalSec > 0) {
-      const maxFrame = Math.max(0, Math.floor(totalSec * this.opts.fps) - 1);
-      totalFrames = Math.min(totalFrames, maxFrame);
-    }
-
-    const tc = framesToHMSF(totalFrames, this.opts.fps);
-    logStatus('artnet',
-      `[ArtNet TC] ${String(tc.hours).padStart(2, '0')}:${String(tc.minutes).padStart(2, '0')}:${String(tc.seconds).padStart(2, '0')}:${String(tc.frames).padStart(2, '0')}`
-    );
-    if (this.socketFaulted) return;
-    const pkt = buildArtNetTimecode(tc.hours, tc.minutes, tc.seconds, tc.frames, this.opts.fpsType, this.opts.streamId ?? 0x00);
-    this.socket.send(pkt, 0, pkt.length, this.opts.port, this.opts.targetIp, (err) => {
-      if (err) {
-        logError('[ArtNet] Send error:', err.message);
-        const code = (err as NodeJS.ErrnoException).code;
-        if ((code === 'ENETUNREACH' || code === 'EADDRNOTAVAIL') && !this.socketFaulted) {
-          const now = Date.now();
-          if (now - this.lastSocketRecoveryMs > ARTNET_SOCKET_RECOVERY_COOLDOWN_MS) {
-            this.socketFaulted = true;
-            void this.recoverSocket();
-          }
-        }
-      }
-    });
-
-    const sendNow = Date.now();
-    if (this.lastSendAtMs != null) {
-      const dtMs = sendNow - this.lastSendAtMs;
-      if (dtMs > this.expectedIntervalMs * 1.6 && (sendNow - this.lastCadenceWarnMs) > 1000) {
-        this.lastCadenceWarnMs = sendNow;
-        const instFps = 1000 / dtMs;
-        logError(
-          `[ArtNet] Cadence drop detected: ${instFps.toFixed(2)}fps (target ${this.opts.fps}fps, interval ${dtMs.toFixed(1)}ms)`
-        );
-      }
-    }
-    this.lastSendAtMs = sendNow;
-
-    if (this.fpsWindowStartMs == null) {
-      this.fpsWindowStartMs = sendNow;
-      this.sentInWindow = 0;
-    }
-    this.sentInWindow += 1;
-
-    const windowMs = sendNow - this.fpsWindowStartMs;
-    if (windowMs >= 1000) {
-      const avgFps = (this.sentInWindow * 1000) / windowMs;
-      if (avgFps < (this.opts.fps - 0.5)) {
-        logError(
-          `[ArtNet] Average output below target: ${avgFps.toFixed(2)}fps (target ${this.opts.fps}fps, samples ${this.sentInWindow}/${windowMs.toFixed(0)}ms)`
-        );
-      }
-      this.fpsWindowStartMs = sendNow;
-      this.sentInWindow = 0;
+  private handleWorkerMessage(m: WorkerToMain) {
+    switch (m.type) {
+      case 'log':
+        if (m.level === 'error') logError(m.msg);
+        else logLifecycle(m.msg);
+        break;
+      case 'tcDisplay':
+        logStatus('artnet', m.text);
+        setArtnetTcHms(m.hms);
+        break;
+      case 'stats':
+      case 'ready':
+        // 'stats' messages exist for programmatic consumers; the human-readable form is already
+        // logged from the worker via 'log' messages above. 'ready' is consumed in start().
+        break;
     }
   }
 }

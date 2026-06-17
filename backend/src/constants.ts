@@ -54,3 +54,20 @@ export const WAVEFORM_SAMPLES_PER_PEAK = 40;
 
 /** Resulting waveform peaks per second (8000 / 40 = 200). */
 export const WAVEFORM_PEAKS_PER_SEC = 200;
+
+// Diagnostics
+
+/** Interval at which the Art-Net worker reports rolling tick statistics. */
+export const ARTNET_TICK_STATS_LOG_INTERVAL_MS = 10_000;
+
+/** Main-thread event-loop lag (ms) above which a warning is logged (rate-limited to 1/s). */
+export const MAIN_EVENT_LOOP_LAG_WARN_MS = 50;
+
+/** Per-iteration WebSocket broadcast cost (ms) above which a warning is logged. */
+export const WS_BROADCAST_WARN_MS = 5;
+
+/**
+ * If the worker self-correcting timer falls more than this many target intervals behind,
+ * snap forward to "now + interval" and log a hard-stall warning instead of trying to catch up.
+ */
+export const ARTNET_HARD_STALL_INTERVALS = 3;

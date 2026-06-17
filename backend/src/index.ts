@@ -12,7 +12,7 @@ import { StageLinqBridge } from './stagelinqBridge.js';
 import type { DeckNumber, SnapshotPayload, WaveformStatusPayload, WsPayload } from './types.js';
 import { ArtNetTimecodeBroadcaster } from './artnetTimecode.js';
 import { OscBpmSender } from './oscBpm.js';
-import { RECONNECT_DELAY_MS, WS_FPS, WAVEFORM_PEAKS_PER_SEC, DISCONNECT_DETECT_TIMEOUT_S } from './constants.js';
+import { RECONNECT_DELAY_MS, WS_FPS, WAVEFORM_PEAKS_PER_SEC, DISCONNECT_DETECT_TIMEOUT_S, MAIN_EVENT_LOOP_LAG_WARN_MS, WS_BROADCAST_WARN_MS } from './constants.js';
 import { States, StageLinqValue } from "@gree44/stagelinq";
 import { logError, logLifecycle, logWaveform, logUiOut, applyLoggingConfig, applyDisplayConfig, DISPLAY_ENABLED, logDashboard, deckColor, getStatusSlot, DIM, R, GRN, YEL, RED, RST } from './logging.js';
 import { generateWaveformPeaks, peaksCache, artworkCache, initWaveformCache } from './waveformService.js';
@@ -136,6 +136,7 @@ interface RootConfig {
   timecode?: {
     fps?: number;
     target_ip?: string;
+    target_ips?: string[];
     target_port?: number;
     stream_id?: number;
   };
@@ -147,6 +148,7 @@ interface RootConfig {
   osc?: {
     enabled?: boolean;
     target_ip?: string;
+    target_ips?: string[];
     target_port?: number;
     speedmaster?: number;
   };
@@ -331,6 +333,26 @@ function getLocalIpv4Addresses(): string[] {
   return [...ips];
 }
 
+function resolveTargetIps(
+  envValue: string | undefined,
+  configList: string[] | undefined,
+  configSingle: string | undefined,
+  fallback: string,
+): string[] {
+  const fromEnv = envValue
+    ? envValue.split(',').map((s) => s.trim()).filter(Boolean)
+    : [];
+  if (fromEnv.length > 0) return fromEnv;
+
+  const fromList = Array.isArray(configList)
+    ? configList.map((s) => String(s).trim()).filter(Boolean)
+    : [];
+  if (fromList.length > 0) return fromList;
+
+  if (configSingle && configSingle.trim()) return [configSingle.trim()];
+  return [fallback];
+}
+
 async function main() {
   let config = await loadRootConfig();
   if (config?.logging) applyLoggingConfig(config.logging);
@@ -339,9 +361,32 @@ async function main() {
 
   await initWaveformCache(process.cwd());
 
+  // Event-loop lag probe — surfaces main-thread stalls (ffmpeg-done callbacks, JSON.stringify of
+  // big peak arrays, base64 artwork, etc). The Art-Net worker is immune to these stalls; this
+  // log just tells us where to look when the WS UI feels janky during a track change.
+  {
+    const PROBE_INTERVAL_MS = 250;
+    let lastProbeAt = Date.now();
+    let lastWarnAt = 0;
+    setInterval(() => {
+      const now = Date.now();
+      const lag = now - lastProbeAt - PROBE_INTERVAL_MS;
+      lastProbeAt = now;
+      if (lag > MAIN_EVENT_LOOP_LAG_WARN_MS && now - lastWarnAt > 1000) {
+        lastWarnAt = now;
+        logError(`[main] event-loop lag ${lag.toFixed(0)}ms (probe ${PROBE_INTERVAL_MS}ms)`);
+      }
+    }, PROBE_INTERVAL_MS);
+  }
+
   // Art-Net settings from root config.json (env vars override).
   const artnetEnabled = (process.env.ARTNET_ENABLED ?? 'true').toLowerCase() !== 'false';
-  const artnetTargetIp = process.env.ARTNET_TARGET_IP ?? config?.timecode?.target_ip ?? '255.255.255.255';
+  const artnetTargetIps = resolveTargetIps(
+    process.env.ARTNET_TARGET_IP,
+    config?.timecode?.target_ips,
+    config?.timecode?.target_ip,
+    '255.255.255.255',
+  );
   const artnetPort = Number(process.env.ARTNET_PORT ?? config?.timecode?.target_port ?? 6454);
   const artnetDeck = (Number(process.env.ARTNET_DECK ?? 1) as 1 | 2 | 3 | 4);
   const artnetFps = Number(process.env.ARTNET_FPS ?? config?.timecode?.fps ?? 30);
@@ -351,7 +396,12 @@ async function main() {
   const artnetStreamId = Number(process.env.ARTNET_STREAM_ID ?? config?.timecode?.stream_id ?? 0x00);
 
   const oscEnabled = (process.env.OSC_ENABLED ?? String(config?.osc?.enabled ?? false)).toLowerCase() === 'true';
-  const oscTargetIp = process.env.OSC_TARGET_IP ?? config?.osc?.target_ip ?? '127.0.0.1';
+  const oscTargetIps = resolveTargetIps(
+    process.env.OSC_TARGET_IP,
+    config?.osc?.target_ips,
+    config?.osc?.target_ip,
+    '127.0.0.1',
+  );
   const oscTargetPort = Number(process.env.OSC_TARGET_PORT ?? config?.osc?.target_port ?? 8000);
   const oscSpeedMaster = Number(process.env.OSC_SPEEDMASTER ?? config?.osc?.speedmaster ?? 15);
 
@@ -614,23 +664,31 @@ async function main() {
       reconnecting = false;
     },
     onTrackChanged: (deck, fileName, rawNetworkPath) => {
+      const t0 = Date.now();
       logLifecycle(`[WAVEFORM] onTrackChanged deck=${deck} file="${fileName}" inPlaylist=${activePlaylistFiles.has(fileName)}`);
       if (!waveformAllTracks && !activePlaylistFiles.has(fileName)) return;
       if (peaksCache.has(fileName)) {
-        broadcastWaveformData(deck, fileName, peaksCache.get(fileName)!);
+        // Defer the broadcast off the current microtask tail so the Art-Net poll pump and
+        // WS snapshot loop can fire in between.
+        setImmediate(() => broadcastWaveformData(deck, fileName, peaksCache.get(fileName)!));
         if (artworkCache.has(fileName)) {
-          broadcastArtwork(fileName);
+          setImmediate(() => broadcastArtwork(fileName));
+          logLifecycle(`[WAVEFORM] track-change deck=${deck} cache-hit (peaks+artwork) total=${Date.now() - t0}ms`);
           return;
         }
         // Peaks are cached but artwork was never persisted — re-download to extract artwork only.
         const taskId = ++waveformTaskIds[deck];
         (async () => {
           try {
+            const tDl = Date.now();
             const audioBytes = await bridge.downloadFile(rawNetworkPath, () => {});
+            const tFf = Date.now();
             if (waveformTaskIds[deck] !== taskId) return;
             await generateWaveformPeaks(audioBytes, fileName, bridge.getDeck(deck).totalSec, () => {}, () => {});
+            const tDone = Date.now();
             if (waveformTaskIds[deck] !== taskId) return;
-            broadcastArtwork(fileName);
+            setImmediate(() => broadcastArtwork(fileName));
+            logLifecycle(`[WAVEFORM] track-change deck=${deck} artwork-only download=${tFf - tDl}ms ffmpeg=${tDone - tFf}ms total=${tDone - t0}ms`);
           } catch {}
         })();
         return;
@@ -642,10 +700,12 @@ async function main() {
       (async () => {
         try {
           broadcastWaveformStatus(deck, 'downloading', 0, fileName);
+          const tDlStart = Date.now();
           const audioBytes = await bridge.downloadFile(rawNetworkPath, (pct) => {
             if (waveformTaskIds[deck] !== taskId) return;
             broadcastWaveformStatus(deck, 'downloading', pct, fileName);
           });
+          const tDlDone = Date.now();
 
           if (waveformTaskIds[deck] !== taskId) return;
           broadcastWaveformStatus(deck, 'generating', 0, fileName);
@@ -660,11 +720,18 @@ async function main() {
               broadcastWaveformStatus(deck, 'generating', pct, fileName);
             },
           );
+          const tFfDone = Date.now();
 
           if (waveformTaskIds[deck] !== taskId) return;
           logWaveform(`[WAVEFORM] Deck ${deck}: ready, ${peaks.length} peaks`);
-          broadcastWaveformData(deck, fileName, peaks);
-          broadcastArtwork(fileName);
+          // Defer the heavy JSON serialization (peaks array) and base64 (artwork) past the
+          // current microtask, so the WS broadcast tick has a chance to fire first.
+          setImmediate(() => broadcastWaveformData(deck, fileName, peaks));
+          setImmediate(() => broadcastArtwork(fileName));
+          logLifecycle(
+            `[WAVEFORM] track-change deck=${deck} download=${tDlDone - tDlStart}ms ` +
+            `ffmpeg=${tFfDone - tDlDone}ms total=${tFfDone - t0}ms`
+          );
         } catch (e: any) {
           if (waveformTaskIds[deck] !== taskId) return;
           logError(`[WAVEFORM] Deck ${deck} failed:`, e?.message || e);
@@ -677,7 +744,7 @@ async function main() {
 
   const artnet = new ArtNetTimecodeBroadcaster({
     enabled: artnetEnabled,
-    targetIp: artnetTargetIp,
+    targetIps: artnetTargetIps,
     port: artnetPort,
     fps: artnetFps,
     sendHz: artnetSendHz,
@@ -783,11 +850,11 @@ async function main() {
   if (oscEnabled && !oscBpm) {
     oscBpm = new OscBpmSender({
       enabled: oscEnabled,
-      targetIp: oscTargetIp,
+      targetIps: oscTargetIps,
       targetPort: oscTargetPort,
       speedMaster: oscSpeedMaster,
     });
-    logLifecycle(`[OSC] BPM -> ${oscTargetIp}:${oscTargetPort} (SpeedMaster ${oscSpeedMaster})`);
+    logLifecycle(`[OSC] BPM -> ${oscTargetIps.join(', ')}:${oscTargetPort} (SpeedMaster ${oscSpeedMaster})`);
   }
 
   await artnet.start(() => {
@@ -869,6 +936,7 @@ async function main() {
 
   // Broadcast snapshots at 30Hz
   const intervalMs = Math.round(1000 / WS_FPS);
+  let lastBroadcastWarnAt = 0;
   setInterval(() => {
     const decks = bridge.getDecks();
 
@@ -896,6 +964,11 @@ async function main() {
     }
 
     broadcastMsg(payload);
+    const broadcastCostMs = Date.now() - payload.ts;
+    if (broadcastCostMs > WS_BROADCAST_WARN_MS && Date.now() - lastBroadcastWarnAt > 1000) {
+      lastBroadcastWarnAt = Date.now();
+      logError(`[main] WS broadcast slow: ${broadcastCostMs}ms (clients=${clients.size})`);
+    }
 
     // Build multi-line dashboard
     const deckNums: DeckNumber[] = [1, 2, 3, 4];
@@ -953,10 +1026,10 @@ async function main() {
 
     if (DISPLAY_ENABLED.info) {
       const tcInfo = artnetEnabled
-        ? `ArtNet ${artnetTargetIp}:${artnetPort} ${artnetFps}fps`
+        ? `ArtNet ${artnetTargetIps.join(',')}:${artnetPort} ${artnetFps}fps`
         : `${DIM}ArtNet disabled${R}`;
       const oscInfo = oscEnabled
-        ? `OSC ${oscTargetIp}:${oscTargetPort} SM${oscSpeedMaster}`
+        ? `OSC ${oscTargetIps.join(',')}:${oscTargetPort} SM${oscSpeedMaster}`
         : `${DIM}OSC disabled${R}`;
       const urlParts = uiUrls.length > 0 ? uiUrls.map(u => `UI ${u}`) : ['starting...'];
       if (sacnSimEnabled && uiUrls.length > 0) urlParts.push(`sACN-sim ${uiUrls[0].replace(/\/$/, '')}/sacn-sim`);

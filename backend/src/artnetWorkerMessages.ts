@@ -1,0 +1,38 @@
+import type { DeckState } from './types.js';
+
+export interface ArtNetWorkerInitOptions {
+  enabled: boolean;
+  targetIps: string[];
+  port: number;
+  fps: number;
+  sendHz: number;
+  fpsType: number;
+  streamId: number;
+  latencyCompMs: number;
+  sendWhenStopped: boolean;
+}
+
+export type MainToWorker =
+  | { type: 'init'; opts: ArtNetWorkerInitOptions }
+  | { type: 'updateDeck'; deck: DeckState | null }
+  | { type: 'setSendWhenStopped'; enabled: boolean }
+  | { type: 'shutdown' };
+
+export interface TickStats {
+  windowMs: number;
+  count: number;
+  avgIntervalMs: number;
+  p50: number;
+  p95: number;
+  maxMs: number;
+  maxBehindMs: number;
+  targetMs: number;
+  hardStalls: number;
+  socketRecoveries: number;
+}
+
+export type WorkerToMain =
+  | { type: 'ready' }
+  | { type: 'log'; level: 'info' | 'warn' | 'error'; msg: string }
+  | { type: 'stats'; stats: TickStats }
+  | { type: 'tcDisplay'; text: string; hms: string };
