@@ -56,6 +56,17 @@ export default function HeaderBar({
     label = 'Live';
   }
 
+  // Big center error badge — shows when the StageLinq feed has gone away (cable, device off,
+  // or mid-reconnect). The left status tag continues to render normally above. While this is
+  // visible the Art-Net worker is freewheeling the timecode from the last-known speed.
+  const stagelinqDown =
+    !connected || stagelinqStatus === 'no-device' || stagelinqStatus === 'reconnecting';
+  const centerErrorLabel = !connected
+    ? 'WS DISCONNECTED'
+    : stagelinqStatus === 'reconnecting'
+      ? 'STAGELINQ RECONNECTING'
+      : 'STAGELINQ DISCONNECTED';
+
   return (
     <div className="headerBar">
       <div className="headerLeft">
@@ -64,6 +75,13 @@ export default function HeaderBar({
       </div>
 
       <div className="headerCenter">
+        {stagelinqDown && (
+          <span className="headerError" role="status" aria-live="polite">
+            <span className="headerErrorIcon" aria-hidden="true">!</span>
+            {centerErrorLabel}
+          </span>
+        )}
+
         {selectedDeck ? (
           <span className={`headerDeck theme-d${selectedDeck}`}>
             {DECK_LABEL[selectedDeck]}

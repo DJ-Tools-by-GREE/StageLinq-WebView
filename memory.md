@@ -7,6 +7,129 @@ decision/bug-confirmation/direction change (per CLAUDE.md).
 
 ## Architectural decisions
 
+### 2026-06-18 — Freewheel config + Settings modal sections
+
+**What:** The Art-Net freewheel introduced earlier today now has two operator
+knobs, surfaced both in `config.json` and the Settings modal:
+
+- `freewheel.enable_freewheeling: boolean` (default `true`)
+- `freewheel.max_duration_sec: number` (default `30`, clamped 0–3600)
+
+`config.json` example:
+
+```json
+"freewheel": {
+  "enable_freewheeling": true,
+  "max_duration_sec": 30
+}
+```
+
+**Worker behaviour matrix** (in [backend/src/artnetWorker.ts](backend/src/artnetWorker.ts)):
+- `enable_freewheeling=false` AND stale → packet send is skipped immediately;
+  `lastTickMs` is reset so the freewheel restarts cleanly when beats resume.
+- `enable_freewheeling=true` AND stale, within `max_duration_sec` of stale-onset
+  → freewheel as before (last-good deck snapshot, drift-snap suppressed).
+- `enable_freewheeling=true` AND stale, past `max_duration_sec` → packet send
+  skipped (silent), one-shot warn log
+  `[ArtNet/wk] Freewheel timeout reached (Ns) — going silent until beats resume`.
+
+`updateDeck` records `staleSinceMs` on the rising edge of stale and clears it
+when fresh beats return, so the duration window is per-stall, not cumulative.
+
+**REST surface** ([backend/src/index.ts](backend/src/index.ts)):
+- `GET /api/global-settings` →
+  `{ freewheel: {...}, meta: { freewheel_max_duration_sec: { min, max } } }`.
+- `PUT /api/global-settings/freewheel` body
+  `{ enable_freewheeling?: boolean, max_duration_sec?: number }` — partial
+  patch. The handler clamps the duration server-side
+  ([backend/src/globalSettings.ts](backend/src/globalSettings.ts)), persists to
+  `config.json` via tmp+rename, and live-pushes the new values to the worker
+  through a new `setFreewheel(...)` IPC message
+  ([backend/src/artnetWorkerMessages.ts](backend/src/artnetWorkerMessages.ts))
+  so the change applies without a process restart.
+
+**Persistence model — single source of truth:** `config.json` already exists
+and is the operator-facing config file. Rather than introduce a second store
+(à la `users.json`), the freewheel section lives in the same file, edited via
+`GlobalSettingsStore`. The store reads the file fresh on each write so it
+preserves any sibling keys (playlists, target_ips, etc.) and never overwrites
+unrelated changes the operator made manually. Trade-off: comments would be
+lost on write, but `config.json` doesn't carry any. Ctrl+R config reload
+re-seeds the store from disk and re-pushes to the worker.
+
+**Frontend UI** ([frontend/src/SettingsModal.tsx](frontend/src/SettingsModal.tsx)):
+the modal now has three sections separated by hairlines and SECTION-HEADER
+caps:
+1. **User Settings** — existing per-user detail-zoom slider (unchanged).
+2. **Global Settings** — freewheel duration slider (range from server's
+   `meta.freewheel_max_duration_sec`).
+3. **Controls** — single toggle button to enable/disable freewheeling
+   instantly. Reuses the existing `.toggleBtn on/off` styles for consistency
+   with the "TC while stopped" toggle.
+
+Hydration: App fetches `/api/global-settings` once on mount; updates are
+optimistic with reconcile-on-success and refetch-on-failure.
+
+**Why the section split:** the user asked for "global settings" (not
+per-user) plus a separate "Controls" section for the kill switch. The
+duration slider is a knob you tune once for your venue (Global Settings); the
+toggle is a panic button you may want to flip live during a show (Controls).
+Keeping them in different sections matches that mental model and makes the
+kill switch easy to find.
+
+---
+
+### 2026-06-18 — Art-Net freewheel + center disconnect badge
+
+**What:** Across a brief StageLinq disconnect (cable pull, device off, mid-reconnect)
+the Art-Net worker no longer freezes the timecode at the last source frame. The
+main thread's poll lambda now returns `{ deck, stale }` instead of just a
+`DeckState`. `stale === true` flips the worker into freewheel mode:
+
+- The worker keeps the last-good `DeckState` snapshot and ignores the watchdog's
+  `play=false` flip during a stall — `treatAsPlaying` falls back to "was already
+  running" while stale.
+- The drift-correction snap (`Math.abs(sourceFrames - timelineFrames)` clamp and
+  the `timelineFrames < sourceFrames` floor) is skipped while stale, so the
+  freewheel timeline isn't yanked back to the frozen source elapsed.
+- `timelineFrames += dtSec * fps * (1 + speedState/100)` continues to advance
+  using the last-known speed.
+
+`stale` is computed in [backend/src/index.ts](backend/src/index.ts) with the same
+threshold the snapshot uses for `stagelinqStatus`:
+`reconnecting || bridge.getLastBeatAgeMs() > DISCONNECT_DETECT_TIMEOUT_S * 1000`.
+
+The wire-protocol type is in
+[backend/src/artnetWorkerMessages.ts](backend/src/artnetWorkerMessages.ts)
+(`updateDeck` now carries `stale: boolean`); the worker consumes it in
+[backend/src/artnetWorker.ts](backend/src/artnetWorker.ts) (`updateDeck` /
+`doSend`); the harness's poll signature is
+[`DeckPollResult`](backend/src/artnetTimecode.ts).
+
+**Frontend:** [frontend/src/HeaderBar.tsx](frontend/src/HeaderBar.tsx) now
+renders a big red pulsing badge in the center of the top bar
+(`.headerError` in [frontend/src/styles.css](frontend/src/styles.css))
+whenever the WS is offline, the bridge is reconnecting, or no device is
+present. The existing left-side `connDot` + label is unchanged — it sits next
+to the badge rather than being replaced. Three labels:
+`WS DISCONNECTED` (no socket), `STAGELINQ RECONNECTING`,
+`STAGELINQ DISCONNECTED` (no-device).
+
+**Why:** the lighting console expects monotonic SMPTE TC. When StageLinq
+flickers, freezing the TC at the last source frame causes lights to stop
+moving along the timeline and visibly snap when beats resume. Freewheeling at
+the last-known speed keeps the show looking continuous; the badge tells the
+operator the feed is degraded so they know not to trust live BPM/elapsed.
+
+**Limits / scope:** freewheel is open-loop — if the disconnect lasts long
+enough for the deck to actually stop, scratch, or change tempo, the timeline
+will diverge from reality until beats resume and the drift snap re-engages.
+Acceptable for short network blips; longer outages are still operator
+intervention territory. No new constants were introduced (`stale` reuses
+`DISCONNECT_DETECT_TIMEOUT_S`).
+
+---
+
 ### 2026-06-17 — Run-scoped error/warn log files (`logs/run-<ISO>.log`)
 
 **What:** [backend/src/logging.ts](backend/src/logging.ts) writes a fresh log

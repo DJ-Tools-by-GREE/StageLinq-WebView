@@ -6,6 +6,16 @@ export const BEAT_WATCHDOG_TIMEOUT_S = 5;
 /** Seconds of beat silence before the status indicator turns red AND a reconnect is triggered. */
 export const DISCONNECT_DETECT_TIMEOUT_S = 2;
 
+/** Default for whether the Art-Net worker freewheels TC during a StageLinq stall. */
+export const DEFAULT_ENABLE_FREEWHEELING = true;
+
+/**
+ * Default ceiling on how long the worker keeps freewheeling TC after the source went stale.
+ * Past this, the worker goes silent until fresh beats resume. Tunable per-install via
+ * `freewheel.max_duration_sec` in config.json or the in-app Global Settings panel.
+ */
+export const DEFAULT_FREEWHEEL_MAX_DURATION_SEC = 30;
+
 /** Seconds to wait for the first beat after connect() before triggering reconnect (StateMap setup takes time). */
 export const CONNECT_BEAT_GRACE_S = 20;
 

@@ -99,7 +99,7 @@ export default function DeckCard({ state, waveform, selected, artworkUrl, elapse
           </div>
 
           <div className="titleBlock">
-            <div className="title">
+            <div className={`title${isPlaying ? ' title--playing' : ''}`}>
               {isPlaying && <span className="playDot" />}
               <MarqueeText text={dispTitle} />
             </div>

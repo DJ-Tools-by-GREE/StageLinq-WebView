@@ -3,6 +3,10 @@
     "waveform": {
         "all_tracks": true
     },
+    "freewheel": {
+        "enable_freewheeling": true,
+        "max_duration_sec": 30
+    },
     "sacn_sim": {
         "enabled": true
     },

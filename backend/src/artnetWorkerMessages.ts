@@ -10,12 +10,24 @@ export interface ArtNetWorkerInitOptions {
   streamId: number;
   latencyCompMs: number;
   sendWhenStopped: boolean;
+  /** When false, the worker stops emitting TC immediately on stale (no freewheel at all). */
+  enableFreewheeling: boolean;
+  /** Max seconds to freewheel after the source went stale; past this the worker goes silent. */
+  freewheelMaxDurationSec: number;
 }
 
 export type MainToWorker =
   | { type: 'init'; opts: ArtNetWorkerInitOptions }
-  | { type: 'updateDeck'; deck: DeckState | null }
+  /**
+   * Deck-state poll from the main thread. `stale === true` means StageLinq is no longer
+   * delivering beat updates (disconnected/reconnecting). The worker freezes the cached
+   * deck snapshot and freewheels its timeline forward at the last-known speedState until
+   * fresh beats resume — so the lighting console keeps seeing a smoothly advancing TC
+   * across a brief drop instead of stalling and snapping back.
+   */
+  | { type: 'updateDeck'; deck: DeckState | null; stale: boolean }
   | { type: 'setSendWhenStopped'; enabled: boolean }
+  | { type: 'setFreewheel'; enableFreewheeling: boolean; freewheelMaxDurationSec: number }
   | { type: 'shutdown' };
 
 export interface TickStats {

@@ -216,6 +216,8 @@ Waveforms and artwork are extracted automatically when a track loads and cached 
 | `GET` | `/api/users` | List all users and their UI-settings blobs (`{ users: [{ name, settings }] }`) |
 | `GET` | `/api/users/:name/settings` | Get one user's settings blob |
 | `PUT` | `/api/users/:name/settings` | Replace one user's settings blob; body is the JSON object to store. Stored to `users.json` at the repo root. |
+| `GET` | `/api/global-settings` | Read backend-owned settings (currently `{ freewheel: { enable_freewheeling, max_duration_sec }, meta }`). |
+| `PUT` | `/api/global-settings/freewheel` | Patch the freewheel section; body `{ enable_freewheeling?: boolean, max_duration_sec?: number }`. Persisted to `config.json` and pushed live into the Art-Net worker. |
 
 ## Deck color accents
 
@@ -286,6 +288,17 @@ The backend has a built-in watchdog that monitors the StageLinq connection and a
 **Per-deck watchdog:** if a deck is playing but no `beatMessage` has arrived for `BEAT_WATCHDOG_TIMEOUT_S` (default 5 s), the deck is marked stopped so stale timecode is not sent.
 
 **Global disconnect detection:** if no `beatMessage` arrives from *any* deck for `DISCONNECT_DETECT_TIMEOUT_S` (default 10 s), the bridge disconnects and retries with `RECONNECT_DELAY_MS` (default 3 s) between attempts. This handles cable pulls, power-cycles, and device sleep without requiring a process restart.
+
+**Art-Net freewheel during a stall:** while StageLinq is unreachable (`reconnecting`, or no fresh beats within `DISCONNECT_DETECT_TIMEOUT_S`), the Art-Net worker holds the last-good `DeckState` and keeps advancing its internal timeline at the last-known speed instead of freezing the timecode at the last source frame. The lighting console keeps seeing a smoothly advancing TC across the gap; the drift snap is skipped while stale and re-engages as soon as beats resume. The web UI surfaces this with a big red `STAGELINQ DISCONNECTED` / `STAGELINQ RECONNECTING` / `WS DISCONNECTED` badge in the centre of the header bar — the small left-side status dot keeps its existing semantics and renders alongside.
+
+The freewheel has two operator knobs, persisted in `config.json` under `freewheel` and editable live in the in-app **Settings → Global Settings / Controls** sections (no restart needed):
+
+| Field | Default | Effect |
+|---|---|---|
+| `freewheel.enable_freewheeling` | `true` | When `false`, the worker stops sending TC the moment StageLinq goes stale — no freewheel at all. Toggle in **Settings → Controls**. |
+| `freewheel.max_duration_sec` | `30` | Ceiling (seconds) on how long the worker keeps freewheeling after the source went stale. Past this it goes silent until beats resume. Slider in **Settings → Global Settings**. |
+
+REST: `GET /api/global-settings` (returns `{ freewheel, meta }`) / `PUT /api/global-settings/freewheel` (`{ enable_freewheeling?, max_duration_sec? }`). Updates are persisted to `config.json` and live-pushed into the Art-Net worker.
 
 All three values — plus `WS_FPS`, `ARTNET_BIND_TIMEOUT_MS`, `ARTNET_DRIFT_THRESHOLD_RATIO`, and `ELAPSED_THROTTLE_S` — are collected in [`backend/src/constants.ts`](backend/src/constants.ts) so they can be adjusted in one place.
 

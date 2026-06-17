@@ -16,6 +16,13 @@ import {
   saveActiveUser,
   clampZoom,
 } from './userSettings.js';
+import {
+  fetchGlobalSettings,
+  putFreewheelSettings,
+  type FreewheelSettings,
+  type GlobalSettingsMeta,
+  FREEWHEEL_DURATION_FALLBACK,
+} from './globalSettings.js';
 
 const DECK_NUMBERS: DeckNumber[] = [1, 2, 3, 4];
 
@@ -86,6 +93,13 @@ export default function App() {
   });
   const [activeUser, setActiveUserState] = useState<UserName>(() => loadActiveUser());
 
+  // Global (backend-owned) settings. Hydrated once on mount; PUTs go straight to
+  // the backend, which persists to config.json and live-pushes into the Art-Net worker.
+  const [freewheel, setFreewheel] = useState<FreewheelSettings | null>(null);
+  const [freewheelMeta, setFreewheelMeta] = useState<GlobalSettingsMeta>({
+    freewheel_max_duration_sec: FREEWHEEL_DURATION_FALLBACK,
+  });
+
   const detailZoomSec = effectiveZoom(users[activeUser]);
 
   const setActiveUser = useCallback((name: UserName) => {
@@ -100,6 +114,33 @@ export default function App() {
       .then((map) => setUsers(map))
       .catch(() => {});
     return () => ac.abort();
+  }, []);
+
+  // Hydrate global settings on mount.
+  useEffect(() => {
+    const ac = new AbortController();
+    fetchGlobalSettings(ac.signal)
+      .then((res) => {
+        setFreewheel(res.freewheel);
+        if (res.meta) setFreewheelMeta(res.meta);
+      })
+      .catch(() => {});
+    return () => ac.abort();
+  }, []);
+
+  const updateFreewheel = useCallback(async (patch: Partial<FreewheelSettings>) => {
+    // Optimistic — flip the toggle/slider immediately so the UI is responsive even
+    // if the network round-trip stalls; reconcile from the server's clamp on success.
+    setFreewheel((prev) => (prev ? { ...prev, ...patch } : prev));
+    try {
+      const next = await putFreewheelSettings(patch);
+      setFreewheel(next);
+    } catch {
+      // Best-effort refetch on failure to recover the on-disk truth.
+      fetchGlobalSettings()
+        .then((res) => setFreewheel(res.freewheel))
+        .catch(() => {});
+    }
   }, []);
 
   // Per-user debounced PUT. One timer per user so quickly editing user A then
@@ -325,6 +366,9 @@ export default function App() {
           onChangeDetailZoomSec={(v) =>
             updateUserSettings(activeUser, { detailZoomSec: clampZoom(v) })
           }
+          freewheel={freewheel}
+          freewheelDurationLimits={freewheelMeta.freewheel_max_duration_sec}
+          onChangeFreewheel={updateFreewheel}
           onClose={() => setSettingsOpen(false)}
         />
       )}

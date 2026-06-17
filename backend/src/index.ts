@@ -17,6 +17,7 @@ import { States, StageLinqValue } from "@gree44/stagelinq";
 import { logError, logLifecycle, logWaveform, logUiOut, applyLoggingConfig, applyDisplayConfig, DISPLAY_ENABLED, logDashboard, deckColor, getStatusSlot, DIM, R, GRN, YEL, RED, RST } from './logging.js';
 import { generateWaveformPeaks, peaksCache, artworkCache, initWaveformCache } from './waveformService.js';
 import { UserSettingsStore, FIXED_USERS, resolveUsersFilePath } from './userSettings.js';
+import { GlobalSettingsStore, readFreewheelFromConfig, FREEWHEEL_MIN_DURATION_SEC, FREEWHEEL_MAX_DURATION_SEC } from './globalSettings.js';
 
 function isIgnorableStageLinqError(err: unknown): boolean {
   if (!err) return false;
@@ -156,6 +157,10 @@ interface RootConfig {
   };
   sacn_sim?: { enabled?: boolean };
   waveform?: { all_tracks?: boolean };
+  freewheel?: {
+    enable_freewheeling?: boolean;
+    max_duration_sec?: number;
+  };
   playlists?: Array<{
     name?: string;
     content?: ConfigTrack[];
@@ -184,7 +189,7 @@ function stripJsonComments(input: string): string {
     .replace(/(^|[^:\\])\/\/.*$/gm, '$1');
 }
 
-async function loadRootConfig(): Promise<RootConfig | null> {
+async function loadRootConfig(): Promise<{ config: RootConfig | null; sourcePath: string | null }> {
   const candidates = [
     path.resolve(process.cwd(), 'config.json'),
     path.resolve(__dirname, '../../config.json'),
@@ -195,14 +200,14 @@ async function loadRootConfig(): Promise<RootConfig | null> {
       const raw = await fs.readFile(filePath, 'utf8');
       const parsed = JSON.parse(stripJsonComments(raw)) as RootConfig;
       logLifecycle(`${GRN}[CONFIG] Loaded ${filePath}${RST}`);
-      return parsed;
+      return { config: parsed, sourcePath: filePath };
     } catch {
       // try next candidate
     }
   }
 
   logLifecycle(`${RED}[CONFIG] No config.json found, using env/default values.${RST}`);
-  return null;
+  return { config: null, sourcePath: candidates[0] };
 }
 
 function normalizeTrackName(name: string): string {
@@ -363,7 +368,7 @@ function resolveTargetIps(
 }
 
 async function main() {
-  let config = await loadRootConfig();
+  let { config, sourcePath: configPath } = await loadRootConfig();
   if (config?.logging) applyLoggingConfig(config.logging);
   if (config?.display) applyDisplayConfig(config.display);
   let sendTimecodeWhenStopped = false;
@@ -431,12 +436,18 @@ async function main() {
     reloadInProgress = true;
     try {
       const next = await loadRootConfig();
-      config = next;
+      config = next.config;
+      configPath = next.sourcePath;
       if (config?.logging) applyLoggingConfig(config.logging);
       if (config?.display) applyDisplayConfig(config.display);
       trackOffsets = buildTrackOffsetMap(config);
       activePlaylistFiles = buildActivePlaylistFileSet(config);
       waveformAllTracks = config?.waveform?.all_tracks ?? true;
+      // Re-apply freewheel from the reloaded file. Operator-edited (via UI) values are
+      // already on disk, so the round-trip is the same as a fresh boot.
+      const fw = readFreewheelFromConfig(config);
+      if (configPath) globalSettings.reset(configPath, { freewheel: fw });
+      artnet.setFreewheel(fw.enable_freewheeling, fw.max_duration_sec);
       logLifecycle(`${GRN}[CONFIG] Reloaded. Offset entries: ${trackOffsets.size}${RST}`);
     } catch (e: any) {
       logError('[CONFIG] Reload failed:', e?.message || e);
@@ -491,6 +502,15 @@ async function main() {
   const usersStore = new UserSettingsStore(usersFilePath);
   await usersStore.load();
 
+  // Global (non-per-user) settings live alongside the existing config.json. The
+  // store seeds from whatever the loader picked at boot, and `reloadConfig()` /
+  // PUT handlers route changes both into memory and to disk.
+  const initialFw = readFreewheelFromConfig(config);
+  let globalSettings = new GlobalSettingsStore(
+    configPath ?? path.resolve(process.cwd(), 'config.json'),
+    { freewheel: initialFw },
+  );
+
   // API health
   app.get('/api/health', (_req, res) => {
     res.json({ ok: true, ts: Date.now() });
@@ -533,6 +553,55 @@ async function main() {
       return;
     }
     res.json({ name: req.params.name, settings: next });
+  });
+
+  // Global (non-per-user) settings.
+  app.get('/api/global-settings', (_req, res) => {
+    res.json({
+      ...globalSettings.get(),
+      meta: {
+        freewheel_max_duration_sec: {
+          min: FREEWHEEL_MIN_DURATION_SEC,
+          max: FREEWHEEL_MAX_DURATION_SEC,
+        },
+      },
+    });
+  });
+
+  app.put('/api/global-settings/freewheel', async (req, res) => {
+    const body = req.body;
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      res.status(400).json({ error: 'body must be a JSON object' });
+      return;
+    }
+    const patch: { enable_freewheeling?: boolean; max_duration_sec?: number } = {};
+    if ('enable_freewheeling' in body) {
+      if (typeof body.enable_freewheeling !== 'boolean') {
+        res.status(400).json({ error: 'enable_freewheeling must be boolean' });
+        return;
+      }
+      patch.enable_freewheeling = body.enable_freewheeling;
+    }
+    if ('max_duration_sec' in body) {
+      const n = Number(body.max_duration_sec);
+      if (!Number.isFinite(n)) {
+        res.status(400).json({ error: 'max_duration_sec must be a number' });
+        return;
+      }
+      patch.max_duration_sec = n;
+    }
+    if (Object.keys(patch).length === 0) {
+      res.status(400).json({ error: 'no fields supplied' });
+      return;
+    }
+    const next = await globalSettings.setFreewheel(patch);
+    // Push live to the Art-Net worker so the new behaviour applies immediately,
+    // without waiting for a Ctrl+R reload or process restart.
+    artnet.setFreewheel(next.enable_freewheeling, next.max_duration_sec);
+    logLifecycle(
+      `${GRN}[FREEWHEEL] enable=${next.enable_freewheeling} max=${next.max_duration_sec}s${RST}`,
+    );
+    res.json({ freewheel: next });
   });
 
   app.get('/api/artwork/:deck', (req, res) => {
@@ -804,6 +873,8 @@ async function main() {
     deck: artnetDeck,
     latencyCompMs: artnetLatencyCompMs,
     sendWhenStopped: sendTimecodeWhenStopped,
+    enableFreewheeling: initialFw.enable_freewheeling,
+    freewheelMaxDurationSec: initialFw.max_duration_sec,
   });
 
   let oscBpm: OscBpmSender | null = null;
@@ -909,20 +980,29 @@ async function main() {
   }
 
   await artnet.start(() => {
-    if (!selectedDeck) return undefined;
+    // "stale" tracks the same threshold as the snapshot stagelinqStatus — when no fresh
+    // beats are arriving (cable pull, device off, mid-reconnect), the worker freezes the
+    // cached deck snapshot and freewheels the timeline forward at the last-known speed
+    // so the lighting console keeps seeing a smoothly advancing TC across the gap.
+    const stale = reconnecting || bridge.getLastBeatAgeMs() > DISCONNECT_DETECT_TIMEOUT_S * 1000;
+
+    if (!selectedDeck) return { deck: undefined, stale };
 
     const deck = bridge.getDeck(selectedDeck);
-    if (Number(deck.elapsedSec) <= 0) return undefined;
+    if (Number(deck.elapsedSec) <= 0) return { deck: undefined, stale };
 
     const fileKey = normalizeTrackName(deck.fileName || '');
     const offset = trackOffsets.get(fileKey);
-    if (!offset) return deck;
+    if (!offset) return { deck, stale };
 
     const offsetSec = offset.offsetSec + offset.offsetFrame / artnetFps;
     return {
-      ...deck,
-      elapsedSec: Math.max(0, deck.elapsedSec + offsetSec),
-      totalSec: Math.max(0, deck.totalSec + offsetSec),
+      deck: {
+        ...deck,
+        elapsedSec: Math.max(0, deck.elapsedSec + offsetSec),
+        totalSec: Math.max(0, deck.totalSec + offsetSec),
+      },
+      stale,
     };
   });
 

@@ -18,6 +18,8 @@ export interface ArtNetOptions {
   deck: 1 | 2 | 3 | 4;
   latencyCompMs?: number;
   sendWhenStopped?: boolean;
+  enableFreewheeling?: boolean;
+  freewheelMaxDurationSec?: number;
 }
 
 /**
@@ -30,11 +32,17 @@ export interface ArtNetOptions {
  *
  * The worker holds the dgram socket, the self-correcting tick deadline, and all stats.
  */
+export interface DeckPollResult {
+  deck: DeckState | undefined;
+  /** true when no fresh beat has arrived recently — worker should freewheel the timeline. */
+  stale: boolean;
+}
+
 export class ArtNetTimecodeBroadcaster {
   private opts: ArtNetOptions;
   private worker: Worker | null = null;
   private pollTimer: NodeJS.Timeout | null = null;
-  private getDeckState: (() => DeckState | undefined) | null = null;
+  private pollDeck: (() => DeckPollResult) | null = null;
   private sendWhenStopped: boolean;
 
   constructor(opts: ArtNetOptions) {
@@ -47,15 +55,21 @@ export class ArtNetTimecodeBroadcaster {
     this.post({ type: 'setSendWhenStopped', enabled });
   }
 
+  setFreewheel(enableFreewheeling: boolean, freewheelMaxDurationSec: number) {
+    this.opts.enableFreewheeling = enableFreewheeling;
+    this.opts.freewheelMaxDurationSec = freewheelMaxDurationSec;
+    this.post({ type: 'setFreewheel', enableFreewheeling, freewheelMaxDurationSec });
+  }
+
   /** Compatibility shim — kept so callers don't need to change. The real timeline lives in the worker. */
   getElapsedSec(): number {
     return 0;
   }
 
-  async start(getDeckState: () => DeckState | undefined): Promise<void> {
+  async start(pollDeck: () => DeckPollResult): Promise<void> {
     if (!this.opts.enabled) return;
 
-    this.getDeckState = getDeckState;
+    this.pollDeck = pollDeck;
 
     // tsx propagates its loader to worker_threads automatically (tsx 4.x), so we can resolve
     // both the .ts (dev under tsx watch) and the .js (compiled dist) source from the same path
@@ -88,6 +102,8 @@ export class ArtNetTimecodeBroadcaster {
       streamId: this.opts.streamId ?? 0x00,
       latencyCompMs: this.opts.latencyCompMs ?? 80,
       sendWhenStopped: this.sendWhenStopped,
+      enableFreewheeling: this.opts.enableFreewheeling ?? true,
+      freewheelMaxDurationSec: this.opts.freewheelMaxDurationSec ?? 30,
     };
 
     // Wait for ready before starting the polling pump so we don't enqueue updateDeck
@@ -135,9 +151,9 @@ export class ArtNetTimecodeBroadcaster {
   }
 
   private pumpDeckState() {
-    if (!this.getDeckState || !this.worker) return;
-    const ds = this.getDeckState();
-    this.post({ type: 'updateDeck', deck: ds ?? null });
+    if (!this.pollDeck || !this.worker) return;
+    const { deck, stale } = this.pollDeck();
+    this.post({ type: 'updateDeck', deck: deck ?? null, stale });
   }
 
   private post(msg: MainToWorker) {

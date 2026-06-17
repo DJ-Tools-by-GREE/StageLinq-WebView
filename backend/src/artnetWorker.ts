@@ -63,6 +63,11 @@ class ArtNetWorker {
   private shuttingDown = false;
 
   private currentDeck: DeckState | null = null;
+  private deckIsStale = false;
+  private staleSinceMs: number | null = null;
+  private freewheelExpiredLogged = false;
+  private enableFreewheeling = true;
+  private freewheelMaxDurationSec = 30;
   private sendWhenStopped = false;
 
   private timelineFrames: number | null = null;
@@ -86,6 +91,8 @@ class ArtNetWorker {
   async start(opts: ArtNetWorkerInitOptions) {
     this.opts = opts;
     this.sendWhenStopped = opts.sendWhenStopped;
+    this.enableFreewheeling = opts.enableFreewheeling;
+    this.freewheelMaxDurationSec = Math.max(0, opts.freewheelMaxDurationSec);
 
     this.socket.on('error', (err) => {
       logError(`[ArtNet/wk] Socket error: ${err.message}`);
@@ -124,7 +131,32 @@ class ArtNetWorker {
     this.sendWhenStopped = enabled;
   }
 
-  updateDeck(deck: DeckState | null) {
+  setFreewheel(enableFreewheeling: boolean, freewheelMaxDurationSec: number) {
+    this.enableFreewheeling = enableFreewheeling;
+    this.freewheelMaxDurationSec = Math.max(0, freewheelMaxDurationSec);
+    // Re-arm logging so the next expiry produces a fresh warn line.
+    this.freewheelExpiredLogged = false;
+  }
+
+  updateDeck(deck: DeckState | null, stale: boolean) {
+    // While stale, the source elapsedSec/play state cannot be trusted (no fresh beats).
+    // Hold onto the last-good snapshot so the freewheel timeline keeps running on
+    // last-known speedState; ignore null/empty payloads coming in during the stall.
+    if (stale) {
+      if (!this.deckIsStale) {
+        this.staleSinceMs = Date.now();
+        this.freewheelExpiredLogged = false;
+      }
+      this.deckIsStale = true;
+      if (deck) this.currentDeck = deck;
+      return;
+    }
+    if (this.deckIsStale) {
+      // Fresh beats resumed — clear stale-onset so the next stall starts a new freewheel window.
+      this.staleSinceMs = null;
+      this.freewheelExpiredLogged = false;
+    }
+    this.deckIsStale = false;
     this.currentDeck = deck;
   }
 
@@ -177,10 +209,37 @@ class ArtNetWorker {
     const deckState = this.currentDeck;
     if (!deckState) return;
 
+    // Hard kill paths for freewheeling — go silent (skip the packet entirely) instead of
+    // freezing or snapping back. Reset lastTickMs so when beats resume the freewheel restarts
+    // cleanly from the new source position rather than continuing from a stale dt.
+    if (this.deckIsStale) {
+      if (!this.enableFreewheeling) {
+        this.lastTickMs = null;
+        return;
+      }
+      const stalledForSec = this.staleSinceMs ? (nowMs - this.staleSinceMs) / 1000 : 0;
+      if (stalledForSec > this.freewheelMaxDurationSec) {
+        if (!this.freewheelExpiredLogged) {
+          this.freewheelExpiredLogged = true;
+          logWarn(
+            `[ArtNet/wk] Freewheel timeout reached (${this.freewheelMaxDurationSec}s) — going silent until beats resume`
+          );
+        }
+        this.lastTickMs = null;
+        return;
+      }
+    }
+
     const sourceSec = Number(deckState.elapsedSec) || 0;
     const sourceFrames = Math.max(0, sourceSec * this.opts.fps);
 
-    if (!this.sendWhenStopped && deckState.play !== true) {
+    // While stale (no fresh beats), assume the deck is still playing at the last-known
+    // speed and keep the previously-running timeline. Don't honour deckState.play here
+    // since the watchdog may have flipped it false; that would otherwise drop us into
+    // the stopped branch and freeze TC mid-show across a brief disconnect.
+    const treatAsPlaying = this.deckIsStale ? this.lastTickMs !== null : deckState.play === true;
+
+    if (!this.sendWhenStopped && !treatAsPlaying) {
       const wasPlaying = this.lastTickMs !== null;
       this.timelineFrames = sourceFrames;
       this.lastTickMs = null;
@@ -218,13 +277,17 @@ class ArtNetWorker {
     const playRate = 1 + (deckState.speedState ?? 0) / 100;
     this.timelineFrames += dtSec * this.opts.fps * playRate;
 
-    const drift = Math.abs(sourceFrames - this.timelineFrames);
-    if (drift > this.opts.fps * ARTNET_DRIFT_THRESHOLD_RATIO) {
-      this.timelineFrames = sourceFrames;
-    }
+    // While stale, source elapsedSec is frozen at the last update — skip the drift snap
+    // so the freewheel timeline isn't yanked back to the stale source value.
+    if (!this.deckIsStale) {
+      const drift = Math.abs(sourceFrames - this.timelineFrames);
+      if (drift > this.opts.fps * ARTNET_DRIFT_THRESHOLD_RATIO) {
+        this.timelineFrames = sourceFrames;
+      }
 
-    if (this.timelineFrames < sourceFrames) {
-      this.timelineFrames = sourceFrames;
+      if (this.timelineFrames < sourceFrames) {
+        this.timelineFrames = sourceFrames;
+      }
     }
 
     if (this.timelineFrames <= 0) return;
@@ -381,10 +444,13 @@ port.on('message', (raw: MainToWorker) => {
       });
       break;
     case 'updateDeck':
-      worker.updateDeck(raw.deck);
+      worker.updateDeck(raw.deck, raw.stale);
       break;
     case 'setSendWhenStopped':
       worker.setSendWhenStopped(raw.enabled);
+      break;
+    case 'setFreewheel':
+      worker.setFreewheel(raw.enableFreewheeling, raw.freewheelMaxDurationSec);
       break;
     case 'shutdown':
       worker.shutdown();
