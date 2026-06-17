@@ -23,7 +23,7 @@
     },
     "timecode": {
         "fps": 30,
-        "target_ip": "192.168.178.255",
+        "target_ips": ["192.168.178.255", "192.168.178.50"],
         "target_port": 6454,
         "stream_id": 0
     },
@@ -34,7 +34,7 @@
     },
     "osc": {
         "enabled": true,
-        "target_ip": "192.168.178.33",
+        "target_ips": ["192.168.178.33", "192.168.178.34"],
         "target_port": 8000,
         "speedmaster": 15
     },
