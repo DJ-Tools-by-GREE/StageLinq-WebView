@@ -110,6 +110,9 @@ export default function DeckCard({ state, waveform, selected, artworkUrl, elapse
         <div className="stats">
           <div className="pills">
             <span className="pill">Key: <strong>{dispKey}</strong></span>
+            <span className={`pill loopPill${state.loopActive ? ' loopPill--active' : ' loopPill--inactive'}`}>
+              {state.loopActive ? 'Loop Active' : 'No Loop Active'}
+            </span>
           </div>
           <div className="kv">
             <div><span className="label">Elapsed / Total</span></div>

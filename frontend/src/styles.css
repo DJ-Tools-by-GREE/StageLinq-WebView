@@ -371,10 +371,32 @@ html, body {
   font-weight: 700;
 }
 
-/* LIVE pill gets accent treatment */
-.pill:last-child {
+/* Key pill gets accent treatment */
+.pill:first-child {
   border-color: color-mix(in srgb, var(--accent) 30%, transparent);
   color: color-mix(in srgb, var(--accent) 80%, var(--fg));
+}
+
+/* ── Loop pill ──────────────────────────────────────────────────── */
+.pill.loopPill {
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.pill.loopPill--active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 22%, var(--surface));
+  color: color-mix(in srgb, var(--accent) 60%, var(--fg));
+  box-shadow: 0 0 8px 0 color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.pill.loopPill--inactive {
+  border-color: var(--border);
+  background: var(--surface2);
+  color: var(--muted);
+  opacity: 0.55;
 }
 
 .kv {
