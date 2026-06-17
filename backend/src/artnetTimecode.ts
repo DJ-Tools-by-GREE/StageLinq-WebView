@@ -5,7 +5,7 @@ import type {
   MainToWorker,
   WorkerToMain,
 } from './artnetWorkerMessages.js';
-import { logError, logLifecycle, logStatus, setArtnetTcHms, LOG_ENABLED, GRN, RST } from './logging.js';
+import { logError, logWarn, logLifecycle, logStatus, setArtnetTcHms, LOG_ENABLED, GRN, RST } from './logging.js';
 
 export interface ArtNetOptions {
   enabled: boolean;
@@ -152,9 +152,10 @@ export class ArtNetTimecodeBroadcaster {
   private handleWorkerMessage(m: WorkerToMain) {
     switch (m.type) {
       case 'log':
-        // 'warn' covers cadence drops, late ticks, hard stalls — exactly the events that should
-        // be visible in red AND persisted to errorlog.md, like before the worker move.
-        if (m.level === 'error' || m.level === 'warn') logError(m.msg);
+        // 'warn' covers cadence drops, late ticks, hard stalls — visible in yellow and persisted
+        // to the run log; 'error' is red and also persisted.
+        if (m.level === 'error') logError(m.msg);
+        else if (m.level === 'warn') logWarn(m.msg);
         else if (m.level === 'success') logLifecycle(`${GRN}${m.msg}${RST}`);
         else logLifecycle(m.msg);
         break;

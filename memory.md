@@ -7,6 +7,27 @@ decision/bug-confirmation/direction change (per CLAUDE.md).
 
 ## Architectural decisions
 
+### 2026-06-17 — Run-scoped error/warn log files (`logs/run-<ISO>.log`)
+
+**What:** [backend/src/logging.ts](backend/src/logging.ts) writes a fresh log
+file per backend run into `logs/` at the working directory, named
+`run-<ISO-timestamp>.log` (colons/dots replaced with `-` for FS-safety). Only
+`logError(...)` and the new `logWarn(...)` persist to disk; everything else
+(`logLifecycle`, `logPlayback`, `logWaveform`, dashboard, status slots, …) is
+terminal-only. Each line is `[HH:MM:SS.mmm] [ERROR|WARN] <message>`.
+
+**Migration:** the previous append-only `errorlog.md` at the repo root is gone.
+`logWaveform` no longer writes to disk (it was only `[WAVEFORM]` lifecycle
+chatter — not an error/warn). The Art-Net worker `warn` channel (cadence
+drops, late ticks, hard stalls) now routes through `logWarn` instead of being
+re-tagged as an error in [backend/src/artnetTimecode.ts](backend/src/artnetTimecode.ts).
+`logs/` is already covered by the `logs` line in `.gitignore`.
+
+**Why:** old log was unbounded and mixed run boundaries with a single
+separator line; per-run files are easier to attach to a bug report and prune.
+
+---
+
 ### 2026-06-17 — Per-user UI settings (`users.json` + `/api/users`)
 
 **What:** A header dropdown lets the operator switch between fixed users

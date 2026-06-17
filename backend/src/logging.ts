@@ -4,22 +4,24 @@ import path from 'node:path';
 
 const isTTY = Boolean(process.stdout.isTTY);
 
-const LOG_FILE = path.resolve(process.cwd(), 'errorlog.md');
+const LOG_DIR = path.resolve(process.cwd(), 'logs');
 let logFileStream: fs.WriteStream | null = null;
 
 function getLogStream(): fs.WriteStream {
     if (!logFileStream) {
-        logFileStream = fs.createWriteStream(LOG_FILE, { flags: 'a' });
-        const ts = new Date().toISOString();
-        logFileStream.write(`\n--- session start ${ts} ---\n`);
+        try { fs.mkdirSync(LOG_DIR, { recursive: true }); } catch {}
+        const ts = new Date().toISOString().replace(/[:.]/g, '-');
+        const file = path.join(LOG_DIR, `run-${ts}.log`);
+        logFileStream = fs.createWriteStream(file, { flags: 'a' });
+        logFileStream.write(`--- session start ${new Date().toISOString()} ---\n`);
     }
     return logFileStream;
 }
 
-function writeToFile(...args: any[]) {
+function writeToFile(level: 'ERROR' | 'WARN', ...args: any[]) {
     try {
         const ts = new Date().toISOString().slice(11, 23); // HH:MM:SS.mmm
-        getLogStream().write(`[${ts}] ${utilFormat(...args)}\n`);
+        getLogStream().write(`[${ts}] [${level}] ${utilFormat(...args)}\n`);
     } catch {}
 }
 
@@ -246,7 +248,7 @@ export function logUiOut(...args: any[]) {
 }
 
 export function logError(...args: any[]) {
-    writeToFile(...args);
+    writeToFile('ERROR', ...args);
     if (!LOG_ENABLED.errors) return;
     if (isTTY) {
         printLog('error', `${RED}${utilFormat(...args)}${R}`);
@@ -255,8 +257,17 @@ export function logError(...args: any[]) {
     }
 }
 
+export function logWarn(...args: any[]) {
+    writeToFile('WARN', ...args);
+    if (!LOG_ENABLED.errors) return;
+    if (isTTY) {
+        printLog('error', `${YEL}${utilFormat(...args)}${R}`);
+    } else {
+        printLog('error', ...args);
+    }
+}
+
 export function logWaveform(...args: any[]) {
-    writeToFile(...args);
     if (LOG_ENABLED.lifecycle) printLog('log', ...args);
 }
 
