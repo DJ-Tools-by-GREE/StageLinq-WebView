@@ -58,7 +58,7 @@ export const WAVEFORM_PEAKS_PER_SEC = 200;
 // Diagnostics
 
 /** Interval at which the Art-Net worker reports rolling tick statistics. */
-export const ARTNET_TICK_STATS_LOG_INTERVAL_MS = 10_000;
+export const ARTNET_TICK_STATS_LOG_INTERVAL_MS = 2_000;
 
 /** Main-thread event-loop lag (ms) above which a warning is logged (rate-limited to 1/s). */
 export const MAIN_EVENT_LOOP_LAG_WARN_MS = 50;
