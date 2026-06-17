@@ -52,9 +52,10 @@ interface Props {
   selected: boolean;
   artworkUrl: string | null;
   elapsedSecRef: { current: number };
+  detailZoomSec: number;
 }
 
-export default function DeckCard({ state, waveform, selected, artworkUrl, elapsedSecRef }: Props) {
+export default function DeckCard({ state, waveform, selected, artworkUrl, elapsedSecRef, detailZoomSec }: Props) {
   const { deck, trackLoaded, title, artist, elapsedSec, totalSec, currentBpm,
           trackBpm, speedState, keyCamelot, fader, play } = state;
 
@@ -167,6 +168,7 @@ export default function DeckCard({ state, waveform, selected, artworkUrl, elapse
         loopOutSec={state.loopOutSec ?? null}
         savedLoops={state.savedLoops ?? []}
         elapsedSecRef={elapsedSecRef}
+        detailZoomSec={detailZoomSec}
       />
     </div>
   );

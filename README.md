@@ -10,6 +10,7 @@ Real-time DJ deck visualizer for Denon Prime 4+ (Engine DJ / StageLinq). Display
 - Header bar showing selected deck, live BPM, and next-track name
 - Live connection status badge (LIVE / OFFLINE)
 - Overlay button to toggle timecode transmission while playback is stopped
+- Settings popup (gear icon in the header) — adjusts the visible time-window of the detail waveform (4–30 s, default 10 s); persisted to `localStorage`
 - WebSocket stream at 30 Hz
 
 **Art-Net timecode output** (optional)

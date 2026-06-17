@@ -27,6 +27,12 @@ Whenever a change affects setup, architecture, configuration schema, environment
 ### Self-Evolving Instructions
 If a new workflow, convention, or constraint emerges during our work that is worth standardizing, **proactively suggest an update to this file** (or make it directly if clearly correct). These instructions should reflect how we actually work, not an idealized snapshot from day one.
 
+### Commits
+Never commit unless explicitly asked. Stage and edit freely, but leave `git commit` to the user.
+
+### Branch
+Work on `main` by default. Only switch to or create another branch when the user says so.
+
 ---
 
 ## Tech Stack

@@ -3,8 +3,26 @@ import type { DeckNumber, DeckState, StageLinqStatus, WsPayload } from './types.
 import type { WaveformState } from './appTypes.js';
 import DeckCard from './DeckCard.js';
 import HeaderBar from './HeaderBar.js';
+import SettingsModal from './SettingsModal.js';
 
 const DECK_NUMBERS: DeckNumber[] = [1, 2, 3, 4];
+
+const DEFAULT_DETAIL_ZOOM_SEC = 10;
+const DETAIL_ZOOM_STORAGE_KEY = 'stagelinq.detailZoomSec';
+const DETAIL_ZOOM_MIN = 4;
+const DETAIL_ZOOM_MAX = 30;
+
+function loadDetailZoomSec(): number {
+  try {
+    const raw = window.localStorage.getItem(DETAIL_ZOOM_STORAGE_KEY);
+    if (raw == null) return DEFAULT_DETAIL_ZOOM_SEC;
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return DEFAULT_DETAIL_ZOOM_SEC;
+    return Math.min(DETAIL_ZOOM_MAX, Math.max(DETAIL_ZOOM_MIN, Math.round(n)));
+  } catch {
+    return DEFAULT_DETAIL_ZOOM_SEC;
+  }
+}
 
 function makeBlankDeck(deck: DeckNumber): DeckState {
   return {
@@ -60,6 +78,14 @@ export default function App() {
   const [sendWhenStopped, setSendWhenStopped] = useState(false);
   const [settingBusy, setSettingBusy] = useState(false);
   const [headerVisible, setHeaderVisible] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [detailZoomSec, setDetailZoomSec] = useState<number>(() => loadDetailZoomSec());
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(DETAIL_ZOOM_STORAGE_KEY, String(detailZoomSec));
+    } catch {}
+  }, [detailZoomSec]);
 
   const lastSeq = useRef(-1);
   const unmounting = useRef(false);
@@ -227,6 +253,7 @@ export default function App() {
           sendWhenStopped={sendWhenStopped}
           settingBusy={settingBusy}
           onToggleSendWhenStopped={toggleSendWhenStopped}
+          onOpenSettings={() => setSettingsOpen(true)}
         />
       )}
       <div className="grid">
@@ -238,6 +265,7 @@ export default function App() {
             selected={selectedDeck === d}
             artworkUrl={artworkUrls[decks[d].fileName] ?? null}
             elapsedSecRef={elapsedRefs.current[d]}
+            detailZoomSec={detailZoomSec}
           />
         ))}
       </div>
@@ -248,6 +276,15 @@ export default function App() {
       >
         {headerVisible ? '▲' : '▼'}
       </button>
+      {settingsOpen && (
+        <SettingsModal
+          detailZoomSec={detailZoomSec}
+          onChangeDetailZoomSec={(v) =>
+            setDetailZoomSec(Math.min(DETAIL_ZOOM_MAX, Math.max(DETAIL_ZOOM_MIN, Math.round(v))))
+          }
+          onClose={() => setSettingsOpen(false)}
+        />
+      )}
     </div>
   );
 }

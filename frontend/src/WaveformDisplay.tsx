@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { WaveformStage, HotCue, SavedLoop } from './types';
 
-const DETAIL_HALF_SEC = 5;
+const DEFAULT_DETAIL_ZOOM_SEC = 10;
 
 const DECK_COLORS: Record<number, string> = {
   1: '#b100ff',
@@ -33,6 +33,7 @@ interface DetailState {
   loopInSec: number | null;
   loopOutSec: number | null;
   savedLoops: SavedLoop[];
+  detailZoomSec: number;
 }
 
 interface Props {
@@ -49,12 +50,13 @@ interface Props {
   loopOutSec: number | null;
   savedLoops: SavedLoop[];
   elapsedSecRef: { current: number };
+  detailZoomSec?: number;
 }
 
 export default function WaveformDisplay({
   deck, peaks, peaksPerSec, elapsedSec, totalSec,
   stage, progress, hotCues, loopActive, loopInSec, loopOutSec, savedLoops,
-  elapsedSecRef,
+  elapsedSecRef, detailZoomSec = DEFAULT_DETAIL_ZOOM_SEC,
 }: Props) {
   const overviewRef = useRef<HTMLCanvasElement>(null);
   const detailRef = useRef<HTMLCanvasElement>(null);
@@ -65,12 +67,14 @@ export default function WaveformDisplay({
   const detailStateRef = useRef<DetailState>({
     peaks, peaksPerSec, totalSec, color, maxPeak,
     hotCues, loopActive, loopInSec, loopOutSec, savedLoops,
+    detailZoomSec,
   });
 
   useEffect(() => {
     detailStateRef.current = {
       peaks, peaksPerSec, totalSec, color, maxPeak,
       hotCues, loopActive, loopInSec, loopOutSec, savedLoops,
+      detailZoomSec,
     };
   });
 
@@ -166,7 +170,7 @@ export default function WaveformDisplay({
 
       ctx.clearRect(0, 0, w, h);
 
-      const windowPeaks = DETAIL_HALF_SEC * 2 * s.peaksPerSec;
+      const windowPeaks = s.detailZoomSec * s.peaksPerSec;
       const pxPerPeak = w / windowPeaks;
       const centerIdx = Math.floor(elapsed * s.peaksPerSec);
       const leftPeaks = Math.floor(windowPeaks / 4);
