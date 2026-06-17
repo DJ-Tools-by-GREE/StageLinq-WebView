@@ -86,6 +86,7 @@ export default function WaveformDisplay({
     if (!ctx) return;
 
     canvas.width = canvas.offsetWidth || canvas.width;
+    canvas.height = canvas.offsetHeight || canvas.height;
     const w = canvas.width;
     const h = canvas.height;
 
@@ -147,6 +148,7 @@ export default function WaveformDisplay({
 
     let rafId: number;
     let canvasWidth = 0;
+    let canvasHeight = 0;
 
     const draw = () => {
       rafId = requestAnimationFrame(draw);
@@ -161,6 +163,11 @@ export default function WaveformDisplay({
       if (newWidth !== canvasWidth) {
         canvas.width = newWidth;
         canvasWidth = newWidth;
+      }
+      const newHeight = canvas.offsetHeight;
+      if (newHeight !== canvasHeight) {
+        canvas.height = newHeight;
+        canvasHeight = newHeight;
       }
 
       const w = canvas.width;
@@ -258,8 +265,8 @@ export default function WaveformDisplay({
       {stage === 'error' && (
         <div className="waveformError">Waveform unavailable</div>
       )}
-      <canvas ref={overviewRef} className="waveformOverview" height={32} />
-      <canvas ref={detailRef} className="waveformDetail" height={72} />
+      <canvas ref={overviewRef} className="waveformOverview" />
+      <canvas ref={detailRef} className="waveformDetail" />
     </div>
   );
 }
