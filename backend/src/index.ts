@@ -129,6 +129,7 @@ interface ConfigTrack {
   song_index?: string;
   offset_sec?: number;
   offset_frame?: number;
+  mashup_only?: boolean;
 }
 
 interface RootConfig {
@@ -167,6 +168,7 @@ interface RootConfig {
     uiOut?: boolean;
     errors?: boolean;
     cues?: boolean;
+    artnetStats?: boolean;
   };
   display?: {
     dashboard?: boolean;
@@ -218,6 +220,7 @@ function buildTrackOffsetMap(cfg: RootConfig | null): Map<string, { offsetSec: n
 
   for (const { pl } of ordered) {
     for (const item of pl.content ?? []) {
+      if (item.mashup_only === true) continue;
       const key = normalizeTrackName(String(item.song_index ?? ''));
       if (!key || map.has(key)) continue;
       map.set(key, {
@@ -249,6 +252,7 @@ function buildActivePlaylistFileSet(cfg: RootConfig | null): Set<string> {
   const idx = Number(cfg?.current_playlist ?? -1);
   if (idx < 0 || idx >= playlists.length) return set;
   for (const item of playlists[idx].content ?? []) {
+    if (item.mashup_only === true) continue;
     const key = normalizeTrackName(String(item.song_index ?? ''));
     if (key) set.add(key);
   }
@@ -260,11 +264,15 @@ function computeNextTrack(cfg: RootConfig | null, currentFileName: string | null
   const idx = Number(cfg?.current_playlist ?? -1);
   if (idx < 0 || idx >= playlists.length) return null;
   const content = playlists[idx].content ?? [];
-  if (!currentFileName) return content[0]?.song_index ?? null;
+  const isPlayable = (item: ConfigTrack) => item.mashup_only !== true;
+  if (!currentFileName) return content.find(isPlayable)?.song_index ?? null;
   const key = normalizeTrackName(currentFileName);
   const pos = content.findIndex((item) => normalizeTrackName(String(item.song_index ?? '')) === key);
-  if (pos < 0 || pos + 1 >= content.length) return null;
-  return content[pos + 1].song_index ?? null;
+  if (pos < 0) return null;
+  for (let i = pos + 1; i < content.length; i++) {
+    if (isPlayable(content[i])) return content[i].song_index ?? null;
+  }
+  return null;
 }
 
 function mapDmxToDeck(value: number): DeckNumber | null {

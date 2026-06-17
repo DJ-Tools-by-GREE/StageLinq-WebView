@@ -146,6 +146,7 @@ export const LOG_ENABLED = {
     uiOut: false,
     errors: true,
     cues: false,
+    artnetStats: true, // periodic [ArtNet/wk] tick stats info heartbeat (every ~10s); warns ignore this flag
 };
 
 export function applyLoggingConfig(cfg: {
@@ -157,6 +158,7 @@ export function applyLoggingConfig(cfg: {
     uiOut?: boolean;
     errors?: boolean;
     cues?: boolean;
+    artnetStats?: boolean;
 }) {
     if (cfg.lifecycle     !== undefined) LOG_ENABLED.lifecycle     = cfg.lifecycle;
     if (cfg.playback      !== undefined) LOG_ENABLED.playback      = cfg.playback;
@@ -166,6 +168,7 @@ export function applyLoggingConfig(cfg: {
     if (cfg.uiOut         !== undefined) LOG_ENABLED.uiOut         = cfg.uiOut;
     if (cfg.errors        !== undefined) LOG_ENABLED.errors        = cfg.errors;
     if (cfg.cues          !== undefined) LOG_ENABLED.cues          = cfg.cues;
+    if (cfg.artnetStats   !== undefined) LOG_ENABLED.artnetStats   = cfg.artnetStats;
 }
 
 export const LOG_DECK_FILTER = {

@@ -5,7 +5,7 @@ import type {
   MainToWorker,
   WorkerToMain,
 } from './artnetWorkerMessages.js';
-import { logError, logLifecycle, logStatus, setArtnetTcHms, GRN, RST } from './logging.js';
+import { logError, logLifecycle, logStatus, setArtnetTcHms, LOG_ENABLED, GRN, RST } from './logging.js';
 
 export interface ArtNetOptions {
   enabled: boolean;
@@ -152,8 +152,15 @@ export class ArtNetTimecodeBroadcaster {
   private handleWorkerMessage(m: WorkerToMain) {
     switch (m.type) {
       case 'log':
-        if (m.level === 'error') logError(m.msg);
+        // 'warn' covers cadence drops, late ticks, hard stalls — exactly the events that should
+        // be visible in red AND persisted to errorlog.md, like before the worker move.
+        if (m.level === 'error' || m.level === 'warn') logError(m.msg);
         else logLifecycle(m.msg);
+        break;
+      case 'statsHeartbeat':
+        // Periodic healthy tick-stats info line — gated by its own flag so it can be silenced
+        // without affecting other lifecycle output or the warn/error variants.
+        if (LOG_ENABLED.artnetStats) logLifecycle(m.msg);
         break;
       case 'tcDisplay':
         logStatus('artnet', m.text);
@@ -162,7 +169,7 @@ export class ArtNetTimecodeBroadcaster {
       case 'stats':
       case 'ready':
         // 'stats' messages exist for programmatic consumers; the human-readable form is already
-        // logged from the worker via 'log' messages above. 'ready' is consumed in start().
+        // logged from the worker via 'log' / 'statsHeartbeat'. 'ready' is consumed in start().
         break;
     }
   }

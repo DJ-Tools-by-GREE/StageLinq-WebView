@@ -335,27 +335,27 @@ class ArtNetWorker {
       `p50=${p50.toFixed(1)} p95=${p95.toFixed(1)} max=${maxMs.toFixed(1)} ` +
       `maxBehind=${maxBehind.toFixed(1)}ms hardStalls=${this.hardStallsInWindow} ` +
       `target=${this.targetIntervalMs.toFixed(2)}ms`;
+    const stats = {
+      windowMs,
+      count,
+      avgIntervalMs: avg,
+      p50,
+      p95,
+      maxMs,
+      maxBehindMs: maxBehind,
+      targetMs: this.targetIntervalMs,
+      hardStalls: this.hardStallsInWindow,
+      socketRecoveries: this.socketRecoveryCount,
+    };
     if (isUnder || this.hardStallsInWindow > 0 || maxBehind > this.targetIntervalMs) {
+      // Degraded: route as a warn so it can never be silenced by the artnetStats flag.
       logWarn(line);
     } else {
-      logInfo(line);
+      // Healthy heartbeat: dedicated type so the main thread can gate it independently.
+      send({ type: 'statsHeartbeat', msg: line, stats });
     }
 
-    send({
-      type: 'stats',
-      stats: {
-        windowMs,
-        count,
-        avgIntervalMs: avg,
-        p50,
-        p95,
-        maxMs,
-        maxBehindMs: maxBehind,
-        targetMs: this.targetIntervalMs,
-        hardStalls: this.hardStallsInWindow,
-        socketRecoveries: this.socketRecoveryCount,
-      },
-    });
+    send({ type: 'stats', stats });
 
     this.intervals.length = 0;
     this.behinds.length = 0;

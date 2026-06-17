@@ -34,5 +34,13 @@ export interface TickStats {
 export type WorkerToMain =
   | { type: 'ready' }
   | { type: 'log'; level: 'info' | 'warn' | 'error'; msg: string }
+  /**
+   * Periodic, healthy tick-stats heartbeat (every ARTNET_TICK_STATS_LOG_INTERVAL_MS).
+   * Emitted as its own type — separate from `log` — so the main-thread harness can gate
+   * it on a dedicated `logging.artnetStats` config flag without affecting warns.
+   * The degraded variant (avg below target / hard stalls / max behind too high) is sent as
+   * a `log` with level `'warn'` instead, and is NOT gated by the stats flag.
+   */
+  | { type: 'statsHeartbeat'; msg: string; stats: TickStats }
   | { type: 'stats'; stats: TickStats }
   | { type: 'tcDisplay'; text: string; hms: string };

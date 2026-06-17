@@ -7,6 +7,38 @@ decision/bug-confirmation/direction change (per CLAUDE.md).
 
 ## Architectural decisions
 
+### 2026-06-17 — `mashup_only` flag on playlist entries
+
+**What:** Each entry in `playlists[].content[]` may carry an optional
+`mashup_only: boolean` field. When `true`, the entry is an overlay (vocal stem,
+mashup top-line) that is only ever played on top of another track and never
+played standalone.
+
+**Backend semantics — treat the entry as if it were not in the playlist at all:**
+- [`buildTrackOffsetMap`](backend/src/index.ts) skips it → its
+  `offset_sec`/`offset_frame` never apply, even if the deck loads it.
+- [`buildActivePlaylistFileSet`](backend/src/index.ts) skips it → the file is
+  not "in the active set", so waveform extraction follows the same rule as a
+  track outside the playlist (runs only when `waveform.all_tracks === true`).
+- [`computeNextTrack`](backend/src/index.ts) skips it when picking the *next*
+  track for the header display. If the currently loaded track is itself
+  flagged, its position is still used as the cursor — the next playable entry
+  after it wins.
+
+**Out of scope by design:** if the operator selects (via sACN) a deck that is
+holding a `mashup_only` track, that's user error. No fallback or auto-switch
+logic exists; Art-Net timecode behaves as it would for any track without an
+offset entry.
+
+**Why:** lets the operator keep overlays in the playlist (so they can be
+discovered, browsed, or auto-loaded by a controller) without polluting the
+"current/next" UI or skewing timecode with an unintended offset.
+
+**Editor surface:** the [stagelinq-config-editor](../stagelinq-config-editor)
+sibling project owns the per-row checkbox UI; backend just consumes the field.
+
+---
+
 ### 2026-06-16 — Multi-IP fan-out for Art-Net and OSC
 
 **What:** The Art-Net timecode worker and OSC BPM sender now accept a list of

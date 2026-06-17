@@ -19,7 +19,8 @@
         "bpmDebug": false,
         "uiOut": false,
         "errors": true,
-        "cues": false
+        "cues": false,
+        "artnetStats": true
     },
     "timecode": {
         "fps": 30,
