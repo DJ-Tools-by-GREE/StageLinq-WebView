@@ -610,6 +610,55 @@ html, body {
   border-color: rgba(255,255,255,0.15);
 }
 
+/* ── User picker (header dropdown) ──────────────────────────────── */
+.userPicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 4px 0 10px;
+  height: 32px;
+  cursor: pointer;
+  transition: border-color 120ms, background 120ms;
+}
+
+.userPicker:hover {
+  background: #1c2030;
+  border-color: rgba(255,255,255,0.15);
+}
+
+.userPickerLabel {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+
+.userPickerSelect {
+  background: transparent;
+  border: none;
+  color: var(--fg);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  padding: 4px 6px 4px 4px;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%239a9eb5' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 4px center;
+  padding-right: 18px;
+}
+
+.userPickerSelect option {
+  background: var(--surface2);
+  color: var(--fg);
+}
+
 /* ── Modal ──────────────────────────────────────────────────────── */
 .modalBackdrop {
   position: fixed;
@@ -656,6 +705,15 @@ html, body {
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--fg);
+}
+
+.modalTitleUser {
+  margin-left: 6px;
+  color: var(--mid);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0.04em;
+  font-size: 12px;
 }
 
 .modalClose {

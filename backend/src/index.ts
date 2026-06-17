@@ -16,6 +16,7 @@ import { RECONNECT_DELAY_MS, WS_FPS, WAVEFORM_PEAKS_PER_SEC, DISCONNECT_DETECT_T
 import { States, StageLinqValue } from "@gree44/stagelinq";
 import { logError, logLifecycle, logWaveform, logUiOut, applyLoggingConfig, applyDisplayConfig, DISPLAY_ENABLED, logDashboard, deckColor, getStatusSlot, DIM, R, GRN, YEL, RED, RST } from './logging.js';
 import { generateWaveformPeaks, peaksCache, artworkCache, initWaveformCache } from './waveformService.js';
+import { UserSettingsStore, FIXED_USERS, resolveUsersFilePath } from './userSettings.js';
 
 function isIgnorableStageLinqError(err: unknown): boolean {
   if (!err) return false;
@@ -476,6 +477,20 @@ async function main() {
   app.use(cors());
   app.use(express.json());
 
+  // User UI-settings store (users.json at repo root).
+  const usersFilePath = await (async () => {
+    const candidates = [
+      path.resolve(process.cwd(), 'users.json'),
+      path.resolve(__dirname, '../../users.json'),
+    ];
+    for (const p of candidates) {
+      try { await fs.access(p); return p; } catch {}
+    }
+    return resolveUsersFilePath(path.resolve(__dirname, '../..'));
+  })();
+  const usersStore = new UserSettingsStore(usersFilePath);
+  await usersStore.load();
+
   // API health
   app.get('/api/health', (_req, res) => {
     res.json({ ok: true, ts: Date.now() });
@@ -490,6 +505,34 @@ async function main() {
     sendTimecodeWhenStopped = enabled;
     artnet.setSendWhenStopped(enabled);
     res.json({ ok: true, enabled: sendTimecodeWhenStopped });
+  });
+
+  app.get('/api/users', (_req, res) => {
+    res.json({ users: usersStore.list() });
+  });
+
+  app.get('/api/users/:name/settings', (req, res) => {
+    const settings = usersStore.get(req.params.name);
+    if (settings === null) { res.status(404).json({ error: 'unknown user' }); return; }
+    res.json({ name: req.params.name, settings });
+  });
+
+  app.put('/api/users/:name/settings', async (req, res) => {
+    if (!FIXED_USERS.includes(req.params.name as any)) {
+      res.status(404).json({ error: 'unknown user' });
+      return;
+    }
+    const body = req.body;
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      res.status(400).json({ error: 'body must be a JSON object of settings' });
+      return;
+    }
+    const next = await usersStore.setSettings(req.params.name, body);
+    if (next === null) {
+      res.status(400).json({ error: 'invalid settings' });
+      return;
+    }
+    res.json({ name: req.params.name, settings: next });
   });
 
   app.get('/api/artwork/:deck', (req, res) => {

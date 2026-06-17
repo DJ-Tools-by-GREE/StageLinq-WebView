@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
+import type { UserName } from './userSettings.js';
 
 interface Props {
+  activeUser: UserName;
   detailZoomSec: number;
   onChangeDetailZoomSec: (value: number) => void;
   onClose: () => void;
@@ -10,7 +12,7 @@ const ZOOM_MIN = 4;
 const ZOOM_MAX = 30;
 const ZOOM_STEP = 1;
 
-export default function SettingsModal({ detailZoomSec, onChangeDetailZoomSec, onClose }: Props) {
+export default function SettingsModal({ activeUser, detailZoomSec, onChangeDetailZoomSec, onClose }: Props) {
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -32,7 +34,9 @@ export default function SettingsModal({ detailZoomSec, onChangeDetailZoomSec, on
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="modalHeader">
-          <h2 id="settingsTitle" className="modalTitle">Settings</h2>
+          <h2 id="settingsTitle" className="modalTitle">
+            Settings <span className="modalTitleUser">· {activeUser}</span>
+          </h2>
           <button className="modalClose" onClick={onClose} aria-label="Close settings">×</button>
         </div>
 

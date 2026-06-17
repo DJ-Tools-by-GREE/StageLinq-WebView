@@ -7,6 +7,51 @@ decision/bug-confirmation/direction change (per CLAUDE.md).
 
 ## Architectural decisions
 
+### 2026-06-17 — Per-user UI settings (`users.json` + `/api/users`)
+
+**What:** A header dropdown lets the operator switch between fixed users
+(`Default User`, `Jan`, `Dennis`). Each user owns an independent blob of UI
+settings; switching simply re-applies that user's settings live.
+
+**Storage:** `users.json` at the repo root, shape
+`{ "users": { "<name>": { ... } } }`. Backend module
+[backend/src/userSettings.ts](backend/src/userSettings.ts) loads/persists with
+serialized writes via `tmp + rename` to avoid torn files. Missing fixed users
+are auto-created on load. Unknown user names are rejected by the API.
+
+**Wire format:**
+- `GET /api/users` → `{ users: [{ name, settings }, ...] }`
+- `GET /api/users/:name/settings` → `{ name, settings }`
+- `PUT /api/users/:name/settings` body is the new settings blob (replace, not
+  merge — the frontend sends the full object).
+
+**Frontend ownership** ([frontend/src/userSettings.ts](frontend/src/userSettings.ts),
+[frontend/src/App.tsx](frontend/src/App.tsx)):
+- Active user is per-browser, persisted in `localStorage` under
+  `stagelinq.activeUser`. Default is `Default User` on first load.
+- All users' settings are fetched once on mount and held in a single
+  `UsersMap` in App state. PUTs are debounced **per-user** (250 ms) — one
+  timer per user so editing user A and then quickly switching to and editing
+  user B doesn't drop A's pending write.
+- `effectiveZoom()` falls back to `DEFAULT_DETAIL_ZOOM_SEC = 10` when a user
+  has no `detailZoomSec` field yet, so a fresh user starts at the default.
+
+**Settings shape:** open-ended on disk and at the API — frontend sends a JSON
+object; backend stores it verbatim. Today the only field is
+`detailZoomSec: number` (4–30, controls the visible time-window of the per-deck
+detail waveform). Future fields are added by extending the typed
+`UserSettings` interface; no schema migration on the server side.
+
+**Out of scope by design:**
+- No auth — anyone on the LAN can pick any user. This is a show tool.
+- The user list is fixed in code (`FIXED_USERS` constant on both sides). No
+  add/rename/delete UI.
+- Active user is **not** synchronized between browsers; switching on one
+  tablet does not affect another. Per-browser was the explicit choice — it
+  matches how multiple operator displays might want different views.
+
+---
+
 ### 2026-06-17 — `mashup_only` flag on playlist entries
 
 **What:** Each entry in `playlists[].content[]` may carry an optional

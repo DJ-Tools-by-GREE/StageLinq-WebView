@@ -155,6 +155,7 @@ export class ArtNetTimecodeBroadcaster {
         // 'warn' covers cadence drops, late ticks, hard stalls — exactly the events that should
         // be visible in red AND persisted to errorlog.md, like before the worker move.
         if (m.level === 'error' || m.level === 'warn') logError(m.msg);
+        else if (m.level === 'success') logLifecycle(`${GRN}${m.msg}${RST}`);
         else logLifecycle(m.msg);
         break;
       case 'statsHeartbeat':

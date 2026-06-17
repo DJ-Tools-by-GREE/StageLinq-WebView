@@ -33,7 +33,7 @@ export interface TickStats {
 
 export type WorkerToMain =
   | { type: 'ready' }
-  | { type: 'log'; level: 'info' | 'warn' | 'error'; msg: string }
+  | { type: 'log'; level: 'info' | 'success' | 'warn' | 'error'; msg: string }
   /**
    * Periodic, healthy tick-stats heartbeat (every ARTNET_TICK_STATS_LOG_INTERVAL_MS).
    * Emitted as its own type — separate from `log` — so the main-thread harness can gate

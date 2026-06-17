@@ -10,7 +10,8 @@ Real-time DJ deck visualizer for Denon Prime 4+ (Engine DJ / StageLinq). Display
 - Header bar showing selected deck, live BPM, and next-track name
 - Live connection status badge (LIVE / OFFLINE)
 - Overlay button to toggle timecode transmission while playback is stopped
-- Settings popup (gear icon in the header) — adjusts the visible time-window of the detail waveform (4–30 s, default 10 s); persisted to `localStorage`
+- **User switcher** (header dropdown) — `Default User`, `Jan`, `Dennis`. Each user has their own UI settings, stored server-side in `users.json` and applied on the fly when switched. The active-user pick is per-browser (`localStorage`).
+- Settings popup (gear icon in the header) — adjusts the visible time-window of the detail waveform (4–30 s, default 10 s) for the active user; persisted to the server via `PUT /api/users/:name/settings`.
 - WebSocket stream at 30 Hz
 
 **Art-Net timecode output** (optional)
@@ -212,6 +213,9 @@ Waveforms and artwork are extracted automatically when a track loads and cached 
 | `GET` | `/api/timecode/send-when-stopped` | Query current "send when stopped" state |
 | `POST` | `/api/timecode/send-when-stopped` | Set state; body: `{ "enabled": true \| false }` |
 | `GET` | `/api/artwork/:deck` | Serve cached album artwork for deck 1–4 |
+| `GET` | `/api/users` | List all users and their UI-settings blobs (`{ users: [{ name, settings }] }`) |
+| `GET` | `/api/users/:name/settings` | Get one user's settings blob |
+| `PUT` | `/api/users/:name/settings` | Replace one user's settings blob; body is the JSON object to store. Stored to `users.json` at the repo root. |
 
 ## Deck color accents
 

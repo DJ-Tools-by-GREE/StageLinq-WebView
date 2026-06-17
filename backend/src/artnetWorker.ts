@@ -25,7 +25,7 @@ function send(msg: WorkerToMain) {
   port.postMessage(msg);
 }
 
-function logInfo(msg: string) { send({ type: 'log', level: 'info', msg }); }
+function logSuccess(msg: string) { send({ type: 'log', level: 'success', msg }); }
 function logWarn(msg: string) { send({ type: 'log', level: 'warn', msg }); }
 function logError(msg: string) { send({ type: 'log', level: 'error', msg }); }
 
@@ -114,7 +114,7 @@ class ArtNetWorker {
 
     this.statsTimer = setInterval(() => this.flushStats(), ARTNET_TICK_STATS_LOG_INTERVAL_MS);
 
-    logInfo(
+    logSuccess(
       `[ArtNet/wk] ready: ${opts.targetIps.join(', ')}:${opts.port} @ ${opts.fps}fps, send=${sendHz}Hz (target interval ${this.targetIntervalMs.toFixed(3)}ms)`
     );
     send({ type: 'ready' });
@@ -304,7 +304,7 @@ class ArtNetWorker {
     this.lastSocketRecoveryMs = Date.now();
     this.socketFaulted = false;
     this.socketRecoveryCount++;
-    logInfo('[ArtNet/wk] Socket recreated');
+    logSuccess('[ArtNet/wk] Socket recreated');
   }
 
   private flushStats() {

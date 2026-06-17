@@ -1,4 +1,5 @@
 import type { DeckNumber, DeckState, StageLinqStatus } from './types.js';
+import type { UserName } from './userSettings.js';
 
 const DECK_LABEL: Record<DeckNumber, string> = { 1: 'D1', 2: 'D2', 3: 'D3', 4: 'D4' };
 
@@ -12,6 +13,9 @@ interface Props {
   settingBusy: boolean;
   onToggleSendWhenStopped: () => void;
   onOpenSettings: () => void;
+  users: readonly UserName[];
+  activeUser: UserName;
+  onChangeUser: (name: UserName) => void;
 }
 
 export default function HeaderBar({
@@ -24,6 +28,9 @@ export default function HeaderBar({
   settingBusy,
   onToggleSendWhenStopped,
   onOpenSettings,
+  users,
+  activeUser,
+  onChangeUser,
 }: Props) {
   const bpm = selectedDeckState?.trackLoaded && Number.isFinite(selectedDeckState.currentBpm)
     ? selectedDeckState.currentBpm.toFixed(1)
@@ -75,6 +82,18 @@ export default function HeaderBar({
       </div>
 
       <div className="headerRight">
+        <label className="userPicker" title="Switch user">
+          <span className="userPickerLabel">USER</span>
+          <select
+            className="userPickerSelect"
+            value={activeUser}
+            onChange={(e) => onChangeUser(e.target.value as UserName)}
+          >
+            {users.map((u) => (
+              <option key={u} value={u}>{u}</option>
+            ))}
+          </select>
+        </label>
         <button
           className={`toggleBtn ${sendWhenStopped ? 'on' : 'off'}`}
           onClick={onToggleSendWhenStopped}

@@ -4,25 +4,22 @@ import type { WaveformState } from './appTypes.js';
 import DeckCard from './DeckCard.js';
 import HeaderBar from './HeaderBar.js';
 import SettingsModal from './SettingsModal.js';
+import {
+  FIXED_USERS,
+  type UserName,
+  type UsersMap,
+  type UserSettings,
+  effectiveZoom,
+  fetchAllUsers,
+  putUserSettings,
+  loadActiveUser,
+  saveActiveUser,
+  clampZoom,
+} from './userSettings.js';
 
 const DECK_NUMBERS: DeckNumber[] = [1, 2, 3, 4];
 
-const DEFAULT_DETAIL_ZOOM_SEC = 10;
-const DETAIL_ZOOM_STORAGE_KEY = 'stagelinq.detailZoomSec';
-const DETAIL_ZOOM_MIN = 4;
-const DETAIL_ZOOM_MAX = 30;
-
-function loadDetailZoomSec(): number {
-  try {
-    const raw = window.localStorage.getItem(DETAIL_ZOOM_STORAGE_KEY);
-    if (raw == null) return DEFAULT_DETAIL_ZOOM_SEC;
-    const n = Number(raw);
-    if (!Number.isFinite(n)) return DEFAULT_DETAIL_ZOOM_SEC;
-    return Math.min(DETAIL_ZOOM_MAX, Math.max(DETAIL_ZOOM_MIN, Math.round(n)));
-  } catch {
-    return DEFAULT_DETAIL_ZOOM_SEC;
-  }
-}
+const SETTINGS_PUT_DEBOUNCE_MS = 250;
 
 function makeBlankDeck(deck: DeckNumber): DeckState {
   return {
@@ -79,13 +76,55 @@ export default function App() {
   const [settingBusy, setSettingBusy] = useState(false);
   const [headerVisible, setHeaderVisible] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [detailZoomSec, setDetailZoomSec] = useState<number>(() => loadDetailZoomSec());
 
+  // Users + active user. Users map starts as empty per name and is
+  // hydrated from /api/users on mount. The active-user pick is per-browser.
+  const [users, setUsers] = useState<UsersMap>(() => {
+    const blank = {} as UsersMap;
+    for (const n of FIXED_USERS) blank[n] = {};
+    return blank;
+  });
+  const [activeUser, setActiveUserState] = useState<UserName>(() => loadActiveUser());
+
+  const detailZoomSec = effectiveZoom(users[activeUser]);
+
+  const setActiveUser = useCallback((name: UserName) => {
+    saveActiveUser(name);
+    setActiveUserState(name);
+  }, []);
+
+  // Hydrate users on mount.
   useEffect(() => {
-    try {
-      window.localStorage.setItem(DETAIL_ZOOM_STORAGE_KEY, String(detailZoomSec));
-    } catch {}
-  }, [detailZoomSec]);
+    const ac = new AbortController();
+    fetchAllUsers(ac.signal)
+      .then((map) => setUsers(map))
+      .catch(() => {});
+    return () => ac.abort();
+  }, []);
+
+  // Per-user debounced PUT. One timer per user so quickly editing user A then
+  // user B does not drop A's pending write.
+  const putTimersRef = useRef<Partial<Record<UserName, ReturnType<typeof setTimeout>>>>({});
+
+  const updateUserSettings = useCallback((name: UserName, patch: Partial<UserSettings>) => {
+    setUsers((prev) => {
+      const merged: UserSettings = { ...prev[name], ...patch };
+      const next: UsersMap = { ...prev, [name]: merged };
+      const existing = putTimersRef.current[name];
+      if (existing) clearTimeout(existing);
+      putTimersRef.current[name] = setTimeout(() => {
+        delete putTimersRef.current[name];
+        putUserSettings(name, merged).catch(() => {});
+      }, SETTINGS_PUT_DEBOUNCE_MS);
+      return next;
+    });
+  }, []);
+
+  useEffect(() => () => {
+    for (const t of Object.values(putTimersRef.current)) {
+      if (t) clearTimeout(t);
+    }
+  }, []);
 
   const lastSeq = useRef(-1);
   const unmounting = useRef(false);
@@ -254,6 +293,9 @@ export default function App() {
           settingBusy={settingBusy}
           onToggleSendWhenStopped={toggleSendWhenStopped}
           onOpenSettings={() => setSettingsOpen(true)}
+          users={FIXED_USERS}
+          activeUser={activeUser}
+          onChangeUser={setActiveUser}
         />
       )}
       <div className="grid">
@@ -278,9 +320,10 @@ export default function App() {
       </button>
       {settingsOpen && (
         <SettingsModal
+          activeUser={activeUser}
           detailZoomSec={detailZoomSec}
           onChangeDetailZoomSec={(v) =>
-            setDetailZoomSec(Math.min(DETAIL_ZOOM_MAX, Math.max(DETAIL_ZOOM_MIN, Math.round(v))))
+            updateUserSettings(activeUser, { detailZoomSec: clampZoom(v) })
           }
           onClose={() => setSettingsOpen(false)}
         />
