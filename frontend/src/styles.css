@@ -856,6 +856,40 @@ html, body {
   margin: 0;
 }
 
+/* ── Arm slider + locked control gate ───────────────────────────── */
+.armSlider {
+  /* When locked, paint the rail red so the operator instantly knows clicks won't fire. */
+  accent-color: #ff2d2d;
+}
+
+.armSlider--armed {
+  accent-color: #00e676;
+}
+
+.settingValue--armed {
+  color: #00e676;
+  letter-spacing: 0.16em;
+}
+
+.settingValue--locked {
+  color: #ff2d2d;
+  letter-spacing: 0.16em;
+}
+
+.controlsGate {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: opacity 140ms ease, filter 140ms ease;
+}
+
+.controlsGate--locked {
+  opacity: 0.45;
+  filter: grayscale(0.4);
+  /* Buttons inside also carry `disabled` — this just dims the whole block including hints. */
+  pointer-events: none;
+}
+
 .settingRow {
   display: flex;
   flex-direction: column;

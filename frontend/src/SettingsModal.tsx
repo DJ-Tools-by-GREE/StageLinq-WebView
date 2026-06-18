@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import type { UserName } from './userSettings.js';
 import type { FreewheelSettings } from './globalSettings.js';
 
@@ -26,6 +26,24 @@ export default function SettingsModal({
   onClose,
 }: Props) {
   const dialogRef = useRef<HTMLDivElement>(null);
+
+  // Arm state for the Controls section. Both the arm slider and the persistent-arm
+  // toggle reset on dialog mount / page reload — deliberately ephemeral so a
+  // momentary mis-click on the toggle never leaves controls hot indefinitely.
+  const [armed, setArmed] = useState(false);
+  const [armPersistent, setArmPersistent] = useState(false);
+
+  // Single funnel for any "armed click" inside the Controls section. If persistent
+  // arm is off, snaps the slider back to 0 immediately so the next click also
+  // requires a fresh arm.
+  const consumeArmedClick = useCallback(
+    (action: () => void) => {
+      if (!armed) return;
+      action();
+      if (!armPersistent) setArmed(false);
+    },
+    [armed, armPersistent],
+  );
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -113,24 +131,83 @@ export default function SettingsModal({
           <section className="settingsSection">
             <h3 className="settingsSectionTitle">Controls</h3>
 
+            {/*
+              Arm gate. Slide right (value 1) to unlock everything below; clicking
+              any control disarms unless persistent-arm is on. Both states reset on
+              page reload — never trust a "stays armed" the operator might forget.
+            */}
             <div className="settingRow">
               <div className="settingLabel">
-                Freewheeling
-                <span className="settingValue">
-                  {fwEnabled ? 'enabled' : 'disabled'}
+                Arm controls
+                <span className={`settingValue ${armed ? 'settingValue--armed' : 'settingValue--locked'}`}>
+                  {armed ? 'ARMED' : 'LOCKED'}
                 </span>
               </div>
-              <button
-                className={`toggleBtn ${fwEnabled ? 'on' : 'off'}`}
-                disabled={freewheel === null}
-                onClick={() => onChangeFreewheel({ enable_freewheeling: !fwEnabled })}
-              >
-                {fwEnabled ? 'Disable freewheeling' : 'Enable freewheeling'}
-              </button>
+              <input
+                aria-label="Arm controls"
+                type="range"
+                min={0}
+                max={1}
+                step={1}
+                value={armed ? 1 : 0}
+                onChange={(e) => setArmed(e.target.value === '1')}
+                className={`settingRange armSlider ${armed ? 'armSlider--armed' : ''}`}
+              />
               <div className="settingHint">
-                When disabled, Art-Net TC stops the instant StageLinq goes
-                stale instead of freewheeling at the last-known speed. Saved to
-                config.json (default: enabled) and applied immediately.
+                Slide to arm before clicking any control below. Resets to LOCKED
+                on every page reload.
+              </div>
+            </div>
+
+            <div className={`controlsGate ${armed ? '' : 'controlsGate--locked'}`}>
+              <div className="settingRow">
+                <div className="settingLabel">
+                  Persistent arm
+                  <span className="settingValue">
+                    {armPersistent ? 'on' : 'off'}
+                  </span>
+                </div>
+                <button
+                  className={`toggleBtn ${armPersistent ? 'on' : 'off'}`}
+                  disabled={!armed}
+                  onClick={() =>
+                    consumeArmedClick(() => setArmPersistent((v) => !v))
+                  }
+                >
+                  {armPersistent
+                    ? 'Disable persistent arm'
+                    : 'Enable persistent arm'}
+                </button>
+                <div className="settingHint">
+                  When off (default), the arm slider snaps back to LOCKED after
+                  each control click. When on, arming stays hot until you slide
+                  back yourself or reload.
+                </div>
+              </div>
+
+              <div className="settingRow">
+                <div className="settingLabel">
+                  Freewheeling
+                  <span className="settingValue">
+                    {fwEnabled ? 'enabled' : 'disabled'}
+                  </span>
+                </div>
+                <button
+                  className={`toggleBtn ${fwEnabled ? 'on' : 'off'}`}
+                  disabled={freewheel === null || !armed}
+                  onClick={() =>
+                    consumeArmedClick(() =>
+                      onChangeFreewheel({ enable_freewheeling: !fwEnabled }),
+                    )
+                  }
+                >
+                  {fwEnabled ? 'Disable freewheeling' : 'Enable freewheeling'}
+                </button>
+                <div className="settingHint">
+                  When disabled, Art-Net TC stops the instant StageLinq goes
+                  stale instead of freewheeling at the last-known speed. Saved to
+                  config.json (default: enabled) and applied immediately.
+                </div>
               </div>
             </div>
           </section>
