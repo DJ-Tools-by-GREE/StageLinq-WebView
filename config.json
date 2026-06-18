@@ -24,7 +24,7 @@
         "uiOut": false,
         "errors": true,
         "cues": false,
-        "artnetStats": true
+        "artnetStats": false
     },
     "timecode": {
         "fps": 30,
