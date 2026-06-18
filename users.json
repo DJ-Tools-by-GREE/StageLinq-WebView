@@ -1,7 +1,13 @@
 {
   "users": {
     "Default User": {},
-    "Jan": {},
-    "Dennis": {}
+    "Jan": {
+      "role": "DJ",
+      "detailZoomSec": 15
+    },
+    "Dennis": {
+      "role": "Lighting & Tech",
+      "detailZoomSec": 20
+    }
   }
 }
