@@ -180,6 +180,15 @@ All settings can also be placed in `config.json` at the repo root (or in `backen
       "content": [
         { "song_index": "track-filename.mp3", "offset_sec": 2, "offset_frame": 5 },
         { "song_index": "vocal-overlay.mp3", "offset_sec": 0, "offset_frame": 0, "mashup_only": true },
+        {
+          "song_index": "transition-cue.mp3",
+          "offset_sec": 0,
+          "offset_frame": 0,
+          "note": {
+            "description": "Drop the laser cue at the first build, then hand off to deck 2.",
+            "show_secs_after_load": 5
+          }
+        },
         { "song_index": "outro.mp3", "offset_sec": 0, "offset_frame": 0 }
       ]
     }
@@ -190,6 +199,8 @@ All settings can also be placed in `config.json` at the repo root (or in `backen
 Tracks are matched by normalized filename (basename only, case-insensitive). `current_playlist` selects which playlist entry from the array is active (0-indexed).
 
 Set `mashup_only: true` on a track to mark it as an overlay (vocal stem, mashup top-line, etc.) that is only ever played on top of another track. The backend treats such entries as if they were *not* in the playlist: their `offset_sec`/`offset_frame` are ignored (no Art-Net timecode adjustment), they are skipped when computing the *next track* shown in the header, and waveform extraction follows the same rules as a track outside the playlist (only happens when `waveform.all_tracks` is `true`). The flag defaults to `false`/absent. Selecting a deck that holds a `mashup_only` track via sACN is treated as operator error — no fallback logic.
+
+The optional `note` block on a track shows an in-UI popup once that track loads on any deck. `description` is the body text — leaving it empty (or omitting `note` entirely) suppresses the popup. `show_secs_after_load` is the delay in seconds before the popup appears after the track loads (default `0` = immediate). The popup is keyed per `(deck, fileName)`: it fires once per load, is dismissed by clicking the backdrop or the close button, and is auto-cancelled if the track is unloaded or replaced before the delay elapses.
 
 Both `timecode` and `osc` accept either a single `target_ip` (string) or a `target_ips` array — when both are present, `target_ips` wins. The same packets are fanned out to every listed host. The env vars `ARTNET_TARGET_IP` / `OSC_TARGET_IP` accept a comma-separated list for the same purpose and override the config file.
 

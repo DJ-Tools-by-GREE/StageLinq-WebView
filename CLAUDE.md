@@ -220,6 +220,12 @@ Port `8090` (configurable via `PORT` env). Path `/ws`.
     "2": DeckState,
     "3": DeckState,
     "4": DeckState
+  },
+  "deckNotes": {            // per-deck TrackNote | null, derived from playlist `note` blocks
+    "1": { "description": "...", "showSecsAfterLoad": 5 },
+    "2": null,
+    "3": null,
+    "4": null
   }
 }
 

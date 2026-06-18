@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import type { DeckNumber, DeckState, StageLinqStatus, WsPayload } from './types.js';
+import type { DeckNumber, DeckState, StageLinqStatus, TrackNote, WsPayload } from './types.js';
 import type { WaveformState } from './appTypes.js';
 import DeckCard from './DeckCard.js';
 import HeaderBar from './HeaderBar.js';
 import SettingsModal from './SettingsModal.js';
+import TrackNotePopup from './TrackNotePopup.js';
 import {
   FIXED_USERS,
   type UserName,
@@ -182,6 +183,22 @@ export default function App() {
     4: { current: 0 },
   });
 
+  // Track-note popup queue. One popup per (deck, fileName) is queued when that
+  // track loads — the timer fires after showSecsAfterLoad and appends to the
+  // queue; only the head is rendered. Unloading the deck or swapping the file
+  // cancels the pending timer and removes any queued/shown popup for that deck.
+  type PopupItem = { deck: DeckNumber; fileName: string; description: string; title: string; artist: string };
+  const [popupQueue, setPopupQueue] = useState<PopupItem[]>([]);
+  const pendingPopupTimers = useRef<Record<DeckNumber, ReturnType<typeof setTimeout> | null>>({
+    1: null, 2: null, 3: null, 4: null,
+  });
+  const seenNoteForFile = useRef<Record<DeckNumber, string>>({ 1: '', 2: '', 3: '', 4: '' });
+  // Latest decks snapshot — read at popup fire time so title/artist that
+  // arrive after the initial load (common with StageLinq) make it into the popup.
+  const latestDecksRef = useRef<DecksState>({
+    1: makeBlankDeck(1), 2: makeBlankDeck(2), 3: makeBlankDeck(3), 4: makeBlankDeck(4),
+  });
+
   useEffect(() => {
     return () => {
       for (const url of Object.values(artworkObjectUrlsRef.current)) {
@@ -218,6 +235,7 @@ export default function App() {
         if (msg.seq <= lastSeq.current) return;
         lastSeq.current = msg.seq;
         const nextDecks = msg.decks as DecksState;
+        latestDecksRef.current = nextDecks;
         for (const d of DECK_NUMBERS) {
           elapsedRefs.current[d].current = nextDecks[d].elapsedSec;
         }
@@ -236,7 +254,46 @@ export default function App() {
               if (w[d].fileName === newFileName && newFileName !== '') return w;
               return { ...w, [d]: makeBlankWaveform() };
             });
+            // Cancel any pending/shown note popup for this deck — the song changed.
+            const t = pendingPopupTimers.current[d];
+            if (t) { clearTimeout(t); pendingPopupTimers.current[d] = null; }
+            seenNoteForFile.current[d] = '';
+            setPopupQueue((q) => q.filter((p) => p.deck !== d));
           }
+
+          // Schedule the note popup once per (deck, fileName). Re-evaluating on
+          // every snapshot is cheap; the seenNoteForFile guard ensures the
+          // timer is created exactly once for a given load.
+          const note: TrackNote | null = msg.deckNotes?.[d] ?? null;
+          const fn = nextDecks[d].fileName;
+          if (
+            note &&
+            note.description &&
+            nextDecks[d].trackLoaded &&
+            fn &&
+            seenNoteForFile.current[d] !== fn
+          ) {
+            seenNoteForFile.current[d] = fn;
+            const description = note.description;
+            const delayMs = Math.max(0, Number(note.showSecsAfterLoad ?? 0)) * 1000;
+            if (pendingPopupTimers.current[d]) clearTimeout(pendingPopupTimers.current[d]!);
+            pendingPopupTimers.current[d] = setTimeout(() => {
+              pendingPopupTimers.current[d] = null;
+              // Resolve title/artist at fire time — StageLinq often delivers
+              // them in a later snapshot than the fileName.
+              const live = latestDecksRef.current[d];
+              if (!live.trackLoaded || live.fileName !== fn) return;
+              const item: PopupItem = {
+                deck: d,
+                fileName: fn,
+                description,
+                title: live.title,
+                artist: live.artist,
+              };
+              setPopupQueue((q) => (q.some((p) => p.deck === d && p.fileName === fn) ? q : [...q, item]));
+            }, delayMs);
+          }
+
           prev[d] = nextDecks[d].trackLoaded;
           prevFile[d] = nextDecks[d].fileName;
         }
@@ -292,8 +349,16 @@ export default function App() {
       if (retryTimeout.current) clearTimeout(retryTimeout.current);
       if (heartbeatTimer.current) clearInterval(heartbeatTimer.current);
       wsRef.current?.close();
+      for (const d of DECK_NUMBERS) {
+        const t = pendingPopupTimers.current[d];
+        if (t) { clearTimeout(t); pendingPopupTimers.current[d] = null; }
+      }
     };
   }, [connect]);
+
+  const dismissTopPopup = useCallback(() => {
+    setPopupQueue((q) => q.slice(1));
+  }, []);
 
   useEffect(() => {
     const ac = new AbortController();
@@ -370,6 +435,17 @@ export default function App() {
           freewheelDurationLimits={freewheelMeta.freewheel_max_duration_sec}
           onChangeFreewheel={updateFreewheel}
           onClose={() => setSettingsOpen(false)}
+        />
+      )}
+      {popupQueue.length > 0 && (
+        <TrackNotePopup
+          key={`${popupQueue[0].deck}-${popupQueue[0].fileName}`}
+          deck={popupQueue[0].deck}
+          fileName={popupQueue[0].fileName}
+          title={popupQueue[0].title}
+          artist={popupQueue[0].artist}
+          description={popupQueue[0].description}
+          onDismiss={dismissTopPopup}
         />
       )}
     </div>

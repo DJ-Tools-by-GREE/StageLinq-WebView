@@ -9,7 +9,7 @@ import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { StageLinqBridge } from './stagelinqBridge.js';
-import type { DeckNumber, SnapshotPayload, WaveformStatusPayload, WsPayload } from './types.js';
+import type { DeckNumber, SnapshotPayload, TrackNote, WaveformStatusPayload, WsPayload } from './types.js';
 import { ArtNetTimecodeBroadcaster } from './artnetTimecode.js';
 import { OscBpmSender } from './oscBpm.js';
 import { RECONNECT_DELAY_MS, WS_FPS, WAVEFORM_PEAKS_PER_SEC, DISCONNECT_DETECT_TIMEOUT_S, MAIN_EVENT_LOOP_LAG_WARN_MS, WS_BROADCAST_WARN_MS } from './constants.js';
@@ -132,6 +132,10 @@ interface ConfigTrack {
   offset_sec?: number;
   offset_frame?: number;
   mashup_only?: boolean;
+  note?: {
+    description?: string;
+    show_secs_after_load?: number;
+  };
 }
 
 interface RootConfig {
@@ -233,6 +237,30 @@ function buildTrackOffsetMap(cfg: RootConfig | null): Map<string, { offsetSec: n
         offsetSec: Number(item.offset_sec ?? 0),
         offsetFrame: Number(item.offset_frame ?? 0),
       });
+    }
+  }
+
+  return map;
+}
+
+function buildTrackNoteMap(cfg: RootConfig | null): Map<string, { description: string; showSecsAfterLoad: number }> {
+  const map = new Map<string, { description: string; showSecsAfterLoad: number }>();
+  const playlists = cfg?.playlists ?? [];
+
+  const currentIdx = Number(cfg?.current_playlist ?? -1);
+  const ordered = playlists
+    .map((pl, idx) => ({ pl, idx }))
+    .sort((a, b) => (a.idx === currentIdx ? -1 : b.idx === currentIdx ? 1 : a.idx - b.idx));
+
+  for (const { pl } of ordered) {
+    for (const item of pl.content ?? []) {
+      const key = normalizeTrackName(String(item.song_index ?? ''));
+      if (!key || map.has(key)) continue;
+      const desc = String(item.note?.description ?? '').trim();
+      if (!desc) continue;
+      const delayRaw = Number(item.note?.show_secs_after_load ?? 0);
+      const delay = Number.isFinite(delayRaw) && delayRaw >= 0 ? delayRaw : 0;
+      map.set(key, { description: desc, showSecsAfterLoad: delay });
     }
   }
 
@@ -427,6 +455,7 @@ async function main() {
   const controlChannelIndex = Math.max(0, controlAddress - 1);
 
   let trackOffsets = buildTrackOffsetMap(config);
+  let trackNotes = buildTrackNoteMap(config);
   let activePlaylistFiles = buildActivePlaylistFileSet(config);
   let waveformAllTracks = config?.waveform?.all_tracks ?? true;
 
@@ -441,6 +470,7 @@ async function main() {
       if (config?.logging) applyLoggingConfig(config.logging);
       if (config?.display) applyDisplayConfig(config.display);
       trackOffsets = buildTrackOffsetMap(config);
+      trackNotes = buildTrackNoteMap(config);
       activePlaylistFiles = buildActivePlaylistFileSet(config);
       waveformAllTracks = config?.waveform?.all_tracks ?? true;
       // Re-apply freewheel from the reloaded file. Operator-edited (via UI) values are
@@ -1075,6 +1105,14 @@ async function main() {
       oscBpm.sendDeckBpm(decks[selectedDeck]);
     }
 
+    const deckNotes: Record<DeckNumber, TrackNote | null> = { 1: null, 2: null, 3: null, 4: null };
+    for (const d of [1, 2, 3, 4] as DeckNumber[]) {
+      const fn = decks[d]?.fileName;
+      if (!decks[d]?.trackLoaded || !fn) continue;
+      const found = trackNotes.get(normalizeTrackName(fn));
+      if (found) deckNotes[d] = found;
+    }
+
     const payload: SnapshotPayload = {
       type: 'snapshot',
       seq: ++seq,
@@ -1085,6 +1123,7 @@ async function main() {
       stagelinqStatus: reconnecting ? 'reconnecting'
         : bridge.getLastBeatAgeMs() <= DISCONNECT_DETECT_TIMEOUT_S * 1000 ? 'connected'
         : 'no-device',
+      deckNotes,
     };
 
     // Log only when meaningful values changed

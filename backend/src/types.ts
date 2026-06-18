@@ -12,6 +12,11 @@ export interface SavedLoop {
   active: boolean;
 }
 
+export interface TrackNote {
+  description: string;
+  showSecsAfterLoad: number;
+}
+
 export interface DeckState {
   deck: DeckNumber;
   trackLoaded: boolean;
@@ -48,6 +53,7 @@ export interface SnapshotPayload {
   selectedDeck: DeckNumber | null;
   nextTrack: string | null;
   stagelinqStatus: StageLinqStatus;
+  deckNotes: Record<DeckNumber, TrackNote | null>;
 }
 
 export interface HelloPayload {

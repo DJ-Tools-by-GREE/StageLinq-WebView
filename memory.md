@@ -196,6 +196,43 @@ detail waveform). Future fields are added by extending the typed
 
 ---
 
+### 2026-06-18 — Per-track `note` block: in-UI popup on load
+
+**What:** Each entry in `playlists[].content[]` may carry an optional `note`
+block:
+
+```json
+"note": { "description": "remember the laser cue", "show_secs_after_load": 5 }
+```
+
+When a track with a non-empty `description` loads on any deck, the frontend
+shows a modal popup `show_secs_after_load` seconds later (default 0). The popup
+is dismissed by clicking the backdrop or the close button. Replacing/unloading
+the track on that deck before the delay elapses cancels the pending popup.
+
+**Renaming note:** the adjacent `show_secs_before_transition_starts` field
+(present in early `config.json` snapshots but never read by code) was renamed
+to `show_secs_after_load` in the same change. No backwards-compat shim — the
+old name is gone everywhere.
+
+**Wiring:**
+- Backend: [`buildTrackNoteMap`](backend/src/index.ts) builds a normalized
+  filename → `{ description, showSecsAfterLoad }` map, prioritizing the active
+  playlist (same priority logic as `buildTrackOffsetMap`). The snapshot
+  loop writes a per-deck `deckNotes: Record<DeckNumber, TrackNote | null>`
+  field on `SnapshotPayload`.
+- Frontend: [App.tsx](frontend/src/App.tsx) keeps a `pendingPopupTimers` map
+  (one timer per deck) and a `seenNoteForFile` ref to fire the timer exactly
+  once per `(deck, fileName)`. Popups queue in order — only the head is
+  rendered. The popup component [TrackNotePopup.tsx](frontend/src/TrackNotePopup.tsx)
+  uses the per-deck accent (`theme-d1..d4`) for the border/header tint.
+
+**Why:** lets the operator stash short notes against tracks (cue reminders,
+transition recipes) and have them surface automatically a few seconds into
+playback — no need to read the config during a show.
+
+---
+
 ### 2026-06-17 — `mashup_only` flag on playlist entries
 
 **What:** Each entry in `playlists[].content[]` may carry an optional
