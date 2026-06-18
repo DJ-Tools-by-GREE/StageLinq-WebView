@@ -73,6 +73,13 @@ export function effectiveShowTrackNotes(settings: UserSettings | undefined): boo
   return effectiveRole(settings) === 'DJ';
 }
 
+// Keys whose effective value is derived from the user's role when not
+// explicitly set. The reset button in SettingsModal clears exactly these
+// fields so the user falls back to whatever their current role implies.
+// Add new role-derived keys here and they participate in the reset
+// automatically.
+export const ROLE_DERIVED_KEYS: ReadonlyArray<keyof UserSettings> = ['showTrackNotes'];
+
 export async function fetchAllUsers(signal?: AbortSignal): Promise<UsersMap> {
   const res = await fetch('/api/users', { signal });
   if (!res.ok) throw new Error(`GET /api/users → ${res.status}`);

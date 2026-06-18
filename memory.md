@@ -251,6 +251,16 @@ and is the source of truth for both the picker options and the
 `effectiveRole`/`effectiveShowTrackNotes` lookups. Backend `UserSettings` is
 an open bag (`[key: string]: unknown`), so no schema migration was needed.
 
+**Role-derived keys + reset:** the list of fields whose default depends on
+the role lives in `ROLE_DERIVED_KEYS` (today: `['showTrackNotes']`). The
+"Reset to {role} defaults" button in SettingsModal patches all those keys to
+`undefined`, and `updateUserSettings` honors `undefined` by **deleting** the
+key from the persisted object — so the field falls back to whatever its
+role-derived default returns. Adding a new role-driven setting in the future
+is one line in `ROLE_DERIVED_KEYS` plus the corresponding `effective*`
+helper. Settings without a role default (e.g. `detailZoomSec`) are not
+touched by the reset.
+
 ---
 
 ### 2026-06-17 — `mashup_only` flag on playlist entries

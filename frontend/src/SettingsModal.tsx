@@ -10,6 +10,10 @@ interface Props {
   onChangeShowTrackNotes: (value: boolean) => void;
   role: Role;
   onChangeRole: (value: Role) => void;
+  onResetRoleDefaults: () => void;
+  // True iff at least one role-derived field has an explicit user override
+  // right now. Drives the enabled state and label of the reset button.
+  hasRoleOverrides: boolean;
   freewheel: FreewheelSettings | null;
   freewheelDurationLimits: { min: number; max: number };
   onChangeFreewheel: (patch: Partial<FreewheelSettings>) => void;
@@ -28,6 +32,8 @@ export default function SettingsModal({
   onChangeShowTrackNotes,
   role,
   onChangeRole,
+  onResetRoleDefaults,
+  hasRoleOverrides,
   freewheel,
   freewheelDurationLimits,
   onChangeFreewheel,
@@ -147,8 +153,30 @@ export default function SettingsModal({
               <div className="settingHint">
                 When enabled, tracks with a non-empty <code>note.description</code>
                 {' '}in the active playlist surface a popup after they load. The
-                delay is per-track via <code>show_secs_after_load</code>. Default:
-                enabled.
+                delay is per-track via <code>show_secs_after_load</code>.
+                Default follows your role: <strong>DJ</strong> on, others off.
+                Toggling here pins your choice and overrides the role default.
+              </div>
+            </div>
+
+            <div className="settingRow">
+              <div className="settingLabel">
+                Role-derived defaults
+                <span className="settingValue">
+                  {hasRoleOverrides ? 'overridden' : 'in sync'}
+                </span>
+              </div>
+              <button
+                className="toggleBtn off"
+                disabled={!hasRoleOverrides}
+                onClick={onResetRoleDefaults}
+              >
+                Reset to {role} defaults
+              </button>
+              <div className="settingHint">
+                Clears your explicit overrides on settings that have a role
+                default (today: track-note popups). Settings without a role
+                default — like the waveform zoom — are unaffected.
               </div>
             </div>
           </section>

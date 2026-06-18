@@ -19,6 +19,7 @@ import {
   loadActiveUser,
   saveActiveUser,
   clampZoom,
+  ROLE_DERIVED_KEYS,
 } from './userSettings.js';
 import {
   fetchGlobalSettings,
@@ -107,6 +108,11 @@ export default function App() {
   const detailZoomSec = effectiveZoom(users[activeUser]);
   const showTrackNotes = effectiveShowTrackNotes(users[activeUser]);
   const role = effectiveRole(users[activeUser]);
+  // True iff at least one role-derived field is currently overridden by an
+  // explicit user value. Drives the reset-button enabled state in Settings.
+  const hasRoleOverrides = ROLE_DERIVED_KEYS.some(
+    (k) => users[activeUser]?.[k] !== undefined,
+  );
 
   const setActiveUser = useCallback((name: UserName) => {
     saveActiveUser(name);
@@ -153,9 +159,17 @@ export default function App() {
   // user B does not drop A's pending write.
   const putTimersRef = useRef<Partial<Record<UserName, ReturnType<typeof setTimeout>>>>({});
 
+  // Patch semantics: any key whose value is `undefined` is REMOVED from the
+  // persisted settings (so the field falls back to role/global defaults).
+  // Any other value overwrites. Used by the "Reset to role defaults" button
+  // in SettingsModal — see ROLE_DERIVED_KEYS in userSettings.ts.
   const updateUserSettings = useCallback((name: UserName, patch: Partial<UserSettings>) => {
     setUsers((prev) => {
-      const merged: UserSettings = { ...prev[name], ...patch };
+      const merged: UserSettings = { ...prev[name] };
+      for (const [k, v] of Object.entries(patch)) {
+        if (v === undefined) delete (merged as Record<string, unknown>)[k];
+        else (merged as Record<string, unknown>)[k] = v;
+      }
       const next: UsersMap = { ...prev, [name]: merged };
       const existing = putTimersRef.current[name];
       if (existing) clearTimeout(existing);
@@ -469,6 +483,12 @@ export default function App() {
           onChangeRole={(v: Role) =>
             updateUserSettings(activeUser, { role: v })
           }
+          onResetRoleDefaults={() => {
+            const patch: Partial<UserSettings> = {};
+            for (const k of ROLE_DERIVED_KEYS) (patch as Record<string, undefined>)[k] = undefined;
+            updateUserSettings(activeUser, patch);
+          }}
+          hasRoleOverrides={hasRoleOverrides}
           freewheel={freewheel}
           freewheelDurationLimits={freewheelMeta.freewheel_max_duration_sec}
           onChangeFreewheel={updateFreewheel}
