@@ -8,6 +8,7 @@ interface Props {
   stagelinqStatus: StageLinqStatus;
   selectedDeck: DeckNumber | null;
   selectedDeckState: DeckState | null;
+  suggestedDeck: DeckNumber | null;
   nextTrack: string | null;
   sendWhenStopped: boolean;
   settingBusy: boolean;
@@ -23,6 +24,7 @@ export default function HeaderBar({
   stagelinqStatus,
   selectedDeck,
   selectedDeckState,
+  suggestedDeck,
   nextTrack,
   sendWhenStopped,
   settingBusy,
@@ -89,6 +91,13 @@ export default function HeaderBar({
           </span>
         ) : (
           <span className="headerMuted">no deck selected</span>
+        )}
+
+        {suggestedDeck && (
+          <span className={`headerSuggest theme-d${suggestedDeck}`}>
+            <span className="headerSuggestLabel">SUGGESTED DECK</span>
+            <span className="headerSuggestDeck">{DECK_LABEL[suggestedDeck]}</span>
+          </span>
         )}
 
         {nextTrackDisplay && (

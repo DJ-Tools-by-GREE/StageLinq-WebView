@@ -5,6 +5,7 @@ import DeckCard from './DeckCard.js';
 import HeaderBar from './HeaderBar.js';
 import SettingsModal from './SettingsModal.js';
 import TrackNotePopup from './TrackNotePopup.js';
+import ConfigEditorOverlay from './configEditor/ConfigEditorOverlay.js';
 import {
   FIXED_USERS,
   type UserName,
@@ -24,8 +25,10 @@ import {
 import {
   fetchGlobalSettings,
   putFreewheelSettings,
+  postReloadConfig,
   type FreewheelSettings,
   type GlobalSettingsMeta,
+  type ReloadConfigResult,
   FREEWHEEL_DURATION_FALLBACK,
 } from './globalSettings.js';
 
@@ -83,11 +86,13 @@ export default function App() {
   const [connected, setConnected] = useState(false);
   const [stagelinqStatus, setStagelinqStatus] = useState<StageLinqStatus>('no-device');
   const [selectedDeck, setSelectedDeck] = useState<DeckNumber | null>(null);
+  const [suggestedDeck, setSuggestedDeck] = useState<DeckNumber | null>(null);
   const [nextTrack, setNextTrack] = useState<string | null>(null);
   const [sendWhenStopped, setSendWhenStopped] = useState(false);
   const [settingBusy, setSettingBusy] = useState(false);
   const [headerVisible, setHeaderVisible] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [configEditorOpen, setConfigEditorOpen] = useState(false);
 
   // Users + active user. Users map starts as empty per name and is
   // hydrated from /api/users on mount. The active-user pick is per-browser.
@@ -153,6 +158,19 @@ export default function App() {
         .then((res) => setFreewheel(res.freewheel))
         .catch(() => {});
     }
+  }, []);
+
+  // Mid-show config reload. Refetches global settings on success so the
+  // freewheel knob reflects whatever the file now says (in case the operator
+  // hand-edited config.json before clicking).
+  const reloadBackendConfig = useCallback(async (): Promise<ReloadConfigResult> => {
+    const result = await postReloadConfig();
+    if (result.ok) {
+      fetchGlobalSettings()
+        .then((res) => setFreewheel(res.freewheel))
+        .catch(() => {});
+    }
+    return result;
   }, []);
 
   // Per-user debounced PUT. One timer per user so quickly editing user A then
@@ -264,6 +282,7 @@ export default function App() {
         }
         setDecks(nextDecks);
         setSelectedDeck(msg.selectedDeck ?? null);
+        setSuggestedDeck(msg.suggestedDeck ?? null);
         setNextTrack(msg.nextTrack ?? null);
         setStagelinqStatus(msg.stagelinqStatus);
         const prev = prevLoadedRef.current;
@@ -438,6 +457,7 @@ export default function App() {
           stagelinqStatus={stagelinqStatus}
           selectedDeck={selectedDeck}
           selectedDeckState={selectedDeck ? decks[selectedDeck] : null}
+          suggestedDeck={suggestedDeck}
           nextTrack={nextTrack}
           sendWhenStopped={sendWhenStopped}
           settingBusy={settingBusy}
@@ -455,6 +475,7 @@ export default function App() {
             state={decks[d]}
             waveform={waveforms[d]}
             selected={selectedDeck === d}
+            suggested={suggestedDeck === d}
             artworkUrl={artworkUrls[decks[d].fileName] ?? null}
             elapsedSecRef={elapsedRefs.current[d]}
             detailZoomSec={detailZoomSec}
@@ -492,8 +513,16 @@ export default function App() {
           freewheel={freewheel}
           freewheelDurationLimits={freewheelMeta.freewheel_max_duration_sec}
           onChangeFreewheel={updateFreewheel}
+          onReloadConfig={reloadBackendConfig}
+          onOpenConfigEditor={() => {
+            setSettingsOpen(false);
+            setConfigEditorOpen(true);
+          }}
           onClose={() => setSettingsOpen(false)}
         />
+      )}
+      {configEditorOpen && (
+        <ConfigEditorOverlay onClose={() => setConfigEditorOpen(false)} />
       )}
       {popupQueue.length > 0 && (
         <TrackNotePopup

@@ -51,6 +51,10 @@ export interface SnapshotPayload {
   ts: number;
   decks: Record<DeckNumber, DeckState>;
   selectedDeck: DeckNumber | null;
+  // Deck the operator is advised to switch to next (track in active playlist
+  // is loaded there, no loop active, and either that deck is playing or the
+  // selected deck has stopped). Null when nothing matches.
+  suggestedDeck: DeckNumber | null;
   nextTrack: string | null;
   stagelinqStatus: StageLinqStatus;
   deckNotes: Record<DeckNumber, TrackNote | null>;

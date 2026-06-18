@@ -91,4 +91,13 @@ export class OscBpmSender {
       });
     }
   }
+
+  // One-shot custom OSC command on the same /cmd address — used for the
+  // deck-suggestion strings (sugDeck_1..4). Bypasses BPM dedup so a
+  // re-suggestion of the same deck still fires.
+  sendCustomCommand(command: string) {
+    if (!this.opts.enabled) return;
+    if (!command) return;
+    this.transmit(command);
+  }
 }

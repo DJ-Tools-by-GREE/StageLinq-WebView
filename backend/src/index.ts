@@ -151,6 +151,7 @@ interface RootConfig {
     mode?: string;
     universe?: number;
     address?: number;
+    execute_address?: number;
   };
   osc?: {
     enabled?: boolean;
@@ -254,6 +255,7 @@ function buildTrackNoteMap(cfg: RootConfig | null): Map<string, { description: s
 
   for (const { pl } of ordered) {
     for (const item of pl.content ?? []) {
+      if (item.mashup_only === true) continue;
       const key = normalizeTrackName(String(item.song_index ?? ''));
       if (!key || map.has(key)) continue;
       const desc = String(item.note?.description ?? '').trim();
@@ -297,16 +299,68 @@ function computeNextTrack(cfg: RootConfig | null, currentFileName: string | null
   const playlists = cfg?.playlists ?? [];
   const idx = Number(cfg?.current_playlist ?? -1);
   if (idx < 0 || idx >= playlists.length) return null;
-  const content = playlists[idx].content ?? [];
-  const isPlayable = (item: ConfigTrack) => item.mashup_only !== true;
-  if (!currentFileName) return content.find(isPlayable)?.song_index ?? null;
+  // Mashups are UI-only — they must be invisible to ordering logic, both as
+  // cursor positions (matching the currently-loaded file) and as candidates
+  // for the next track. Filter them out once and run cursor logic on the
+  // resulting "playable" list.
+  const playable = (playlists[idx].content ?? []).filter((item) => item.mashup_only !== true);
+  if (!currentFileName) return playable[0]?.song_index ?? null;
   const key = normalizeTrackName(currentFileName);
-  const pos = content.findIndex((item) => normalizeTrackName(String(item.song_index ?? '')) === key);
+  const pos = playable.findIndex((item) => normalizeTrackName(String(item.song_index ?? '')) === key);
   if (pos < 0) return null;
-  for (let i = pos + 1; i < content.length; i++) {
-    if (isPlayable(content[i])) return content[i].song_index ?? null;
+  return playable[pos + 1]?.song_index ?? null;
+}
+
+// Locate which deck (if any) currently holds the given playlist filename.
+// Tiebreak: prefer a playing deck, then the lowest deck number.
+function findDeckForFile(
+  decks: Record<DeckNumber, import('./types.js').DeckState>,
+  fileName: string | null,
+): DeckNumber | null {
+  if (!fileName) return null;
+  const target = normalizeTrackName(fileName);
+  const matches: DeckNumber[] = [];
+  for (const d of [1, 2, 3, 4] as DeckNumber[]) {
+    const ds = decks[d];
+    if (!ds?.trackLoaded || !ds.fileName) continue;
+    if (normalizeTrackName(ds.fileName) === target) matches.push(d);
   }
-  return null;
+  if (matches.length === 0) return null;
+  const playing = matches.find((d) => decks[d].play);
+  return playing ?? matches[0];
+}
+
+// Decide which deck the operator should switch to next.
+// Triggers (either fires a suggestion; both require: next-track deck has no loop
+// active, the candidate deck is not already selected, and the candidate deck is
+// loaded with the playlist's next track):
+//   A) Next-track deck is currently playing.
+//   B) The currently selected deck has stopped (play=false) AND the next-track
+//      deck has that track loaded.
+function computeSuggestedDeck(
+  cfg: RootConfig | null,
+  decks: Record<DeckNumber, import('./types.js').DeckState>,
+  selectedDeck: DeckNumber | null,
+): DeckNumber | null {
+  if (!selectedDeck) return null;
+  const selected = decks[selectedDeck];
+  if (!selected) return null;
+
+  const nextFile = computeNextTrack(cfg, selected.trackLoaded ? selected.fileName : null);
+  if (!nextFile) return null;
+
+  const candidate = findDeckForFile(decks, nextFile);
+  if (!candidate) return null;
+  if (candidate === selectedDeck) return null;
+
+  const candDeck = decks[candidate];
+  if (candDeck.loopActive) return null;
+
+  const triggerA = candDeck.play === true;
+  const triggerB = selected.play === false && candDeck.trackLoaded === true;
+  if (!triggerA && !triggerB) return null;
+
+  return candidate;
 }
 
 function mapDmxToDeck(value: number): DeckNumber | null {
@@ -451,8 +505,13 @@ async function main() {
   const controlMode = String(process.env.CONTROL_INPUT_MODE ?? config?.control_input?.mode ?? 'sacn').toLowerCase();
   const sacnUniverse = Number(process.env.SACN_UNIVERSE ?? config?.control_input?.universe ?? 20);
   const controlAddress = Number(process.env.SACN_ADDRESS ?? config?.control_input?.address ?? 1);
+  // Execute-suggestion channel: rising-edge >127 fires the OSC `sugDeck_<n>`
+  // for the currently displayed suggestion. The lighting console drives this
+  // when it confirms the suggestion. Defaults to channel 3, same universe.
+  const executeAddress = Number(process.env.SACN_EXECUTE_ADDRESS ?? config?.control_input?.execute_address ?? 3);
   const sacnSimEnabled = (process.env.SACN_SIM === '1') || (config?.sacn_sim?.enabled === true);
   const controlChannelIndex = Math.max(0, controlAddress - 1);
+  const executeChannelIndex = Math.max(0, executeAddress - 1);
 
   let trackOffsets = buildTrackOffsetMap(config);
   let trackNotes = buildTrackNoteMap(config);
@@ -460,8 +519,12 @@ async function main() {
   let waveformAllTracks = config?.waveform?.all_tracks ?? true;
 
   let reloadInProgress = false;
-  const reloadConfig = async () => {
-    if (reloadInProgress) return;
+  type ReloadResult =
+    | { ok: true; offsetEntries: number; sourcePath: string | null }
+    | { ok: false; reason: 'in-progress' }
+    | { ok: false; reason: 'error'; error: string };
+  const reloadConfig = async (): Promise<ReloadResult> => {
+    if (reloadInProgress) return { ok: false, reason: 'in-progress' };
     reloadInProgress = true;
     try {
       const next = await loadRootConfig();
@@ -479,8 +542,11 @@ async function main() {
       if (configPath) globalSettings.reset(configPath, { freewheel: fw });
       artnet.setFreewheel(fw.enable_freewheeling, fw.max_duration_sec);
       logLifecycle(`${GRN}[CONFIG] Reloaded. Offset entries: ${trackOffsets.size}${RST}`);
+      return { ok: true, offsetEntries: trackOffsets.size, sourcePath: configPath };
     } catch (e: any) {
-      logError('[CONFIG] Reload failed:', e?.message || e);
+      const msg = e?.message || String(e);
+      logError('[CONFIG] Reload failed:', msg);
+      return { ok: false, reason: 'error', error: msg };
     } finally {
       reloadInProgress = false;
     }
@@ -632,6 +698,69 @@ async function main() {
       `${GRN}[FREEWHEEL] enable=${next.enable_freewheeling} max=${next.max_duration_sec}s${RST}`,
     );
     res.json({ freewheel: next });
+  });
+
+  // Bulk read/write of the on-disk config.json. Backs the in-app config editor.
+  // Write-only: the operator must Ctrl+R (or restart) to apply — keeps a Save
+  // mid-show from re-initialising the StageLinq bridge / Art-Net worker by
+  // surprise. The freewheel knob in the runtime settings modal is its own
+  // live-knob path (`PUT /api/global-settings/freewheel`) and stays unaffected.
+  app.get('/api/config', async (_req, res) => {
+    try {
+      if (!configPath) {
+        res.status(404).json({ error: 'no config.json found on disk' });
+        return;
+      }
+      const raw = await fs.readFile(configPath, 'utf8');
+      const parsed = JSON.parse(stripJsonComments(raw));
+      res.json({ config: parsed, sourcePath: configPath });
+    } catch (e: any) {
+      logError('[CONFIG] GET /api/config failed:', e?.message || e);
+      res.status(500).json({ error: e?.message || String(e) });
+    }
+  });
+
+  app.put('/api/config', async (req, res) => {
+    if (!configPath) {
+      res.status(500).json({ error: 'no config.json path resolved at boot' });
+      return;
+    }
+    const body = req.body;
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      res.status(400).json({ error: 'body must be a JSON object' });
+      return;
+    }
+    try {
+      const text = JSON.stringify(body, null, 4) + '\n';
+      const tmp = `${configPath}.tmp`;
+      await fs.writeFile(tmp, text, 'utf8');
+      await fs.rename(tmp, configPath);
+      logLifecycle(`${GRN}[CONFIG] Wrote ${configPath} via PUT /api/config (operator must Ctrl+R or restart to apply).${RST}`);
+      res.json({ ok: true, sourcePath: configPath, applied: false });
+    } catch (e: any) {
+      logError('[CONFIG] PUT /api/config failed:', e?.message || e);
+      res.status(500).json({ error: e?.message || String(e) });
+    }
+  });
+
+  // Mid-show hot reload — same code path as Ctrl+R on the backend TTY, exposed
+  // for headless / PM2 deployments and arm-gated in the UI.
+  app.post('/api/config/reload', async (_req, res) => {
+    logLifecycle(`${YEL}[CONFIG] HTTP reload requested. Reloading config...${RST}`);
+    const result = await reloadConfig();
+    if (result.ok) {
+      res.json({
+        ok: true,
+        sourcePath: result.sourcePath,
+        offsetEntries: result.offsetEntries,
+      });
+      return;
+    }
+    if (result.reason === 'in-progress') {
+      res.status(409).json({ ok: false, error: 'reload already in progress' });
+      return;
+    }
+    res.status(500).json({ ok: false, error: result.error });
   });
 
   app.get('/api/artwork/:deck', (req, res) => {
@@ -916,6 +1045,11 @@ async function main() {
     logLifecycle(`[DECK SELECT] ${selectedDeck ? `Deck ${selectedDeck}` : 'No deck selected'} (${reason})`);
   };
 
+  // Latest auto-suggested deck. Updated each snapshot tick by the broadcast
+  // loop. Read by the sACN execute-channel rising-edge handler to decide
+  // which `sugDeck_<n>` OSC command to fire on operator confirmation.
+  let currentSuggestedDeck: DeckNumber | null = null;
+
   // Control input from config (currently sACN mode supported).
   if (controlMode === 'sacn') {
     try {
@@ -923,6 +1057,10 @@ async function main() {
       const Receiver = sacn?.Receiver ?? sacn?.default?.Receiver;
       if (Receiver) {
         const sACN = new Receiver({ universes: [sacnUniverse] });
+        // Rising-edge tracker for the execute channel. Initialized true so a
+        // packet that arrives already-high (re-subscribe mid-show, console
+        // sitting on >127) does NOT count as a fresh edge.
+        let lastExecuteHigh = true;
 
         sACN.on('packet', (packet: any) => {
           const payload = coerceDmxPayload(packet);
@@ -932,12 +1070,30 @@ async function main() {
           const dmxValue = Number(
             payload[controlAddress] ?? payload[controlChannelIndex]
           );
-          if (!Number.isFinite(dmxValue)) return;
+          if (Number.isFinite(dmxValue)) {
+            const absoluteDmxValue = toAbsoluteDmxValue(dmxValue);
+            const nextDeck = mapDmxToDeck(absoluteDmxValue);
+            setSelectedDeck(nextDeck, `sACN U${sacnUniverse} CH${controlAddress}=${dmxValue} (abs ${absoluteDmxValue})`);
+          }
 
-          const absoluteDmxValue = toAbsoluteDmxValue(dmxValue);
-
-          const nextDeck = mapDmxToDeck(absoluteDmxValue);
-          setSelectedDeck(nextDeck, `sACN U${sacnUniverse} CH${controlAddress}=${dmxValue} (abs ${absoluteDmxValue})`);
+          // Execute-suggestion channel: rising edge >127 fires the OSC
+          // `sugDeck_<n>` for the currently displayed suggestion. Held-high
+          // does nothing until the value drops back under 127 and rises
+          // again, so a stuck fader cannot spam the lighting console.
+          const execRaw = Number(payload[executeAddress] ?? payload[executeChannelIndex]);
+          if (Number.isFinite(execRaw)) {
+            const execAbs = toAbsoluteDmxValue(execRaw);
+            const isHigh = execAbs > 127;
+            if (isHigh && !lastExecuteHigh) {
+              if (currentSuggestedDeck !== null) {
+                logLifecycle(`[DECK SUGGEST] Execute CH${executeAddress}=${execRaw} (abs ${execAbs}) -> sugDeck_${currentSuggestedDeck}`);
+                oscBpm?.sendCustomCommand(`sugDeck_${currentSuggestedDeck}`);
+              } else {
+                logLifecycle(`[DECK SUGGEST] Execute CH${executeAddress} rising edge ignored — no active suggestion`);
+              }
+            }
+            lastExecuteHigh = isHigh;
+          }
         });
 
         sACN.on('PacketCorruption', (err: any) => {
@@ -965,7 +1121,7 @@ async function main() {
           process.exit(0);
         });
 
-        logLifecycle(`[sACN] Listening Universe ${sacnUniverse}, Address ${controlAddress}`);
+        logLifecycle(`[sACN] Listening Universe ${sacnUniverse}, Address ${controlAddress} (select), Address ${executeAddress} (execute suggestion)`);
       } else {
         logError('[sACN] Receiver export not found. Deck select via sACN is disabled.');
       }
@@ -1098,6 +1254,9 @@ async function main() {
   // Broadcast snapshots at 30Hz
   const intervalMs = Math.round(1000 / WS_FPS);
   let lastBroadcastWarnAt = 0;
+  // Tracks the last suggestion we logged so we surface only edges in the
+  // log (the actual OSC dispatch is gated by the sACN execute channel).
+  let lastSuggestedDeck: DeckNumber | null = null;
   setInterval(() => {
     const decks = bridge.getDecks();
 
@@ -1113,12 +1272,33 @@ async function main() {
       if (found) deckNotes[d] = found;
     }
 
+    const suggestedDeck = computeSuggestedDeck(config, decks, selectedDeck);
+    // Publish to the closure so the sACN execute-channel handler can read
+    // the latest suggestion when the lighting console fires the rising edge.
+    currentSuggestedDeck = suggestedDeck;
+
+    // Log suggestion edges only — OSC dispatch is no longer automatic; the
+    // operator confirms via sACN CH3 (see sACN packet handler).
+    if (suggestedDeck !== lastSuggestedDeck) {
+      if (suggestedDeck !== null) {
+        const reason =
+          decks[suggestedDeck].play
+            ? 'next-track deck playing'
+            : 'selected deck stopped, next track pre-loaded';
+        logLifecycle(`[DECK SUGGEST] Deck ${suggestedDeck} (${reason})`);
+      } else {
+        logLifecycle(`[DECK SUGGEST] cleared`);
+      }
+      lastSuggestedDeck = suggestedDeck;
+    }
+
     const payload: SnapshotPayload = {
       type: 'snapshot',
       seq: ++seq,
       ts: Date.now(),
       decks,
       selectedDeck,
+      suggestedDeck,
       nextTrack: computeNextTrack(config, selectedDeck ? decks[selectedDeck].fileName : null),
       stagelinqStatus: reconnecting ? 'reconnecting'
         : bridge.getLastBeatAgeMs() <= DISCONNECT_DETECT_TIMEOUT_S * 1000 ? 'connected'

@@ -55,6 +55,7 @@ export interface SnapshotPayload {
   ts: number;
   decks: Record<DeckNumber, DeckState>;
   selectedDeck: DeckNumber | null;
+  suggestedDeck: DeckNumber | null;
   nextTrack: string | null;
   stagelinqStatus: StageLinqStatus;
   deckNotes: Record<DeckNumber, TrackNote | null>;

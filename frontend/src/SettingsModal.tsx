@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { ROLES, type Role, type UserName } from './userSettings.js';
-import type { FreewheelSettings } from './globalSettings.js';
+import type { FreewheelSettings, ReloadConfigResult } from './globalSettings.js';
 
 interface Props {
   activeUser: UserName;
@@ -17,6 +17,8 @@ interface Props {
   freewheel: FreewheelSettings | null;
   freewheelDurationLimits: { min: number; max: number };
   onChangeFreewheel: (patch: Partial<FreewheelSettings>) => void;
+  onReloadConfig: () => Promise<ReloadConfigResult>;
+  onOpenConfigEditor: () => void;
   onClose: () => void;
 }
 
@@ -37,6 +39,8 @@ export default function SettingsModal({
   freewheel,
   freewheelDurationLimits,
   onChangeFreewheel,
+  onReloadConfig,
+  onOpenConfigEditor,
   onClose,
 }: Props) {
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -46,6 +50,23 @@ export default function SettingsModal({
   // momentary mis-click on the toggle never leaves controls hot indefinitely.
   const [armed, setArmed] = useState(false);
   const [armPersistent, setArmPersistent] = useState(false);
+
+  // Reload-config status, surfaced as an inline pill next to the button.
+  // 'idle' is the resting state; success/error auto-clear back to idle so the
+  // pill reflects the *current* outcome, not a stale one from minutes ago.
+  type ReloadStatus =
+    | { kind: 'idle' }
+    | { kind: 'reloading' }
+    | { kind: 'ok' }
+    | { kind: 'error'; message: string };
+  const [reloadStatus, setReloadStatus] = useState<ReloadStatus>({ kind: 'idle' });
+  const reloadResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (reloadResetTimerRef.current) clearTimeout(reloadResetTimerRef.current);
+    };
+  }, []);
 
   // Single funnel for any "armed click" inside the Controls section. If persistent
   // arm is off, snaps the slider back to 0 immediately so the next click also
@@ -69,6 +90,32 @@ export default function SettingsModal({
 
   const fwEnabled = freewheel?.enable_freewheeling ?? true;
   const fwDuration = freewheel?.max_duration_sec ?? 30;
+
+  const triggerReload = useCallback(async () => {
+    if (reloadStatus.kind === 'reloading') return;
+    if (reloadResetTimerRef.current) {
+      clearTimeout(reloadResetTimerRef.current);
+      reloadResetTimerRef.current = null;
+    }
+    setReloadStatus({ kind: 'reloading' });
+    const result = await onReloadConfig();
+    setReloadStatus(
+      result.ok ? { kind: 'ok' } : { kind: 'error', message: result.error || 'failed' },
+    );
+    reloadResetTimerRef.current = setTimeout(() => {
+      setReloadStatus({ kind: 'idle' });
+      reloadResetTimerRef.current = null;
+    }, 3000);
+  }, [onReloadConfig, reloadStatus.kind]);
+
+  const reloadStatusLabel =
+    reloadStatus.kind === 'reloading'
+      ? 'reloading…'
+      : reloadStatus.kind === 'ok'
+      ? 'ok ✓'
+      : reloadStatus.kind === 'error'
+      ? `error: ${reloadStatus.message}`
+      : 'idle';
 
   return (
     <div className="modalBackdrop" onMouseDown={onClose}>
@@ -207,6 +254,23 @@ export default function SettingsModal({
                 to config.json. Applies to all users.
               </div>
             </div>
+
+            <div className="settingRow">
+              <div className="settingLabel">
+                Edit config.json
+                <span className="settingValue">advanced</span>
+              </div>
+              <button className="toggleBtn off" onClick={onOpenConfigEditor}>
+                Open config editor…
+              </button>
+              <div className="settingHint">
+                Full-screen editor for the on-disk <code>config.json</code> —
+                playlists, timecode targets, OSC, sACN input, logging
+                channels, and more. Save is <strong>write-only</strong>:
+                press <strong>Ctrl+R</strong> in the backend terminal (or
+                restart the process) to apply changes to the running show.
+              </div>
+            </div>
           </section>
 
           {/* ── Live operator controls ───────────────────────────────────── */}
@@ -289,6 +353,27 @@ export default function SettingsModal({
                   When disabled, Art-Net TC stops the instant StageLinq goes
                   stale instead of freewheeling at the last-known speed. Saved to
                   config.json (default: enabled) and applied immediately.
+                </div>
+              </div>
+
+              <div className="settingRow">
+                <div className="settingLabel">
+                  Reload config
+                  <span className="settingValue">{reloadStatusLabel}</span>
+                </div>
+                <button
+                  className="toggleBtn off"
+                  disabled={!armed || reloadStatus.kind === 'reloading'}
+                  onClick={() => consumeArmedClick(() => { void triggerReload(); })}
+                >
+                  Reload config from disk
+                </button>
+                <div className="settingHint">
+                  Re-reads <code>config.json</code> and re-applies playlist
+                  offsets, track notes, freewheel, logging, and display
+                  settings without restarting the show. Same effect as
+                  pressing <strong>Ctrl+R</strong> on the backend terminal —
+                  use this when running headless / under PM2.
                 </div>
               </div>
             </div>

@@ -39,3 +39,26 @@ export async function putFreewheelSettings(
   const j = (await r.json()) as { freewheel: FreewheelSettings };
   return j.freewheel;
 }
+
+export interface ReloadConfigResult {
+  ok: boolean;
+  sourcePath?: string | null;
+  offsetEntries?: number;
+  error?: string;
+}
+
+// Mid-show config reload. Mirrors Ctrl+R on the backend TTY. Never throws —
+// non-2xx and network errors are surfaced as `{ ok: false, error }` so the
+// caller can render the failure inline instead of a stack trace.
+export async function postReloadConfig(): Promise<ReloadConfigResult> {
+  try {
+    const r = await fetch('/api/config/reload', { method: 'POST' });
+    const j = (await r.json().catch(() => ({}))) as ReloadConfigResult;
+    if (!r.ok) {
+      return { ok: false, error: j?.error || `HTTP ${r.status}` };
+    }
+    return j;
+  } catch (e: any) {
+    return { ok: false, error: e?.message || String(e) };
+  }
+}

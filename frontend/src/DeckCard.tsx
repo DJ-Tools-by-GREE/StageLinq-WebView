@@ -50,12 +50,13 @@ interface Props {
   state: DeckState;
   waveform: WaveformState;
   selected: boolean;
+  suggested: boolean;
   artworkUrl: string | null;
   elapsedSecRef: { current: number };
   detailZoomSec: number;
 }
 
-export default function DeckCard({ state, waveform, selected, artworkUrl, elapsedSecRef, detailZoomSec }: Props) {
+export default function DeckCard({ state, waveform, selected, suggested, artworkUrl, elapsedSecRef, detailZoomSec }: Props) {
   const { deck, trackLoaded, title, artist, elapsedSec, totalSec, currentBpm,
           trackBpm, speedState, keyCamelot, fader, play } = state;
 
@@ -91,11 +92,16 @@ export default function DeckCard({ state, waveform, selected, artworkUrl, elapse
 
       <div className="cardHeader">
         <div className="trackInfo">
-          <div className={`art${selected ? ' art--selected' : ''}`}>
+          <div className={`art${selected ? ' art--selected' : ''}${suggested ? ' art--suggested' : ''}`}>
             {displayArtwork
               ? <img src={displayArtwork} alt="" className="artImg" />
               : <span>D{deck}</span>
             }
+            {suggested && (
+              <div className="artChangeOverlay" aria-live="polite">
+                <span className="artChangeText">Change Deck</span>
+              </div>
+            )}
           </div>
 
           <div className="titleBlock">

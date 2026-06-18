@@ -7,11 +7,12 @@ Real-time DJ deck visualizer for Denon Prime 4+ (Engine DJ / StageLinq). Display
 **Web UI**
 - 4-quadrant dark-theme layout, one deck per quadrant
 - Per deck: title, artist, album artwork, elapsed/total/remaining time, key (Camelot notation), current BPM, derived track BPM, relative pitch %, channel fader, scrollable waveform with playhead
-- Header bar showing selected deck, live BPM, and next-track name
+- Header bar showing selected deck, live BPM, next-track name, and a **Suggested Deck** pill when the auto-suggest logic recommends a switch (see *Auto deck suggestion*)
+- A blinking **Change Deck** overlay on the suggested deck's artwork until the operator switches to it
 - Live connection status badge (LIVE / OFFLINE)
 - Overlay button to toggle timecode transmission while playback is stopped
 - **User switcher** (header dropdown) — `Default User`, `Jan`, `Dennis`. Each user has their own UI settings (waveform zoom, role, track-note popups, …), stored server-side in `users.json` and applied on the fly when switched. The active-user pick is per-browser (`localStorage`). Each user carries a fixed-vocabulary `role` (`Viewer` / `DJ` / `Lighting & Tech`); the role can be picked from the Settings modal but new roles require a code change. Users with role `DJ` get track-note popups on by default; everyone else gets them off — an explicit toggle in Settings always overrides the role-derived default.
-- Settings popup (gear icon in the header) — adjusts the visible time-window of the detail waveform (4–30 s, default 10 s) for the active user; persisted to the server via `PUT /api/users/:name/settings`.
+- Settings popup (gear icon in the header) — adjusts the visible time-window of the detail waveform (4–30 s, default 10 s) for the active user; persisted to the server via `PUT /api/users/:name/settings`. Also hosts an **Open config editor…** button that launches a full-screen overlay for editing the on-disk `config.json` (playlists, timecode targets, OSC, sACN, logging, freewheel, …). The editor saves over `PUT /api/config`; saves are **write-only** — press `Ctrl+R` in the backend terminal, click **Settings → Controls → Reload config**, or `POST /api/config/reload` to apply.
 - WebSocket stream at 30 Hz
 
 **Art-Net timecode output** (optional)
@@ -24,10 +25,39 @@ Real-time DJ deck visualizer for Denon Prime 4+ (Engine DJ / StageLinq). Display
 **sACN / DMX control input** (optional)
 - Receives a single DMX channel over sACN to select which deck's timecode is broadcast
 - DMX thresholds: 0–49 → off, 50–100 → deck 1, 101–151 → deck 2, 152–202 → deck 3, 203–255 → deck 4
+- A second DMX channel (default 3) acts as the **execute-suggestion** trigger: a rising edge above 127 confirms the currently displayed auto-suggestion and fires `/cmd "sugDeck_<n>"` over OSC. Held-high does nothing — the value must drop back ≤127 and rise again to fire a fresh edge.
 
 **OSC BPM output** (optional)
 - Sends BPM to an OSC-compatible device when a deck is active via sACN
 - Format: `/cmd "Master 3.<channel> At BPM <bpm>"`
+- Also emits a one-shot `/cmd "sugDeck_<n>"` (n = 1–4) when the lighting console fires the execute-suggestion sACN channel — see *Auto deck suggestion*
+
+## Auto deck suggestion
+
+The backend continuously computes a **suggested deck** — the deck the operator should switch to next — based on the active playlist and the live deck states. It never changes the selected deck on its own; the lighting console is responsible for confirming the suggestion (typically by driving its existing CH1 to the new deck).
+
+A suggestion fires when **either** of the following holds, and **all** common conditions are met:
+
+| Trigger | Condition |
+|---|---|
+| **A — next-track deck started** | The deck holding the playlist's next track has `play = true`. |
+| **B — selected deck stopped** | The currently selected deck has `play = false` and the playlist's next track is loaded on another deck. |
+
+Common conditions (apply to both triggers):
+
+- The active playlist has a defined "next track" relative to the selected deck's current file.
+- That next track is currently loaded on exactly one deck (or, on a tie, the playing one wins, then the lowest deck number).
+- The candidate deck has **no loop active**.
+- The candidate is not already the selected deck.
+
+When the suggestion changes (no suggestion → deck N, or deck M → deck N), the backend:
+
+1. Sets `suggestedDeck` in every snapshot frame (visible to the UI as a header pill + blinking "Change Deck" overlay on the suggested deck's artwork).
+2. Logs the change as `[DECK SUGGEST] Deck N (reason)` via `logLifecycle`.
+
+OSC dispatch is **not automatic**. The lighting console confirms a suggestion by driving the **execute-suggestion sACN channel** (default 3) above 127. On the rising edge (≤127 → >127), the backend fires `/cmd "sugDeck_<n>"` once for whatever deck is currently suggested. While the channel sits high, no further commands are sent — the value must drop back below 127 before another edge counts. If no suggestion is active when the edge fires, the rising edge is logged and ignored.
+
+Manual deck selection via sACN CH1 keeps working unchanged at all times — the execute channel does not touch the selected-deck state, it only emits OSC.
 
 ## Prerequisites
 
@@ -106,7 +136,7 @@ npm run fresh   # npm install + full rebuild + show
 
 Settings can be provided as **environment variables** or in an optional **`config.json`** file at the repo root (or in `backend/`). Environment variables take precedence.
 
-Hot-reload: press **Ctrl+R** in the terminal running the backend to reload `config.json` without restarting.
+Hot-reload: press **Ctrl+R** in the terminal running the backend to reload `config.json` without restarting. For headless / PM2 deployments where there is no TTY, the same reload is exposed in the UI as **Settings → Controls → Reload config from disk** (arm-gated) and over HTTP as `POST /api/config/reload`.
 
 ### General
 
@@ -132,7 +162,8 @@ Hot-reload: press **Ctrl+R** in the terminal running the backend to reload `conf
 |---|---|---|
 | `CONTROL_INPUT_MODE` | `sacn` | Set to `none` to disable |
 | `SACN_UNIVERSE` | `20` | sACN universe to listen on |
-| `SACN_ADDRESS` | `1` | DMX channel (1-indexed) |
+| `SACN_ADDRESS` | `1` | DMX channel (1-indexed) for deck-select |
+| `SACN_EXECUTE_ADDRESS` | `3` | DMX channel (1-indexed) that fires the OSC `sugDeck_<n>` for the current suggestion on a rising edge >127 |
 
 ### OSC BPM output
 
@@ -166,7 +197,8 @@ All settings can also be placed in `config.json` at the repo root (or in `backen
   "control_input": {
     "mode": "sacn",
     "universe": 20,
-    "address": 1
+    "address": 1,
+    "execute_address": 3
   },
   "osc": {
     "enabled": true,
@@ -229,6 +261,9 @@ Waveforms and artwork are extracted automatically when a track loads and cached 
 | `PUT` | `/api/users/:name/settings` | Replace one user's settings blob; body is the JSON object to store. Stored to `users.json` at the repo root. |
 | `GET` | `/api/global-settings` | Read backend-owned settings (currently `{ freewheel: { enable_freewheeling, max_duration_sec }, meta }`). |
 | `PUT` | `/api/global-settings/freewheel` | Patch the freewheel section; body `{ enable_freewheeling?: boolean, max_duration_sec?: number }`. Persisted to `config.json` and pushed live into the Art-Net worker. |
+| `GET` | `/api/config` | Read the on-disk `config.json` for the in-app config editor. Returns `{ config, sourcePath }` (parsed JSON, JS-style comments stripped). |
+| `PUT` | `/api/config` | Atomically write the full `config.json` (tmp+rename). Body is the new top-level config object. **Write-only**: the runtime is NOT hot-reloaded by this — press `Ctrl+R` in the backend terminal, click **Settings → Controls → Reload config**, or `POST /api/config/reload` to apply. |
+| `POST` | `/api/config/reload` | Hot-reload `config.json` mid-show — same code path as `Ctrl+R` on the backend TTY. Re-applies playlist offsets, track notes, freewheel, logging, and display settings. Returns `409 { error: "reload already in progress" }` if a reload is currently running. Backs the **Settings → Controls → Reload config** button. |
 
 ## Deck color accents
 
@@ -273,7 +308,7 @@ On connect the server sends a hello frame, then snapshot frames at 30 Hz. Additi
 { "type": "hello", "ts": 1234567890, "version": "1.0.0", "fps": 30 }
 
 // snapshot (30 Hz)
-{ "type": "snapshot", "seq": 42, "ts": 1234567890, "selectedDeck": 1, "nextTrack": "song.mp3", "decks": { "1": DeckState, ... } }
+{ "type": "snapshot", "seq": 42, "ts": 1234567890, "selectedDeck": 1, "suggestedDeck": 2, "nextTrack": "song.mp3", "decks": { "1": DeckState, ... } }
 
 // waveform_status — progress during peak analysis
 { "type": "waveform_status", "deck": 1, "stage": "downloading|analyzing|done|error", "progress": 0.0, "fileName": "..." }

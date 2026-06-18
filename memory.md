@@ -7,6 +7,120 @@ decision/bug-confirmation/direction change (per CLAUDE.md).
 
 ## Architectural decisions
 
+### 2026-06-18 — In-app config editor (absorbed from stagelinq-config-editor)
+
+**What:** The standalone `stagelinq-config-editor` repo's components have been
+copied into `frontend/src/configEditor/` and re-wired against the running
+backend instead of the File System Access API. Reachable from the gear-icon
+SettingsModal → **Open config editor…** as a full-screen overlay.
+
+**Endpoints:**
+
+- `GET /api/config` → `{ config: <parsed JSON, comments stripped>, sourcePath }`
+- `PUT /api/config` → atomic tmp+rename write of the body. Backend does NOT
+  call `reloadConfig()`; the operator must `Ctrl+R` (TTY), click
+  **Settings → Controls → Reload config**, or `POST /api/config/reload` to
+  apply. `200 { ok: true, applied: false }`.
+- `POST /api/config/reload` → fires the same `reloadConfig()` closure as
+  `Ctrl+R`. Returns `{ ok: true, sourcePath, offsetEntries }` on success,
+  `409 { ok: false, error: 'reload already in progress' }` if one is already
+  running, `500 { ok: false, error }` on parse/IO failure. The UI button is
+  arm-gated in the Controls section and shows the result inline as
+  `idle / reloading… / ok ✓ / error: <msg>`, auto-clearing after 3 s.
+
+**One reload path, two triggers:** Both Ctrl+R and the HTTP endpoint go
+through the same `reloadConfig()` closure in `backend/src/index.ts`. Any new
+config-derived state added to that function is automatically picked up by
+both triggers — do not split the logic.
+
+**Why write-only:** A Save mid-show would otherwise re-init the StageLinq
+bridge / Art-Net worker by surprise. The runtime freewheel knob in the
+Settings modal (`PUT /api/global-settings/freewheel`) is the live-knob path
+and stays unaffected.
+
+**Freewheel race when both UIs are open:** The editor wins on Save —
+`PUT /api/config` overwrites whatever freewheel value is on disk with the
+editor's. The cog modal's freewheel toggle is still live in memory until
+Ctrl+R; the on-disk value and runtime value diverge until reload. Documented
+behaviour, not a bug.
+
+**Editor location:** `frontend/src/configEditor/` (no new workspace). CSS is
+fully scoped under `.config-editor-root` to prevent leakage into the webview
+chrome. The editor's `types.ts` was renamed `editorTypes.ts` to avoid
+colliding with `frontend/src/types.ts`. Migration helpers (`migrateConfig`,
+`orderedConfig`, `orderedEntry`, `serializeConfig`) lifted verbatim — they
+remain the single source of truth for config diff-cleanliness.
+
+**Status of standalone repo:** `stagelinq-config-editor` is now redundant.
+Keep the repo around for archive but consider it deprecated.
+
+### 2026-06-18 — Auto deck-suggestion (UI tag, blinking artwork, OSC out)
+
+**What:** The backend now emits a `suggestedDeck: DeckNumber | null` field on
+every snapshot. It is the deck the operator is advised to switch to next; it
+never overrides the manual sACN CH1 selection.
+
+**Triggers** (either fires; both require: candidate has the playlist's "next
+track" loaded, no loop active on the candidate, candidate ≠ selected deck):
+- **A** — candidate deck `play === true`.
+- **B** — selected deck `play === false` AND candidate has the next track
+  loaded. ("Stopped" is just `play=false` per Q1 ruling — paused mid-mix
+  triggers it; the operator avoids that mistake live.)
+
+Common gates: active playlist resolves a non-null `computeNextTrack(...)` for
+the selected deck's current file, and exactly one (or, on a tie, the playing
+one wins; otherwise lowest deck number) deck holds that filename. All
+implemented in `computeSuggestedDeck` in
+[backend/src/index.ts](backend/src/index.ts), keyed off the same
+`normalizeTrackName` helper that backs offsets/notes.
+
+**OSC fan-out:** OSC dispatch is gated by a new sACN execute channel
+(`control_input.execute_address`, default 3, env `SACN_EXECUTE_ADDRESS`). On
+the **rising edge** of that channel above 127 (≤127 → >127), the sACN packet
+handler in [backend/src/index.ts](backend/src/index.ts) sends one
+`/cmd "sugDeck_<n>"` for whatever `currentSuggestedDeck` holds at that
+instant. Held-high does nothing until the value drops back ≤127. If no
+suggestion is active when the edge fires, it's logged and ignored.
+Implementation reuses `OscBpmSender` via a new `sendCustomCommand` method
+([backend/src/oscBpm.ts](backend/src/oscBpm.ts)) so we keep one socket / one
+config block. The snapshot loop publishes the latest suggestion to a
+closure-scoped `currentSuggestedDeck` variable each tick; the sACN handler
+reads it.
+
+**Edge tracker init:** `lastExecuteHigh` starts as `true` so a packet that
+arrives already-high (re-subscribe mid-show, console sitting on >127) does
+NOT count as a fresh edge — only a transition through the threshold fires.
+
+**No automatic OSC.** Earlier iteration of this feature emitted
+`sugDeck_<n>` on every change of the suggestion; that's been replaced by the
+operator-confirmation flow above. The UI still reflects suggestions live
+(header pill, blinking artwork) regardless of whether CH3 is fired.
+
+**Manual deck-select unchanged.** The execute channel does not touch
+`selectedDeck`. CH1 (`control_input.address`, default 1) keeps mapping
+0–101 / –152 / –203 / –255 to decks 1/2/3/4 exactly as before.
+
+**Frontend:**
+- `App.tsx` carries `suggestedDeck` state, threads it to
+  [HeaderBar.tsx](frontend/src/HeaderBar.tsx) (new `SUGGESTED DECK` pill, sits
+  next to the selected-deck badge in the suggested deck's accent color) and
+  [DeckCard.tsx](frontend/src/DeckCard.tsx) (new `art--suggested` outline +
+  `.artChangeOverlay` blinking "Change Deck" overlay covering the artwork at
+  1 Hz via `@keyframes artChangeBlink`).
+- The overlay clears the moment the suggestion goes away or moves — React
+  unmounts it on the next snapshot.
+
+**Logging:** every suggestion change emits a `[DECK SUGGEST]` line via
+`logLifecycle` with the trigger reason ("next-track deck playing" or
+"selected deck stopped, next track pre-loaded"), or "cleared" on the falling
+edge.
+
+**Why:** automates the operator's "the next track just dropped on deck N,
+switch the timecode/lighting focus over there" chore. Suggestion only — the
+lighting console is still the authority on which deck is live.
+
+---
+
 ### 2026-06-18 — Freewheel config + Settings modal sections
 
 **What:** The Art-Net freewheel introduced earlier today now has two operator
@@ -273,13 +387,20 @@ played standalone.
 **Backend semantics — treat the entry as if it were not in the playlist at all:**
 - [`buildTrackOffsetMap`](backend/src/index.ts) skips it → its
   `offset_sec`/`offset_frame` never apply, even if the deck loads it.
+- [`buildTrackNoteMap`](backend/src/index.ts) skips it → no track-note popup
+  fires when a mashup loads, even if the operator hand-edited a `note` block
+  onto a flagged entry (the in-app editor disables note input for mashup rows,
+  but the backend enforces the invariant independently).
 - [`buildActivePlaylistFileSet`](backend/src/index.ts) skips it → the file is
   not "in the active set", so waveform extraction follows the same rule as a
   track outside the playlist (runs only when `waveform.all_tracks === true`).
-- [`computeNextTrack`](backend/src/index.ts) skips it when picking the *next*
-  track for the header display. If the currently loaded track is itself
-  flagged, its position is still used as the cursor — the next playable entry
-  after it wins.
+- [`computeNextTrack`](backend/src/index.ts) filters mashups out of the
+  playlist before doing any cursor work: a flagged track yields `pos = -1`
+  (so it can never be the "current track" anchor), and lookahead skips
+  flagged candidates. The same path feeds `computeSuggestedDeck`, so the
+  auto deck-select feature inherits this behavior — no suggestion ever
+  fires while a mashup is the currently-selected track, and no mashup is
+  ever proposed as the next deck.
 
 **Out of scope by design:** if the operator selects (via sACN) a deck that is
 holding a `mashup_only` track, that's user error. No fallback or auto-switch
