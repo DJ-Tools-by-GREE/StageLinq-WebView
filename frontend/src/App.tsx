@@ -10,8 +10,10 @@ import {
   type UserName,
   type UsersMap,
   type UserSettings,
+  type Role,
   effectiveZoom,
   effectiveShowTrackNotes,
+  effectiveRole,
   fetchAllUsers,
   putUserSettings,
   loadActiveUser,
@@ -104,6 +106,7 @@ export default function App() {
 
   const detailZoomSec = effectiveZoom(users[activeUser]);
   const showTrackNotes = effectiveShowTrackNotes(users[activeUser]);
+  const role = effectiveRole(users[activeUser]);
 
   const setActiveUser = useCallback((name: UserName) => {
     saveActiveUser(name);
@@ -461,6 +464,10 @@ export default function App() {
           showTrackNotes={showTrackNotes}
           onChangeShowTrackNotes={(v) =>
             updateUserSettings(activeUser, { showTrackNotes: v })
+          }
+          role={role}
+          onChangeRole={(v: Role) =>
+            updateUserSettings(activeUser, { role: v })
           }
           freewheel={freewheel}
           freewheelDurationLimits={freewheelMeta.freewheel_max_duration_sec}

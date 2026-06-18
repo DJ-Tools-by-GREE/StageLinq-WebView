@@ -4,15 +4,23 @@
 export const FIXED_USERS = ['Default User', 'Jan', 'Dennis'] as const;
 export type UserName = typeof FIXED_USERS[number];
 
+export const ROLES = ['Viewer', 'DJ', 'Lighting & Tech'] as const;
+export type Role = typeof ROLES[number];
+export const DEFAULT_ROLE: Role = 'Viewer';
+
 export const DEFAULT_DETAIL_ZOOM_SEC = 10;
 export const DETAIL_ZOOM_MIN = 4;
 export const DETAIL_ZOOM_MAX = 30;
 
-export const DEFAULT_SHOW_TRACK_NOTES = true;
+// Track-note popup default: off everywhere EXCEPT users whose role is "DJ",
+// where it defaults on. An explicit user choice (showTrackNotes set on the
+// settings object) always wins over the role-derived default.
+export const DEFAULT_SHOW_TRACK_NOTES = false;
 
 export interface UserSettings {
   detailZoomSec?: number;
   showTrackNotes?: boolean;
+  role?: Role;
   // Add more fields freely — server stores whatever shape we send.
 }
 
@@ -27,6 +35,10 @@ export function clampZoom(n: number): number {
 
 export function isUserName(s: string | null | undefined): s is UserName {
   return s != null && (FIXED_USERS as readonly string[]).includes(s);
+}
+
+export function isRole(s: string | null | undefined): s is Role {
+  return s != null && (ROLES as readonly string[]).includes(s);
 }
 
 export function loadActiveUser(): UserName {
@@ -48,9 +60,17 @@ export function effectiveZoom(settings: UserSettings | undefined): number {
   return clampZoom(settings.detailZoomSec ?? DEFAULT_DETAIL_ZOOM_SEC);
 }
 
+export function effectiveRole(settings: UserSettings | undefined): Role {
+  if (!settings) return DEFAULT_ROLE;
+  return isRole(settings.role) ? settings.role : DEFAULT_ROLE;
+}
+
+// Explicit user choice wins. Otherwise: DJ → on, everyone else → off.
 export function effectiveShowTrackNotes(settings: UserSettings | undefined): boolean {
-  if (!settings) return DEFAULT_SHOW_TRACK_NOTES;
-  return settings.showTrackNotes ?? DEFAULT_SHOW_TRACK_NOTES;
+  if (settings && typeof settings.showTrackNotes === 'boolean') {
+    return settings.showTrackNotes;
+  }
+  return effectiveRole(settings) === 'DJ';
 }
 
 export async function fetchAllUsers(signal?: AbortSignal): Promise<UsersMap> {

@@ -10,7 +10,7 @@ Real-time DJ deck visualizer for Denon Prime 4+ (Engine DJ / StageLinq). Display
 - Header bar showing selected deck, live BPM, and next-track name
 - Live connection status badge (LIVE / OFFLINE)
 - Overlay button to toggle timecode transmission while playback is stopped
-- **User switcher** (header dropdown) — `Default User`, `Jan`, `Dennis`. Each user has their own UI settings, stored server-side in `users.json` and applied on the fly when switched. The active-user pick is per-browser (`localStorage`).
+- **User switcher** (header dropdown) — `Default User`, `Jan`, `Dennis`. Each user has their own UI settings (waveform zoom, role, track-note popups, …), stored server-side in `users.json` and applied on the fly when switched. The active-user pick is per-browser (`localStorage`). Each user carries a fixed-vocabulary `role` (`Viewer` / `DJ` / `Lighting & Tech`); the role can be picked from the Settings modal but new roles require a code change. Users with role `DJ` get track-note popups on by default; everyone else gets them off — an explicit toggle in Settings always overrides the role-derived default.
 - Settings popup (gear icon in the header) — adjusts the visible time-window of the detail waveform (4–30 s, default 10 s) for the active user; persisted to the server via `PUT /api/users/:name/settings`.
 - WebSocket stream at 30 Hz
 

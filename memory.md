@@ -232,12 +232,24 @@ transition recipes) and have them surface automatically a few seconds into
 playback — no need to read the config during a show.
 
 **Per-user opt-out:** the popup is gated by the `showTrackNotes` field in
-`UserSettings` (default `true`), exposed as a toggle in the User Settings
-section of [SettingsModal.tsx](frontend/src/SettingsModal.tsx). Persists
-per-user via the existing `users.json` round-trip — flipping it off cancels
-any pending timer and dismisses any visible popup; flipping it back on does
-not retroactively pop a note for an already-loaded track (the active
-fileName is marked seen so the next *load* is the next surface).
+`UserSettings` (default **off** for everyone except users whose `role`
+resolves to `"DJ"`, where it defaults on). Surfaced as a toggle in the User
+Settings section of [SettingsModal.tsx](frontend/src/SettingsModal.tsx).
+Persists per-user via the existing `users.json` round-trip — flipping it off
+cancels any pending timer and dismisses any visible popup; flipping it back
+on does not retroactively pop a note for an already-loaded track (the
+active fileName is marked seen so the next *load* is the next surface).
+**Important:** an explicit `showTrackNotes` value (set the moment the user
+toggles it) always wins over the role-derived default — so a DJ who turned
+the popups off stays opted-out across page reloads.
+
+**Roles:** `UserSettings.role` is one of the fixed strings `"Viewer"`, `"DJ"`,
+or `"Lighting & Tech"` (default `"Viewer"`). The user can pick from these
+three in the User Settings modal. Adding a *new* role still requires a code
+change — the union lives in [frontend/src/userSettings.ts](frontend/src/userSettings.ts)
+and is the source of truth for both the picker options and the
+`effectiveRole`/`effectiveShowTrackNotes` lookups. Backend `UserSettings` is
+an open bag (`[key: string]: unknown`), so no schema migration was needed.
 
 ---
 

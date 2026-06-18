@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import type { UserName } from './userSettings.js';
+import { ROLES, type Role, type UserName } from './userSettings.js';
 import type { FreewheelSettings } from './globalSettings.js';
 
 interface Props {
@@ -8,6 +8,8 @@ interface Props {
   onChangeDetailZoomSec: (value: number) => void;
   showTrackNotes: boolean;
   onChangeShowTrackNotes: (value: boolean) => void;
+  role: Role;
+  onChangeRole: (value: Role) => void;
   freewheel: FreewheelSettings | null;
   freewheelDurationLimits: { min: number; max: number };
   onChangeFreewheel: (patch: Partial<FreewheelSettings>) => void;
@@ -24,6 +26,8 @@ export default function SettingsModal({
   onChangeDetailZoomSec,
   showTrackNotes,
   onChangeShowTrackNotes,
+  role,
+  onChangeRole,
   freewheel,
   freewheelDurationLimits,
   onChangeFreewheel,
@@ -81,6 +85,31 @@ export default function SettingsModal({
           {/* ── User-scoped settings ─────────────────────────────────────────── */}
           <section className="settingsSection">
             <h3 className="settingsSectionTitle">User Settings</h3>
+
+            <div className="settingRow">
+              <label className="settingLabel" htmlFor="roleSelect">
+                Role
+                <span className="settingValue">{role}</span>
+              </label>
+              <div className="userPicker">
+                <span className="userPickerLabel">ROLE</span>
+                <select
+                  id="roleSelect"
+                  className="userPickerSelect"
+                  value={role}
+                  onChange={(e) => onChangeRole(e.target.value as Role)}
+                >
+                  {ROLES.map((r) => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="settingHint">
+                Pick from the fixed roles. Adding a new role still requires a
+                code/JSON change. The DJ role enables track-note popups by
+                default; an explicit toggle below always overrides this.
+              </div>
+            </div>
 
             <div className="settingRow">
               <label className="settingLabel" htmlFor="zoomRange">
