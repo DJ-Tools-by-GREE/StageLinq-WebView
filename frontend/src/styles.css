@@ -653,23 +653,34 @@ html, body {
   flex-direction: column;
   gap: 3px;
   padding: 0 16px 14px 20px;
-  flex-shrink: 0;
+  /* Allow the waveform block to give up space when the card shrinks,
+     instead of forcing the header (title/BPM) to compress to unreadable. */
+  flex-shrink: 1;
+  min-height: 0;
 }
 
 .waveformOverview {
   width: 100%;
-  height: clamp(36px, 6vh, 72px);
+  /* Size against the card (cqh) so on small screens the waveform shrinks
+     proportionally with the card rather than tracking the viewport. The
+     small px floor is enough to still register a click target without
+     dominating the card. */
+  height: clamp(18px, 8cqh, 72px);
   display: block;
   background: var(--surface2);
   border-radius: 3px;
+  flex-shrink: 1;
+  min-height: 0;
 }
 
 .waveformDetail {
   width: 100%;
-  height: clamp(84px, 14vh, 160px);
+  height: clamp(40px, 22cqh, 160px);
   display: block;
   background: var(--surface2);
   border-radius: 3px;
+  flex-shrink: 1;
+  min-height: 0;
 }
 
 .waveformLoading {
