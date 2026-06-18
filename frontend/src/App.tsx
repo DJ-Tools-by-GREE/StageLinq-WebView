@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import type { DeckNumber, DeckState, RecordingStatus, ReplayStatus, StageLinqStatus, TrackNote, WsPayload } from './types.js';
+import type { DeckNumber, DeckState, RecordingStatus, ReplayStatus, StageLinqStatus, TerminalLogLine, TrackNote, WsPayload } from './types.js';
 import type { WaveformState } from './appTypes.js';
 import DeckCard from './DeckCard.js';
 import HeaderBar from './HeaderBar.js';
 import SettingsModal from './SettingsModal.js';
+import TerminalPanel from './TerminalPanel.js';
 import TrackNotePopup from './TrackNotePopup.js';
 import ConfigEditorOverlay from './configEditor/ConfigEditorOverlay.js';
 import {
@@ -35,6 +36,8 @@ import {
 const DECK_NUMBERS: DeckNumber[] = [1, 2, 3, 4];
 
 const SETTINGS_PUT_DEBOUNCE_MS = 250;
+
+const TERMINAL_MAX_LINES = 1000;
 
 function makeBlankDeck(deck: DeckNumber): DeckState {
   return {
@@ -93,6 +96,8 @@ export default function App() {
   const [headerVisible, setHeaderVisible] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [configEditorOpen, setConfigEditorOpen] = useState(false);
+  const [terminalOpen, setTerminalOpen] = useState(false);
+  const [terminalLines, setTerminalLines] = useState<TerminalLogLine[]>([]);
 
   // Users + active user. Users map starts as empty per name and is
   // hydrated from /api/users on mount. The active-user pick is per-browser.
@@ -211,6 +216,10 @@ export default function App() {
   const heartbeatTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastMsgAt = useRef(0);
   const wsRef = useRef<WebSocket | null>(null);
+  // Read inside ws.onopen so a reconnect mid-session re-subscribes without
+  // having to rebuild the `connect` closure (which would tear down the socket).
+  const terminalOpenRef = useRef(false);
+  useEffect(() => { terminalOpenRef.current = terminalOpen; }, [terminalOpen]);
   const prevLoadedRef = useRef<Record<DeckNumber, boolean>>({ 1: false, 2: false, 3: false, 4: false });
   const prevFileNameRef = useRef<Record<DeckNumber, string>>({ 1: '', 2: '', 3: '', 4: '' });
   const elapsedRefs = useRef<Record<DeckNumber, { current: number }>>({
@@ -265,6 +274,10 @@ export default function App() {
           ws.close();
         }
       }, 1000);
+      // Re-subscribe to terminal stream if the panel is open across a reconnect.
+      if (terminalOpenRef.current) {
+        try { ws.send(JSON.stringify({ type: 'terminal_subscribe', enabled: true })); } catch {}
+      }
     };
 
     ws.onmessage = (ev) => {
@@ -373,6 +386,18 @@ export default function App() {
         const url = URL.createObjectURL(blob);
         artworkObjectUrlsRef.current[fileName] = url;
         setArtworkUrls((m) => ({ ...m, [fileName]: url }));
+      } else if (msg.type === 'terminal_lines') {
+        const incoming = msg.lines;
+        if (msg.mode === 'replace') {
+          setTerminalLines(incoming.slice(-TERMINAL_MAX_LINES));
+        } else {
+          setTerminalLines((prev) => {
+            const next = prev.concat(incoming);
+            return next.length > TERMINAL_MAX_LINES
+              ? next.slice(next.length - TERMINAL_MAX_LINES)
+              : next;
+          });
+        }
       }
     };
 
@@ -404,6 +429,20 @@ export default function App() {
 
   const dismissTopPopup = useCallback(() => {
     setPopupQueue((q) => q.slice(1));
+  }, []);
+
+  const toggleTerminal = useCallback(() => {
+    setTerminalOpen((open) => {
+      const next = !open;
+      const ws = wsRef.current;
+      if (ws && ws.readyState === ws.OPEN) {
+        try { ws.send(JSON.stringify({ type: 'terminal_subscribe', enabled: next })); } catch {}
+      }
+      // Wipe the buffer when closing so the next open starts from a fresh
+      // server-seeded ring rather than a stale snapshot.
+      if (!next) setTerminalLines([]);
+      return next;
+    });
   }, []);
 
   // When the operator turns popups off, drop everything pending or visible.
@@ -441,7 +480,12 @@ export default function App() {
           onChangeUser={setActiveUser}
           recordingStatus={recordingStatus}
           replayStatus={replayStatus}
+          terminalOpen={terminalOpen}
+          onToggleTerminal={toggleTerminal}
         />
+      )}
+      {terminalOpen && (
+        <TerminalPanel lines={terminalLines} onClose={toggleTerminal} />
       )}
       <div className="grid">
         {DECK_NUMBERS.map((d) => (

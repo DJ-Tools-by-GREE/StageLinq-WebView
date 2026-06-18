@@ -772,6 +772,110 @@ html, body {
   border-color: rgba(255,255,255,0.15);
 }
 
+.iconBtn--active {
+  background: #1c2030;
+  color: var(--fg);
+  border-color: var(--accent, rgba(0,230,118,0.6));
+}
+
+/* ── Terminal panel (slides in below the header) ────────────────── */
+.terminalPanel {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  height: 38vh;
+  min-height: 160px;
+  max-height: 60vh;
+  background: #07090f;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+  color: var(--fg);
+  animation: terminalPanelIn 140ms ease-out;
+}
+
+@keyframes terminalPanelIn {
+  from { transform: translateY(-8px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.terminalPanelHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 12px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.terminalPanelTitle {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.terminalPanelMeta {
+  font-size: 10px;
+  color: var(--muted);
+  flex: 1;
+}
+
+.terminalPanelClose {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--mid);
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.terminalPanelClose:hover {
+  color: var(--fg);
+  border-color: rgba(255,255,255,0.2);
+}
+
+.terminalPanelBody {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: auto;
+  padding: 6px 12px;
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre;
+}
+
+.terminalPanelEmpty {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.terminalLine {
+  display: flex;
+  gap: 10px;
+  color: #cdd6e4;
+}
+
+.terminalLine--err {
+  color: #ff8a8a;
+}
+
+.terminalLineTs {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.terminalLineText {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 /* ── User picker (header dropdown) ──────────────────────────────── */
 .userPicker {
   display: inline-flex;

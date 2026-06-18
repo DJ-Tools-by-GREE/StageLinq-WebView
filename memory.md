@@ -7,6 +7,17 @@ decision/bug-confirmation/direction change (per CLAUDE.md).
 
 ## Architectural decisions
 
+### 2026-06-18 — In-app terminal panel (live backend log stream)
+
+**What:** Header has a chevron-prompt icon next to the gear; clicking unfolds a panel below the header that mirrors the backend's per-event log lines (lifecycle, playback, errors, …). Only newly printed lines are shown — the static dashboard rows that take over the bottom of the TTY (`logDashboard`) deliberately bypass the tap, since "the static line" is exactly what the user did NOT want to see in the browser.
+
+**Architecture:**
+- `backend/src/logging.ts` — every call to `printLog()` (which already funnels every per-event log) also pushes a stripped (ANSI-removed) entry into a small ring (`TERMINAL_RING_MAX = 500`) and notifies any subscribers. Dashboard rendering happens through `logDashboard()` and is unaffected.
+- `backend/src/index.ts` — per-WS opt-in. Client sends `{type:'terminal_subscribe', enabled:true|false}`. Backend keeps a `Set<ws>` of subscribers; the global tap is attached lazily on the first subscribe and released when the set empties. New subscribers are seeded with the ring as a `terminal_lines` `replace` frame; subsequent lines stream as `append` frames.
+- `frontend/src/TerminalPanel.tsx` + `App.tsx` — opens on toggle, sends `terminal_subscribe`, renders up to 1000 lines with auto-follow scroll. Re-subscribes on WS reconnect if still open.
+
+**Performance posture:** when no client is subscribed, the cost per log line is one Set-size check (always `0`) and one O(1) ring push. The 30 Hz dashboard never enters this path. When subscribed, each line pays one ANSI-strip + one JSON.stringify + one `ws.send` per subscriber — at the natural rate of these logs (sparse, bursts on track change) this is well below the existing 30 Hz snapshot loop's cost. No new timers.
+
 ### 2026-06-18 — Record & Replay (backup-show fallback)
 
 **What:** Operator can record every state change the StageLinq bridge produces during a live show into a JSONL log under `recordings/`, then later replay that log synchronized to a single prerecorded audio file played on a deck. From the lighting console's perspective the replay is byte-identical to the live show — same Art-Net timecode, OSC, WS UI — and the console keeps full live control of `selectedDeck` (sACN CH1) and the suggestion-execute channel (sACN CH3) regardless of what was recorded.
@@ -104,9 +115,13 @@ never overrides the manual sACN CH1 selection.
 **Triggers** (either fires; both require: candidate has the playlist's "next
 track" loaded, no loop active on the candidate, candidate ≠ selected deck):
 - **A** — candidate deck `play === true`.
-- **B** — selected deck `play === false` AND candidate has the next track
-  loaded. ("Stopped" is just `play=false` per Q1 ruling — paused mid-mix
-  triggers it; the operator avoids that mistake live.)
+- **B** — selected deck `play === false` AND `elapsedSec >
+  MIN_TRIGGER_B_ELAPSED_SEC` (default 30 s, in
+  [backend/src/constants.ts](backend/src/constants.ts)) AND candidate has
+  the next track loaded. The elapsed-time gate was added after a tap-play-stop
+  at the very start of a freshly-loaded track was producing a spurious
+  hand-off suggestion — only stops *after meaningful play* (or near the end
+  of the track, naturally) cross the threshold. Trigger A is unaffected.
 
 Common gates: active playlist resolves a non-null `computeNextTrack(...)` for
 the selected deck's current file, and exactly one (or, on a tie, the playing

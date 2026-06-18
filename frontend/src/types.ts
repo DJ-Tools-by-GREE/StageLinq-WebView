@@ -106,4 +106,22 @@ export interface WaveformDataPayload {
   peaksPerSec: number;
 }
 
-export type WsPayload = HelloPayload | SnapshotPayload | WaveformStatusPayload | WaveformDataPayload | ArtworkDataPayload;
+export interface TerminalLogLine {
+  ts: number;
+  level: 'log' | 'error';
+  text: string;
+}
+
+export interface TerminalLinesPayload {
+  type: 'terminal_lines';
+  mode: 'replace' | 'append';
+  lines: TerminalLogLine[];
+}
+
+export type WsPayload =
+  | HelloPayload
+  | SnapshotPayload
+  | WaveformStatusPayload
+  | WaveformDataPayload
+  | ArtworkDataPayload
+  | TerminalLinesPayload;

@@ -12,9 +12,9 @@ import { StageLinqBridge } from './stagelinqBridge.js';
 import type { DeckNumber, SnapshotPayload, StageLinqStatus, TrackNote, WaveformStatusPayload, WsPayload } from './types.js';
 import { ArtNetTimecodeBroadcaster } from './artnetTimecode.js';
 import { OscBpmSender } from './oscBpm.js';
-import { RECONNECT_DELAY_MS, WS_FPS, WAVEFORM_PEAKS_PER_SEC, DISCONNECT_DETECT_TIMEOUT_S, MAIN_EVENT_LOOP_LAG_WARN_MS, WS_BROADCAST_WARN_MS } from './constants.js';
+import { RECONNECT_DELAY_MS, WS_FPS, WAVEFORM_PEAKS_PER_SEC, DISCONNECT_DETECT_TIMEOUT_S, MAIN_EVENT_LOOP_LAG_WARN_MS, WS_BROADCAST_WARN_MS, MIN_TRIGGER_B_ELAPSED_SEC } from './constants.js';
 import { States, StageLinqValue } from "@gree44/stagelinq";
-import { logError, logLifecycle, logWaveform, logUiOut, applyLoggingConfig, applyDisplayConfig, DISPLAY_ENABLED, logDashboard, deckColor, getStatusSlot, DIM, R, GRN, YEL, RED, RST } from './logging.js';
+import { logError, logLifecycle, logWaveform, logUiOut, applyLoggingConfig, applyDisplayConfig, DISPLAY_ENABLED, logDashboard, deckColor, getStatusSlot, DIM, R, GRN, YEL, RED, RST, subscribeTerminalLines, getTerminalRing } from './logging.js';
 import { generateWaveformPeaks, peaksCache, artworkCache, initWaveformCache } from './waveformService.js';
 import { UserSettingsStore, FIXED_USERS, resolveUsersFilePath } from './userSettings.js';
 import { GlobalSettingsStore, readFreewheelFromConfig, FREEWHEEL_MIN_DURATION_SEC, FREEWHEEL_MAX_DURATION_SEC } from './globalSettings.js';
@@ -342,8 +342,10 @@ function findDeckForFile(
 // active, the candidate deck is not already selected, and the candidate deck is
 // loaded with the playlist's next track):
 //   A) Next-track deck is currently playing.
-//   B) The currently selected deck has stopped (play=false) AND the next-track
-//      deck has that track loaded.
+//   B) The currently selected deck has stopped (play=false), has been
+//      meaningfully played (elapsedSec > MIN_TRIGGER_B_ELAPSED_SEC) so a
+//      tap-play-stop at the very beginning is not treated as a hand-off,
+//      AND the next-track deck has that track loaded.
 function computeSuggestedDeck(
   cfg: RootConfig | null,
   decks: Record<DeckNumber, import('./types.js').DeckState>,
@@ -364,7 +366,11 @@ function computeSuggestedDeck(
   if (candDeck.loopActive) return null;
 
   const triggerA = candDeck.play === true;
-  const triggerB = selected.play === false && candDeck.trackLoaded === true;
+  const triggerB =
+    selected.play === false &&
+    candDeck.trackLoaded === true &&
+    Number.isFinite(selected.elapsedSec) &&
+    selected.elapsedSec > MIN_TRIGGER_B_ELAPSED_SEC;
   if (!triggerA && !triggerB) return null;
 
   return candidate;
@@ -942,6 +948,29 @@ async function main() {
   const clients = new Set<any>();
   const waveformTaskIds: Record<DeckNumber, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
 
+  // Live terminal stream: clients opt in by sending {type:'terminal_subscribe', enabled:true}.
+  // We keep one global tap on the logger and fan out only to the opted-in WS set,
+  // so closed-panel clients pay zero cost beyond a single Set membership check.
+  const terminalSubscribers = new Set<any>();
+  let terminalTapDispose: (() => void) | null = null;
+  const ensureTerminalTap = () => {
+    if (terminalTapDispose) return;
+    terminalTapDispose = subscribeTerminalLines((line) => {
+      if (terminalSubscribers.size === 0) return;
+      const raw = JSON.stringify({ type: 'terminal_lines', mode: 'append', lines: [line] });
+      for (const ws of terminalSubscribers) {
+        if (ws.readyState === ws.OPEN) {
+          try { ws.send(raw); } catch {}
+        }
+      }
+    });
+  };
+  const releaseTerminalTap = () => {
+    if (terminalSubscribers.size > 0) return;
+    terminalTapDispose?.();
+    terminalTapDispose = null;
+  };
+
   function broadcastMsg(msg: WsPayload) {
     const raw = JSON.stringify(msg);
     for (const ws of clients) {
@@ -1280,7 +1309,30 @@ async function main() {
   wss.on('connection', (ws) => {
     clients.add(ws);
 
-    ws.on('error', () => { clients.delete(ws); });
+    ws.on('error', () => {
+      clients.delete(ws);
+      if (terminalSubscribers.delete(ws)) releaseTerminalTap();
+    });
+
+    ws.on('message', (raw) => {
+      let parsed: any;
+      try { parsed = JSON.parse(raw.toString()); } catch { return; }
+      if (!parsed || typeof parsed !== 'object') return;
+      if (parsed.type === 'terminal_subscribe') {
+        if (parsed.enabled === true) {
+          ensureTerminalTap();
+          terminalSubscribers.add(ws);
+          // Seed the panel with the recent ring so the user sees context, not
+          // just whatever happens to land after they open the panel.
+          const seed = getTerminalRing().slice();
+          try {
+            ws.send(JSON.stringify({ type: 'terminal_lines', mode: 'replace', lines: seed }));
+          } catch {}
+        } else {
+          if (terminalSubscribers.delete(ws)) releaseTerminalTap();
+        }
+      }
+    });
 
     const hello: WsPayload = { type: 'hello', ts: Date.now(), version: '0.1.0', fps: WS_FPS };
     try { ws.send(JSON.stringify(hello)); } catch {}
@@ -1309,6 +1361,7 @@ async function main() {
 
     ws.on('close', () => {
       clients.delete(ws);
+      if (terminalSubscribers.delete(ws)) releaseTerminalTap();
     });
   });
 

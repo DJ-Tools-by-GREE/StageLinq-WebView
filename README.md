@@ -13,6 +13,7 @@ Real-time DJ deck visualizer for Denon Prime 4+ (Engine DJ / StageLinq). Display
 - Overlay button to toggle timecode transmission while playback is stopped
 - **User switcher** (header dropdown) — `Default User`, `Jan`, `Dennis`. Each user has their own UI settings (waveform zoom, role, track-note popups, …), stored server-side in `users.json` and applied on the fly when switched. The active-user pick is per-browser (`localStorage`). Each user carries a fixed-vocabulary `role` (`Viewer` / `DJ` / `Lighting & Tech`); the role can be picked from the Settings modal but new roles require a code change. Users with role `DJ` get track-note popups on by default; everyone else gets them off — an explicit toggle in Settings always overrides the role-derived default.
 - Settings popup (gear icon in the header) — adjusts the visible time-window of the detail waveform (4–30 s, default 10 s) for the active user; persisted to the server via `PUT /api/users/:name/settings`. Also hosts an **Open config editor…** button that launches a full-screen overlay for editing the on-disk `config.json` (playlists, timecode targets, OSC, sACN, logging, freewheel, …). The editor saves over `PUT /api/config`; saves are **write-only** — press `Ctrl+R` in the backend terminal, click **Settings → Controls → Reload config**, or `POST /api/config/reload` to apply.
+- **Live terminal panel** (chevron-prompt icon in the header) — unfolds an overlay below the header that mirrors the backend's per-event log lines as they're printed. Subscribed only while the panel is open: backend pushes nothing over the wire when no client is watching, and the static dashboard rows are excluded by design (only newly printed lines stream). Seeded on open with the recent ring buffer (~500 lines).
 - WebSocket stream at 30 Hz
 
 **Art-Net timecode output** (optional)
@@ -41,7 +42,7 @@ A suggestion fires when **either** of the following holds, and **all** common co
 | Trigger | Condition |
 |---|---|
 | **A — next-track deck started** | The deck holding the playlist's next track has `play = true`. |
-| **B — selected deck stopped** | The currently selected deck has `play = false` and the playlist's next track is loaded on another deck. |
+| **B — selected deck stopped** | The currently selected deck has `play = false`, `elapsedSec > MIN_TRIGGER_B_ELAPSED_SEC` (default 30 s — see [`backend/src/constants.ts`](backend/src/constants.ts)), and the playlist's next track is loaded on another deck. The elapsed-time gate makes a tap-play-stop / mis-cue at the very beginning of a track not count as a hand-off. |
 
 Common conditions (apply to both triggers):
 
@@ -366,6 +367,22 @@ On connect the server sends a hello frame, then snapshot frames at 30 Hz. Additi
 
 // artwork_data — album art (base64) or null if unavailable
 { "type": "artwork_data", "deck": 1, "fileName": "...", "data": "<base64>" | null }
+
+// terminal_lines — backend log lines for the in-app terminal panel.
+// Sent only to clients that opted in by sending {type:'terminal_subscribe', enabled:true}.
+// `replace` is sent once per (re)subscribe with the recent ring buffer; subsequent
+// frames use `append` with one or more lines as they're printed.
+{ "type": "terminal_lines", "mode": "replace" | "append",
+  "lines": [{ "ts": 1234567890, "level": "log" | "error", "text": "..." }] }
+```
+
+### Client → server
+
+The client sends a single message type so far:
+
+```jsonc
+// terminal_subscribe — opt this WS in/out of the live log stream
+{ "type": "terminal_subscribe", "enabled": true | false }
 ```
 
 ## Notes
