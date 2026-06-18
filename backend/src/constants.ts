@@ -6,6 +6,18 @@ export const BEAT_WATCHDOG_TIMEOUT_S = 5;
 /** Seconds of beat silence before the status indicator turns red AND a reconnect is triggered. */
 export const DISCONNECT_DETECT_TIMEOUT_S = 2;
 
+/**
+ * Milliseconds of beat silence before the Art-Net worker switches into freewheel mode.
+ * Independent of DISCONNECT_DETECT_TIMEOUT_S — that value still gates the UI badge and
+ * the reconnect attempt, but TC has to react much sooner: typical beat gaps are 50–200 ms,
+ * so anything past ~one missed beat is already audible drift on the lighting console.
+ *
+ * Tune this UP only if benign beat-gap variance (occasional 200–250 ms outliers) starts
+ * causing visible TC twitch on the receiver. Tune DOWN for a tighter recovery — but stay
+ * comfortably above the steady-state max (~200 ms) to avoid flapping.
+ */
+export const FREEWHEEL_STALE_THRESHOLD_MS = 250;
+
 /** Default for whether the Art-Net worker freewheels TC during a StageLinq stall. */
 export const DEFAULT_ENABLE_FREEWHEELING = true;
 

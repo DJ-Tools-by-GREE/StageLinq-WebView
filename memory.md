@@ -7,6 +7,49 @@ decision/bug-confirmation/direction change (per CLAUDE.md).
 
 ## Architectural decisions
 
+### 2026-06-19 — Freewheel threshold decoupled from disconnect threshold
+
+**What:** [backend/src/index.ts](backend/src/index.ts) now derives the `stale`
+flag from a new `FREEWHEEL_STALE_THRESHOLD_MS = 250` constant (in
+[backend/src/constants.ts](backend/src/constants.ts)) instead of reusing
+`DISCONNECT_DETECT_TIMEOUT_S * 1000` (= 2 s). The two thresholds answer
+different questions:
+
+- `FREEWHEEL_STALE_THRESHOLD_MS` (250 ms) — "is the next beat overdue, freewheel
+  now". Sized to be just past steady-state max beat gap (50–200 ms; observed
+  outliers up to ~245 ms in clean sessions).
+- `DISCONNECT_DETECT_TIMEOUT_S` (2 s) — "is the device gone, time to flip the
+  red badge and trigger `bridge.disconnect()` + reconnect loop". Stays at 2 s.
+
+**Why the bug:** at the old 2 s threshold the lighting console saw TC stall
+for up to two seconds during a brief beat dropout, then resume freewheeling
+~1–2 s behind the audio. Tightening the trigger to one missed-beat window
+keeps TC continuously aligned without changing the more expensive reconnect
+machinery's hysteresis.
+
+**Why the worker logic didn't need changes:** existing
+`treatAsPlaying = deckIsStale ? lastTickMs !== null : deckState.play === true`
+already correctly handles all the "don't freewheel" cases —
+
+- **Pause** while connected: `Play=false` arrives in ~10 ms, the next worker
+  tick (≤33 ms later) hits the stopped branch and clears `lastTickMs` BEFORE
+  the 250 ms stale window can flip on, so subsequent stale ticks see
+  `lastTickMs == null` and stay silent.
+- **Track end:** same path as pause.
+- **Watchdog late `play=false` mid-stall** (cable was actually pulled, not a
+  pause): worker is already in the freewheel branch with `lastTickMs` set,
+  ignores the stale watchdog signal — exactly correct.
+
+So only the constant + import in `index.ts` moved; the worker is unchanged.
+
+**Tuning note:** if the field reports rare false-positive freewheel
+engagements on healthy networks (single ~33 ms tick of freewheel timeline
+during a 250–300 ms beat outlier), bump `FREEWHEEL_STALE_THRESHOLD_MS` to
+`400`–`500`. Don't drop it below ~220 ms or it will flap on every clean
+session per the beat-gap log.
+
+---
+
 ### 2026-06-18 — Per-user deck layout toggle (2 vs 4 decks)
 
 **What:** Users can pick between the original 4-deck 2×2 grid (default) and a 2-deck side-by-side layout that renders only D1 and D2. Lives in the user-scoped Settings modal, persisted via the existing `users.json` round-trip (new `deckLayout: 2 | 4` field on `UserSettings`). 4 is the default for any user without an explicit choice — all current users keep their existing view.

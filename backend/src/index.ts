@@ -12,7 +12,7 @@ import { StageLinqBridge } from './stagelinqBridge.js';
 import type { DeckNumber, SnapshotPayload, StageLinqStatus, TrackNote, WaveformStatusPayload, WsPayload } from './types.js';
 import { ArtNetTimecodeBroadcaster } from './artnetTimecode.js';
 import { OscBpmSender } from './oscBpm.js';
-import { RECONNECT_DELAY_MS, WS_FPS, WAVEFORM_PEAKS_PER_SEC, DISCONNECT_DETECT_TIMEOUT_S, MAIN_EVENT_LOOP_LAG_WARN_MS, WS_BROADCAST_WARN_MS, MIN_TRIGGER_B_ELAPSED_SEC } from './constants.js';
+import { RECONNECT_DELAY_MS, WS_FPS, WAVEFORM_PEAKS_PER_SEC, DISCONNECT_DETECT_TIMEOUT_S, FREEWHEEL_STALE_THRESHOLD_MS, MAIN_EVENT_LOOP_LAG_WARN_MS, WS_BROADCAST_WARN_MS, MIN_TRIGGER_B_ELAPSED_SEC } from './constants.js';
 import { States, StageLinqValue } from "@gree44/stagelinq";
 import { logError, logLifecycle, logWaveform, logUiOut, applyLoggingConfig, applyDisplayConfig, DISPLAY_ENABLED, logDashboard, deckColor, getStatusSlot, DIM, R, GRN, YEL, RED, RST, subscribeTerminalLines, getTerminalRing } from './logging.js';
 import { generateWaveformPeaks, peaksCache, artworkCache, initWaveformCache } from './waveformService.js';
@@ -1278,12 +1278,15 @@ async function main() {
   }
 
   await artnet.start(() => {
-    // "stale" tracks the same threshold as the snapshot stagelinqStatus — when no fresh
-    // beats are arriving (cable pull, device off, mid-reconnect), the worker freezes the
-    // cached deck snapshot and freewheels the timeline forward at the last-known speed
-    // so the lighting console keeps seeing a smoothly advancing TC across the gap.
+    // Freewheel uses its own short threshold (FREEWHEEL_STALE_THRESHOLD_MS, ~250 ms),
+    // independent of the longer DISCONNECT_DETECT_TIMEOUT_S that gates the UI badge and
+    // bridge reconnect. The lighting console can't tolerate even a one-second TC stall
+    // before catching up — typical beat gaps are 50–200 ms, so anything past one missed
+    // beat is already audible drift on the receiver. The 2-second threshold is still
+    // correct for "is the device gone, time to reconnect"; this is "is the next beat
+    // overdue, freewheel now". Both `reconnecting` and the per-stall window also force it.
     // During replay, stateProvider returns 0 for getLastBeatAgeMs() so freewheel disengages.
-    const stale = reconnecting || stateProvider.getLastBeatAgeMs() > DISCONNECT_DETECT_TIMEOUT_S * 1000;
+    const stale = reconnecting || stateProvider.getLastBeatAgeMs() > FREEWHEEL_STALE_THRESHOLD_MS;
 
     if (!selectedDeck) return { deck: undefined, stale };
 
