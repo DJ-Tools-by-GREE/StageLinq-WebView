@@ -11,6 +11,7 @@ import {
   type UsersMap,
   type UserSettings,
   effectiveZoom,
+  effectiveShowTrackNotes,
   fetchAllUsers,
   putUserSettings,
   loadActiveUser,
@@ -102,6 +103,7 @@ export default function App() {
   });
 
   const detailZoomSec = effectiveZoom(users[activeUser]);
+  const showTrackNotes = effectiveShowTrackNotes(users[activeUser]);
 
   const setActiveUser = useCallback((name: UserName) => {
     saveActiveUser(name);
@@ -198,6 +200,10 @@ export default function App() {
   const latestDecksRef = useRef<DecksState>({
     1: makeBlankDeck(1), 2: makeBlankDeck(2), 3: makeBlankDeck(3), 4: makeBlankDeck(4),
   });
+  // Latest user setting for popups — read inside the WS handler / fire-time
+  // callback without rebuilding the closure on every settings change.
+  const showTrackNotesRef = useRef(showTrackNotes);
+  useEffect(() => { showTrackNotesRef.current = showTrackNotes; }, [showTrackNotes]);
 
   useEffect(() => {
     return () => {
@@ -267,6 +273,7 @@ export default function App() {
           const note: TrackNote | null = msg.deckNotes?.[d] ?? null;
           const fn = nextDecks[d].fileName;
           if (
+            showTrackNotesRef.current &&
             note &&
             note.description &&
             nextDecks[d].trackLoaded &&
@@ -279,6 +286,7 @@ export default function App() {
             if (pendingPopupTimers.current[d]) clearTimeout(pendingPopupTimers.current[d]!);
             pendingPopupTimers.current[d] = setTimeout(() => {
               pendingPopupTimers.current[d] = null;
+              if (!showTrackNotesRef.current) return;
               // Resolve title/artist at fire time — StageLinq often delivers
               // them in a later snapshot than the fileName.
               const live = latestDecksRef.current[d];
@@ -360,6 +368,25 @@ export default function App() {
     setPopupQueue((q) => q.slice(1));
   }, []);
 
+  // When the operator turns popups off, drop everything pending or visible.
+  // Mark every currently-loaded file as "seen" so flipping the setting back on
+  // mid-track does not retroactively pop a note for a song already playing —
+  // the note will surface naturally on the next load instead.
+  useEffect(() => {
+    if (showTrackNotes) {
+      for (const d of DECK_NUMBERS) {
+        const fn = latestDecksRef.current[d].fileName;
+        if (fn) seenNoteForFile.current[d] = fn;
+      }
+      return;
+    }
+    for (const d of DECK_NUMBERS) {
+      const t = pendingPopupTimers.current[d];
+      if (t) { clearTimeout(t); pendingPopupTimers.current[d] = null; }
+    }
+    setPopupQueue([]);
+  }, [showTrackNotes]);
+
   useEffect(() => {
     const ac = new AbortController();
     fetch('/api/timecode/send-when-stopped', { signal: ac.signal })
@@ -430,6 +457,10 @@ export default function App() {
           detailZoomSec={detailZoomSec}
           onChangeDetailZoomSec={(v) =>
             updateUserSettings(activeUser, { detailZoomSec: clampZoom(v) })
+          }
+          showTrackNotes={showTrackNotes}
+          onChangeShowTrackNotes={(v) =>
+            updateUserSettings(activeUser, { showTrackNotes: v })
           }
           freewheel={freewheel}
           freewheelDurationLimits={freewheelMeta.freewheel_max_duration_sec}

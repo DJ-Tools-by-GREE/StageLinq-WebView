@@ -231,6 +231,14 @@ old name is gone everywhere.
 transition recipes) and have them surface automatically a few seconds into
 playback — no need to read the config during a show.
 
+**Per-user opt-out:** the popup is gated by the `showTrackNotes` field in
+`UserSettings` (default `true`), exposed as a toggle in the User Settings
+section of [SettingsModal.tsx](frontend/src/SettingsModal.tsx). Persists
+per-user via the existing `users.json` round-trip — flipping it off cancels
+any pending timer and dismisses any visible popup; flipping it back on does
+not retroactively pop a note for an already-loaded track (the active
+fileName is marked seen so the next *load* is the next surface).
+
 ---
 
 ### 2026-06-17 — `mashup_only` flag on playlist entries

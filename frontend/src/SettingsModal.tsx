@@ -6,6 +6,8 @@ interface Props {
   activeUser: UserName;
   detailZoomSec: number;
   onChangeDetailZoomSec: (value: number) => void;
+  showTrackNotes: boolean;
+  onChangeShowTrackNotes: (value: boolean) => void;
   freewheel: FreewheelSettings | null;
   freewheelDurationLimits: { min: number; max: number };
   onChangeFreewheel: (patch: Partial<FreewheelSettings>) => void;
@@ -20,6 +22,8 @@ export default function SettingsModal({
   activeUser,
   detailZoomSec,
   onChangeDetailZoomSec,
+  showTrackNotes,
+  onChangeShowTrackNotes,
   freewheel,
   freewheelDurationLimits,
   onChangeFreewheel,
@@ -95,6 +99,27 @@ export default function SettingsModal({
               />
               <div className="settingHint">
                 Smaller = more zoomed in. Default: 10s.
+              </div>
+            </div>
+
+            <div className="settingRow">
+              <div className="settingLabel">
+                Track-note popups
+                <span className="settingValue">
+                  {showTrackNotes ? 'enabled' : 'disabled'}
+                </span>
+              </div>
+              <button
+                className={`toggleBtn ${showTrackNotes ? 'on' : 'off'}`}
+                onClick={() => onChangeShowTrackNotes(!showTrackNotes)}
+              >
+                {showTrackNotes ? 'Disable popups' : 'Enable popups'}
+              </button>
+              <div className="settingHint">
+                When enabled, tracks with a non-empty <code>note.description</code>
+                {' '}in the active playlist surface a popup after they load. The
+                delay is per-track via <code>show_secs_after_load</code>. Default:
+                enabled.
               </div>
             </div>
           </section>

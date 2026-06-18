@@ -8,8 +8,11 @@ export const DEFAULT_DETAIL_ZOOM_SEC = 10;
 export const DETAIL_ZOOM_MIN = 4;
 export const DETAIL_ZOOM_MAX = 30;
 
+export const DEFAULT_SHOW_TRACK_NOTES = true;
+
 export interface UserSettings {
   detailZoomSec?: number;
+  showTrackNotes?: boolean;
   // Add more fields freely — server stores whatever shape we send.
 }
 
@@ -43,6 +46,11 @@ export function saveActiveUser(name: UserName): void {
 export function effectiveZoom(settings: UserSettings | undefined): number {
   if (!settings) return DEFAULT_DETAIL_ZOOM_SEC;
   return clampZoom(settings.detailZoomSec ?? DEFAULT_DETAIL_ZOOM_SEC);
+}
+
+export function effectiveShowTrackNotes(settings: UserSettings | undefined): boolean {
+  if (!settings) return DEFAULT_SHOW_TRACK_NOTES;
+  return settings.showTrackNotes ?? DEFAULT_SHOW_TRACK_NOTES;
 }
 
 export async function fetchAllUsers(signal?: AbortSignal): Promise<UsersMap> {
