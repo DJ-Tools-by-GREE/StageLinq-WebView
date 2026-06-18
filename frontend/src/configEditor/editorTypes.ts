@@ -78,6 +78,11 @@ export interface LoggingConfig {
   artnetStats: boolean;
 }
 
+export interface RecordingMapping {
+  audio_file: string;
+  log_file: string;
+}
+
 export interface AppConfig {
   current_playlist: number;
   waveform: WaveformConfig;
@@ -89,6 +94,7 @@ export interface AppConfig {
   control_input: ControlInputConfig;
   osc: OscConfig;
   playlists: Playlist[];
+  recordings: RecordingMapping[];
 }
 
 export interface CsvSong {

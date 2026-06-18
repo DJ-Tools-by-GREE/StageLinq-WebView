@@ -1,5 +1,6 @@
-import type { DeckNumber, DeckState, StageLinqStatus } from './types.js';
+import type { DeckNumber, DeckState, RecordingStatus, ReplayStatus, StageLinqStatus } from './types.js';
 import type { UserName } from './userSettings.js';
+import RecordingControls from './RecordingControls.js';
 
 const DECK_LABEL: Record<DeckNumber, string> = { 1: 'D1', 2: 'D2', 3: 'D3', 4: 'D4' };
 
@@ -17,6 +18,8 @@ interface Props {
   users: readonly UserName[];
   activeUser: UserName;
   onChangeUser: (name: UserName) => void;
+  recordingStatus: RecordingStatus | null;
+  replayStatus: ReplayStatus | null;
 }
 
 export default function HeaderBar({
@@ -33,6 +36,8 @@ export default function HeaderBar({
   users,
   activeUser,
   onChangeUser,
+  recordingStatus,
+  replayStatus,
 }: Props) {
   const bpm = selectedDeckState?.trackLoaded && Number.isFinite(selectedDeckState.currentBpm)
     ? selectedDeckState.currentBpm.toFixed(1)
@@ -109,6 +114,10 @@ export default function HeaderBar({
       </div>
 
       <div className="headerRight">
+        <RecordingControls
+          recordingStatus={recordingStatus}
+          replayStatus={replayStatus}
+        />
         <label className="userPicker" title="Switch user">
           <span className="userPickerLabel">USER</span>
           <select

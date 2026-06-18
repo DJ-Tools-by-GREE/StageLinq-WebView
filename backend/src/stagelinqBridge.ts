@@ -63,6 +63,10 @@ export interface BridgeOptions {
   onTrackChanged?: (deck: DeckNumber, fileName: string, rawNetworkPath: string) => void;
 }
 
+// Listener invoked synchronously from inside touch() on every state mutation. Listeners
+// MUST NOT throw and MUST NOT block — writes go through buffered streams downstream.
+export type DeckStateListener = (deck: DeckNumber, state: DeckState) => void;
+
 export class StageLinqBridge {
   private opts: BridgeOptions;
   private decks: Record<DeckNumber, DeckState>;
@@ -132,6 +136,10 @@ export class StageLinqBridge {
   // Serialize downloads per device: FileTransfer has a single shared buffer and cannot handle concurrent getFile() calls.
   private downloadQueues = new Map<string, Promise<void>>();
 
+  // Subscribers fired synchronously from inside touch(). Used by the Recorder to capture
+  // every state mutation at full bridge cadence.
+  private deckListeners = new Set<DeckStateListener>();
+
   constructor(_opts: BridgeOptions = {}) {
     this.opts = _opts;
     this.decks = Object.fromEntries(
@@ -168,6 +176,12 @@ export class StageLinqBridge {
 
   private touch(deck: DeckNumber) {
     this.decks[deck].updatedAt = Date.now();
+    if (this.deckListeners.size > 0) {
+      const snapshot = { ...this.decks[deck] };
+      for (const fn of this.deckListeners) {
+        try { fn(deck, snapshot); } catch (e) { logError('[Bridge] deck listener threw:', e); }
+      }
+    }
   }
 
   private captureNetPath(deck: DeckNumber, rawValue: unknown) {
@@ -1249,6 +1263,15 @@ export class StageLinqBridge {
     if (!this.realBeatReceivedSinceConnect) return Infinity;
     if (this.lastAnyBeatAtMs === 0) return Infinity;
     return Date.now() - this.lastAnyBeatAtMs;
+  }
+
+  /**
+   * Subscribe to per-deck state mutations. Listener fires synchronously from inside touch()
+   * on every change (full bridge cadence — no throttling). Returns an unsubscribe function.
+   */
+  subscribeDeckState(fn: DeckStateListener): () => void {
+    this.deckListeners.add(fn);
+    return () => { this.deckListeners.delete(fn); };
   }
 
   async downloadFile(

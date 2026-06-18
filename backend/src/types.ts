@@ -45,6 +45,30 @@ export interface DeckState {
 // 'reconnecting' — actively in reconnect loop (bridge.disconnect() was called)
 export type StageLinqStatus = 'connected' | 'no-device' | 'reconnecting';
 
+export interface RecordingStatus {
+  active: boolean;
+  file: string | null;       // basename of the active jsonl, or last-completed
+  startedAt: number | null;  // ms epoch
+  eventCount: number;
+}
+
+// Replay lifecycle:
+//   idle      — engine off; outputs come from bridge.
+//   armed     — log files loaded, watching for a mapped audio file to load.
+//   attaching — mapped audio file loaded on a deck; waiting for play to start.
+//   active    — audio playing; outputs come from the log, indexed by audio deck elapsedSec.
+//   ended     — replay reached past log duration; all decks held at play=false.
+export type ReplayState = 'idle' | 'armed' | 'attaching' | 'active' | 'ended';
+
+export interface ReplayStatus {
+  state: ReplayState;
+  audioDeck: DeckNumber | null;
+  audioFile: string | null;     // mapped basename
+  logFile: string | null;       // basename of the loaded jsonl
+  cursorMs: number;
+  durationMs: number;
+}
+
 export interface SnapshotPayload {
   type: 'snapshot';
   seq: number;
@@ -58,6 +82,8 @@ export interface SnapshotPayload {
   nextTrack: string | null;
   stagelinqStatus: StageLinqStatus;
   deckNotes: Record<DeckNumber, TrackNote | null>;
+  recordingStatus?: RecordingStatus;
+  replayStatus?: ReplayStatus;
 }
 
 export interface HelloPayload {

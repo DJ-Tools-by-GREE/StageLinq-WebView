@@ -73,6 +73,14 @@ function migrateConfig(raw: any): { config: AppConfig; legacyNoteFieldFound: boo
       : pl?.content,
   }));
 
+  const recordings = Array.isArray(src.recordings)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ? src.recordings.map((r: any) => ({
+        audio_file: typeof r?.audio_file === 'string' ? r.audio_file : '',
+        log_file: typeof r?.log_file === 'string' ? r.log_file : '',
+      }))
+    : [];
+
   const config: AppConfig = {
     current_playlist: src.current_playlist ?? DEFAULT_CONFIG.current_playlist,
     waveform: { ...DEFAULT_CONFIG.waveform, ...(src.waveform ?? {}) },
@@ -94,6 +102,7 @@ function migrateConfig(raw: any): { config: AppConfig; legacyNoteFieldFound: boo
       speedmaster: osc.speedmaster ?? DEFAULT_CONFIG.osc.speedmaster,
     },
     playlists,
+    recordings,
   };
   return { config, legacyNoteFieldFound };
 }
@@ -182,6 +191,10 @@ function orderedConfig(config: AppConfig): Record<string, unknown> {
     playlists: config.playlists.map(pl => ({
       name: pl.name,
       content: pl.content.map(orderedEntry),
+    })),
+    recordings: config.recordings.map(r => ({
+      audio_file: r.audio_file,
+      log_file: r.log_file,
     })),
   };
 }

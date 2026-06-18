@@ -49,6 +49,24 @@ export interface HelloPayload {
   fps: number;
 }
 
+export interface RecordingStatus {
+  active: boolean;
+  file: string | null;
+  startedAt: number | null;
+  eventCount: number;
+}
+
+export type ReplayState = 'idle' | 'armed' | 'attaching' | 'active' | 'ended';
+
+export interface ReplayStatus {
+  state: ReplayState;
+  audioDeck: DeckNumber | null;
+  audioFile: string | null;
+  logFile: string | null;
+  cursorMs: number;
+  durationMs: number;
+}
+
 export interface SnapshotPayload {
   type: 'snapshot';
   seq: number;
@@ -59,6 +77,8 @@ export interface SnapshotPayload {
   nextTrack: string | null;
   stagelinqStatus: StageLinqStatus;
   deckNotes: Record<DeckNumber, TrackNote | null>;
+  recordingStatus?: RecordingStatus;
+  replayStatus?: ReplayStatus;
 }
 
 export type WaveformStage = 'downloading' | 'generating' | 'ready' | 'error';

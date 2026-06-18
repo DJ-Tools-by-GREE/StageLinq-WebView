@@ -66,12 +66,16 @@ StageLinq-WebView/
 ├── project.zip                 # full project snapshot
 ├── package.json                # workspace root; top-level dev/build/start scripts
 ├── receiveSacn.js              # standalone sACN debug script (not part of the app)
+├── recordings/                 # JSONL show recordings + .meta.json sidecars (gitignored)
 ├── backend/
 │   ├── src/
 │   │   ├── index.ts            # entry point: Express, WebSocket, snapshot loop, sACN input
 │   │   ├── stagelinqBridge.ts  # StageLinq event wiring, deck state, watchdog
 │   │   ├── artnetTimecode.ts   # Art-Net SMPTE timecode broadcaster (UDP)
 │   │   ├── oscBpm.ts           # OSC BPM sender (UDP)
+│   │   ├── recorder.ts         # Record & Replay: bridge-output JSONL recorder
+│   │   ├── replay.ts           # Record & Replay: log parser + simulated state engine
+│   │   ├── stateProvider.ts    # bridge ↔ replay shim consumed by all output paths
 │   │   ├── waveformService.ts  # waveform peak extraction + artwork extraction; in-memory + disk cache
 │   │   ├── camelot.ts          # key index (0–23) → Camelot notation string
 │   │   ├── constants.ts        # all tunable timing/threshold values in one place
@@ -85,6 +89,7 @@ StageLinq-WebView/
     │   ├── App.tsx             # WebSocket client, 4-quadrant layout
     │   ├── DeckCard.tsx        # per-deck display component
     │   ├── HeaderBar.tsx       # top bar: selected deck, BPM, next track display
+    │   ├── RecordingControls.tsx # REC + ARM REPLAY buttons (Record & Replay)
     │   ├── WaveformDisplay.tsx # waveform peak renderer
     │   ├── types.ts            # shared types (mirrors backend types.ts)
     │   ├── appTypes.ts         # frontend-only types (WaveformState, etc.)
@@ -165,6 +170,7 @@ Settings layer order (highest → lowest priority): **env vars → `config.json`
 | `osc` | OSC BPM output target, enabled flag, SpeedMaster channel |
 | `playlists` | Per-track timecode offsets (matched by normalized filename) |
 | `current_playlist` | 0-indexed active playlist |
+| `recordings` | Record & Replay mappings: `[{ audio_file, log_file }]` keyed by basename |
 
 ---
 
@@ -177,6 +183,7 @@ Settings layer order (highest → lowest priority): **env vars → `config.json`
 - **No comments by default** — only add one when the WHY is non-obvious (hidden constraint, protocol quirk, hardware workaround). Never describe WHAT the code does.
 - **Prefer `unknown` + narrowing over `any`** — `any` is allowed only at third-party library boundaries (StageLinq, sACN) where types are absent or wrong.
 - **Frontend types mirror backend** — keep `frontend/src/types.ts` in sync with `backend/src/types.ts` by hand; do not generate or share a package between them.
+- **Output paths read from `stateProvider`, not `bridge` directly** — Art-Net poll, OSC poll, WS snapshot loop, and any other consumer of "what are the decks doing right now" must go through [backend/src/stateProvider.ts](backend/src/stateProvider.ts) so the Record & Replay engine can override outputs during replay. The waveform/artwork extraction path is the documented exception (it queries `bridge` for the *real* state of the deck currently downloading; mapped audio files are gated out before reaching it).
 
 ---
 
@@ -252,6 +259,9 @@ Port `8090` (configurable via `PORT` env). Path `/ws`.
 | `POST` | `/api/timecode/send-when-stopped` | Set flag; body: `{ "enabled": true \| false }` |
 | `POST` | `/api/config/reload` | Hot-reload `config.json` mid-show (same code path as Ctrl+R on the backend TTY). Returns `409` if a reload is already in progress. Backs the Settings → Controls "Reload config" button. |
 | `GET` | `/api/artwork/:deck` | Serve cached artwork image for deck 1–4 (Content-Type from file) |
+| `POST` | `/api/record/start` / `POST /api/record/stop` / `GET /api/record/status` | Record & Replay: control the JSONL recorder. |
+| `GET` | `/api/recordings` | Record & Replay: list available `.meta.json` sidecars. |
+| `POST` | `/api/replay/arm` / `POST /api/replay/disarm` / `GET /api/replay/status` | Record & Replay: arm the replay engine against `config.recordings[]` mappings. |
 
 ---
 

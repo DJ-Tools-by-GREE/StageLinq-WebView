@@ -7,6 +7,28 @@ decision/bug-confirmation/direction change (per CLAUDE.md).
 
 ## Architectural decisions
 
+### 2026-06-18 — Record & Replay (backup-show fallback)
+
+**What:** Operator can record every state change the StageLinq bridge produces during a live show into a JSONL log under `recordings/`, then later replay that log synchronized to a single prerecorded audio file played on a deck. From the lighting console's perspective the replay is byte-identical to the live show — same Art-Net timecode, OSC, WS UI — and the console keeps full live control of `selectedDeck` (sACN CH1) and the suggestion-execute channel (sACN CH3) regardless of what was recorded.
+
+**Architecture:** Recording happens at the **bridge output boundary** — every call to `bridge.touch(deck)` notifies registered listeners ([backend/src/stagelinqBridge.ts](backend/src/stagelinqBridge.ts) — new `subscribeDeckState()` / `DeckStateListener`). The recorder ([backend/src/recorder.ts](backend/src/recorder.ts)) maintains per-deck "last emitted" snapshots and writes either a full `state` keyframe (on track change / session start) or a field-level `diff` to JSONL. selectedDeck and sACN CH3 events are recorded from `index.ts` callsites since they are not bridge state.
+
+A new shim ([backend/src/stateProvider.ts](backend/src/stateProvider.ts)) sits between the bridge and the three output paths (Art-Net poll, OSC poll, WS snapshot loop). When replay is overriding outputs, all four decks come from the replay engine ([backend/src/replay.ts](backend/src/replay.ts)) — including the audio playback deck, whose real state is hidden from the console. When idle, stateProvider passes through to the bridge.
+
+**Replay clock:** the audio deck's sample-accurate `elapsedSec` (not wall-clock). Pause / scrub / pitch on the audio deck drag the replay timeline along automatically. Dropouts >250 ms force `play=false` on all simulated decks, then the existing Art-Net worker freewheel handles the silence. End-of-log holds all decks `play=false` and lets the console see a clean stop.
+
+**Track-changed waveform suppression:** Mapped audio files (the long backup-set wavs) are gated out of the waveform/artwork extraction path in `onTrackChanged` regardless of replay state — they're large and useless to scan.
+
+**Filename matching:** uses `normalizeTrackName()` (basename, case-sensitive). Same rule as playlist offsets.
+
+**sACN CH3 during replay:** recorded `sacn_execute` events are NOT replayed. The lighting console's automation drives suggestion-execute on its own timecode-aligned schedule, exactly as in a live show.
+
+**REST endpoints:** `POST /api/record/start|stop`, `GET /api/record/status`, `GET /api/recordings`, `POST /api/replay/arm|disarm`, `GET /api/replay/status`. Mappings live in `config.json` under `recordings: [{ audio_file, log_file }]`. The config editor has a new "Recordings (Replay)" section with a dropdown of available logs from the recordings dir.
+
+**Storage:** JSONL + `.meta.json` sidecars in `<repo-root>/recordings/`, gitignored. Full event rate (no throttling).
+
+**Invariant:** all output paths read from `stateProvider`, never `bridge` directly. The waveform extraction code path is the only exception (it asks the real bridge for `totalSec` of the deck currently being downloaded — fine, since mapped audio files are gated out before that path runs).
+
 ### 2026-06-18 — Art-Net: no TC frame on paused deck switch
 
 **What:** When `sendWhenStopped` is off and the operator switches the selected

@@ -1068,3 +1068,79 @@ html, body {
   word-break: break-word;
 }
 
+/* ── Record & Replay controls ────────────────────────────────────── */
+
+.recCtrl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toggleBtn.recBtn--on {
+  background: #5b1717;
+  color: #ffd1d1;
+  border-color: #b03030;
+  animation: recPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes recPulse {
+  0%, 100% { background: #5b1717; }
+  50%      { background: #861f1f; }
+}
+
+.replayBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+}
+
+.replayBadge--armed {
+  background: #2a2a45;
+  color: #b8b8ff;
+  border-color: #4a4a85;
+}
+
+.replayBadge--attaching {
+  background: #2a3a45;
+  color: #b8e8ff;
+  border-color: #4a7585;
+}
+
+.replayBadge--active {
+  background: #1f3d1f;
+  color: #b8ffb8;
+  border-color: #4a854a;
+}
+
+.replayBadge--ended {
+  background: #3d3d1f;
+  color: #ffe8b8;
+  border-color: #85854a;
+}
+
+.replayBadgeTime {
+  opacity: 0.75;
+  font-weight: normal;
+}
+
+.recCtrlError {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #c33;
+  color: #fff;
+  font-weight: bold;
+  font-size: 12px;
+  cursor: help;
+}
+
+

@@ -59,6 +59,45 @@ OSC dispatch is **not automatic**. The lighting console confirms a suggestion by
 
 Manual deck selection via sACN CH1 keeps working unchanged at all times — the execute channel does not touch the selected-deck state, it only emits OSC.
 
+## Record & Replay (backup show)
+
+Use this when the lighting console is timecoded against a fixed playlist and you need a guaranteed-identical backup show that can be triggered when StageLinq glitches mid-set. The backend records every state change the bridge produces during a live show (full event rate, no throttling), then replays that log later — synchronized to a single prerecorded audio file you play on a deck — so the lighting console sees the exact same Art-Net timecode, OSC BPM, and WebSocket UI as if the set were live.
+
+The lighting console keeps full control of `selectedDeck` (sACN CH1) and the suggestion-execute channel (sACN CH3) during replay: live sACN drives both regardless of what was recorded. From the console's perspective, replay is indistinguishable from a live show.
+
+### Recording
+
+1. Start the backend, connect a Prime 4+ / SC6000.
+2. In the header, click **REC** (or `POST /api/record/start`). The button pulses red while active and shows the elapsed duration.
+3. Mix the show as usual.
+4. Click **REC** again to stop. The recorder writes `recordings/<iso>.jsonl` plus a `<iso>.meta.json` sidecar.
+
+The recorder refuses to start if StageLinq is not connected, if a recording is already running, or if replay is currently active.
+
+### Replay
+
+1. Bounce the live show to a single audio file (Reaper / DAW / hardware recorder).
+2. Open the **Config Editor → Recordings (Replay)** section. Add a mapping: audio-file basename → `<iso>.jsonl`. Save and reload (`Ctrl+R` in the backend TTY, or **Settings → Controls → Reload config**).
+3. Click **ARM REPLAY** in the header. The badge shows `ARMED`.
+4. Load the audio file on any deck — the badge changes to `ATTACHING`.
+5. Press play. The badge changes to `REPLAY` and the Art-Net / OSC / WS outputs now come from the log, indexed by the audio deck's sample-accurate `elapsedSec`.
+
+The audio playback deck's own state is hidden from outputs while replay is active — all four simulated decks come from the log.
+
+### Replay clock and dropouts
+
+Replay uses the audio deck's `elapsedSec` as the master timeline (sample-accurate, set by the deck's beatMessage stream). This means:
+
+- **Pausing the audio deck** freezes replay within ~250 ms and the Art-Net worker's existing freewheel takes over (configurable via `freewheel.enable_freewheeling` and `freewheel.max_duration_sec`).
+- **Scrubbing** the audio deck rewinds replay to the corresponding log position.
+- **Pitching** the audio deck speeds up or slows down replay accordingly. Don't pitch the backup audio during a real fallback — the recorded `currentBpm` we emit will not match the pitched playback rate.
+- **End of log**: when the audio plays past the recorded show's duration, replay holds all decks `play=false` and the badge changes to `REPLAY END`. The lighting console sees a clean stop.
+- **Loading a different (non-mapped) audio file** detaches replay back to `ARMED`.
+
+### Storage
+
+Logs and sidecars live in `recordings/` at the repo root (gitignored). One JSONL line per event, full bridge cadence, with deck-state diffs between keyframes. Header line records the playlist offset map at recording time. A multi-hour show is typically a few hundred KB to low single-digit MB.
+
 ## Prerequisites
 
 - Node.js 22+
@@ -264,6 +303,13 @@ Waveforms and artwork are extracted automatically when a track loads and cached 
 | `GET` | `/api/config` | Read the on-disk `config.json` for the in-app config editor. Returns `{ config, sourcePath }` (parsed JSON, JS-style comments stripped). |
 | `PUT` | `/api/config` | Atomically write the full `config.json` (tmp+rename). Body is the new top-level config object. **Write-only**: the runtime is NOT hot-reloaded by this — press `Ctrl+R` in the backend terminal, click **Settings → Controls → Reload config**, or `POST /api/config/reload` to apply. |
 | `POST` | `/api/config/reload` | Hot-reload `config.json` mid-show — same code path as `Ctrl+R` on the backend TTY. Re-applies playlist offsets, track notes, freewheel, logging, and display settings. Returns `409 { error: "reload already in progress" }` if a reload is currently running. Backs the **Settings → Controls → Reload config** button. |
+| `POST` | `/api/record/start` | Start recording the live show to `recordings/<iso>.jsonl`. Optional body `{ "name": "..." }` is appended to the filename. Refuses with `409` if already recording, replay is active, or StageLinq is not connected. |
+| `POST` | `/api/record/stop` | Stop the active recording, flush, and write the `.meta.json` sidecar. Returns `{ ok, file, durationMs, eventCount }` or `409` if not recording. |
+| `GET` | `/api/record/status` | Current recorder state. |
+| `GET` | `/api/recordings` | List `recordings/*.meta.json` sidecars for the config-editor dropdown. |
+| `POST` | `/api/replay/arm` | Load all configured recordings and watch for a mapped audio file to land on a deck. Refuses if recording is in progress. |
+| `POST` | `/api/replay/disarm` | Drop loaded recordings and return to idle. |
+| `GET` | `/api/replay/status` | Current replay state (`idle` / `armed` / `attaching` / `active` / `ended`). |
 
 ## Deck color accents
 
@@ -285,6 +331,9 @@ StageLinq-WebView/
 │   ├── artnetWorker.ts     # Art-Net SMPTE worker (owns dgram socket + self-correcting tick)
 │   ├── artnetWorkerMessages.ts # typed message contract between main thread and worker
 │   ├── oscBpm.ts           # OSC BPM sender
+│   ├── recorder.ts         # Record-mode JSONL writer (Record & Replay)
+│   ├── replay.ts           # Replay engine (Record & Replay)
+│   ├── stateProvider.ts    # Output-side shim: bridge state vs. replay state
 │   ├── waveformService.ts  # Waveform peak extraction and artwork cache
 │   ├── camelot.ts          # Key index → Camelot string
 │   ├── constants.ts        # Tunable timing and threshold constants
@@ -294,6 +343,7 @@ StageLinq-WebView/
     ├── App.tsx             # WebSocket client, 4-quadrant layout
     ├── DeckCard.tsx        # Per-deck display component
     ├── HeaderBar.tsx       # Top bar: selected deck, BPM, next track
+    ├── RecordingControls.tsx # REC + ARM REPLAY buttons (Record & Replay)
     ├── WaveformDisplay.tsx # Waveform peak renderer
     ├── appTypes.ts         # Frontend-only types (WaveformState)
     └── types.ts            # Shared types (mirrors backend)

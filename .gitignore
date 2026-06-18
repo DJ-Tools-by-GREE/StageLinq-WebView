@@ -144,3 +144,6 @@ vite.config.ts.timestamp-*
 # Waveform and artwork caches
 waveform-cache/
 artwork-cache/
+
+# Recorded show logs (Record & Replay feature)
+recordings/

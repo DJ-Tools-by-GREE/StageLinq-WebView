@@ -9,7 +9,7 @@ import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { StageLinqBridge } from './stagelinqBridge.js';
-import type { DeckNumber, SnapshotPayload, TrackNote, WaveformStatusPayload, WsPayload } from './types.js';
+import type { DeckNumber, SnapshotPayload, StageLinqStatus, TrackNote, WaveformStatusPayload, WsPayload } from './types.js';
 import { ArtNetTimecodeBroadcaster } from './artnetTimecode.js';
 import { OscBpmSender } from './oscBpm.js';
 import { RECONNECT_DELAY_MS, WS_FPS, WAVEFORM_PEAKS_PER_SEC, DISCONNECT_DETECT_TIMEOUT_S, MAIN_EVENT_LOOP_LAG_WARN_MS, WS_BROADCAST_WARN_MS } from './constants.js';
@@ -18,6 +18,9 @@ import { logError, logLifecycle, logWaveform, logUiOut, applyLoggingConfig, appl
 import { generateWaveformPeaks, peaksCache, artworkCache, initWaveformCache } from './waveformService.js';
 import { UserSettingsStore, FIXED_USERS, resolveUsersFilePath } from './userSettings.js';
 import { GlobalSettingsStore, readFreewheelFromConfig, FREEWHEEL_MIN_DURATION_SEC, FREEWHEEL_MAX_DURATION_SEC } from './globalSettings.js';
+import { Recorder, listRecordings } from './recorder.js';
+import { Replay } from './replay.js';
+import { makeStateProvider } from './stateProvider.js';
 
 function isIgnorableStageLinqError(err: unknown): boolean {
   if (!err) return false;
@@ -186,6 +189,10 @@ interface RootConfig {
     artnet?: boolean;
     info?: boolean;
   };
+  recordings?: Array<{
+    audio_file?: string;
+    log_file?: string;
+  }>;
 }
 
 function stripJsonComments(input: string): string {
@@ -765,13 +772,60 @@ async function main() {
 
   app.get('/api/artwork/:deck', (req, res) => {
     const deck = Number(req.params.deck) as DeckNumber;
-    const fileName = bridge.getDeck(deck)?.fileName;
+    const fileName = stateProvider.getDeck(deck)?.fileName;
     if (!fileName) { res.status(404).end(); return; }
     const entry = artworkCache.get(fileName);
     if (!entry) { res.status(404).end(); return; }
     res.setHeader('Content-Type', entry.mime);
     res.setHeader('Cache-Control', 'public, max-age=3600');
     res.send(entry.data);
+  });
+
+  // -- Record & Replay --
+
+  app.post('/api/record/start', async (req, res) => {
+    const name = typeof req?.body?.name === 'string' ? req.body.name : undefined;
+    const result = await recorder.start(name);
+    if (result.ok) { res.json(result); return; }
+    res.status(result.code).json({ ok: false, error: result.error });
+  });
+
+  app.post('/api/record/stop', async (_req, res) => {
+    const result = await recorder.stop();
+    if (result.ok) { res.json(result); return; }
+    res.status(result.code).json({ ok: false, error: result.error });
+  });
+
+  app.get('/api/record/status', (_req, res) => {
+    res.json(recorder.getStatus());
+  });
+
+  app.get('/api/recordings', async (_req, res) => {
+    try {
+      const list = await listRecordings(recordingsDir);
+      res.json({ recordings: list, dir: recordingsDir });
+    } catch (e: any) {
+      res.status(500).json({ error: e?.message || String(e) });
+    }
+  });
+
+  app.post('/api/replay/arm', async (_req, res) => {
+    if (recorder.isActive()) {
+      res.status(409).json({ ok: false, error: 'cannot arm replay while recording' });
+      return;
+    }
+    const mappings = config?.recordings ?? [];
+    const result = await replay.arm(mappings);
+    res.json(result);
+  });
+
+  app.post('/api/replay/disarm', (_req, res) => {
+    replay.disarm();
+    res.json({ ok: true });
+  });
+
+  app.get('/api/replay/status', (_req, res) => {
+    res.json(replay.getStatus());
   });
 
   // sACN deck simulator — sends a real sACN packet to the configured universe/address
@@ -879,6 +933,20 @@ async function main() {
   let reconnecting = false;
   let bridge!: StageLinqBridge;
 
+  // Recordings live in <repo-root>/recordings. The repo root is the directory containing
+  // config.json; falls back to process.cwd() if no config was found at boot.
+  const recordingsDir = path.resolve(configPath ? path.dirname(configPath) : process.cwd(), 'recordings');
+  const replay = new Replay({ recordingsDir });
+  let recorder!: Recorder;
+
+  // Live status — recomputed on demand; recorder pushes a status event whenever it changes.
+  let lastReportedStatus: StageLinqStatus = 'no-device';
+  function stagelinqStatusForApi(): StageLinqStatus {
+    if (reconnecting) return 'reconnecting';
+    if (!bridge) return 'no-device';
+    return bridge.getLastBeatAgeMs() <= DISCONNECT_DETECT_TIMEOUT_S * 1000 ? 'connected' : 'no-device';
+  }
+
   let seq = 0;
   let uiUrls: string[] = [];
   let spinnerFrame = 0;
@@ -944,6 +1012,13 @@ async function main() {
     },
     onTrackChanged: (deck, fileName, rawNetworkPath) => {
       const t0 = Date.now();
+      // Notify the replay engine first so it can attach/detach before any heavy I/O.
+      replay.onTrackChanged(deck, fileName);
+      // Mapped backup-audio files are large and useless to scan — skip waveform/artwork.
+      if (replay.shouldSuppressWaveformExtraction(fileName)) {
+        logLifecycle(`[REPLAY] suppressing waveform extraction for mapped file "${fileName}"`);
+        return;
+      }
       logLifecycle(`[WAVEFORM] onTrackChanged deck=${deck} file="${fileName}" inPlaylist=${activePlaylistFiles.has(fileName)}`);
       if (!waveformAllTracks && !activePlaylistFiles.has(fileName)) return;
       if (peaksCache.has(fileName)) {
@@ -1021,6 +1096,25 @@ async function main() {
   });
   const require = createRequire(import.meta.url);
 
+  recorder = new Recorder({
+    bridge,
+    recordingsDir,
+    getTrackOffsets: () => {
+      const obj: Record<string, { offsetSec: number; offsetFrame: number }> = {};
+      for (const [k, v] of trackOffsets) obj[k] = v;
+      return obj;
+    },
+    getPlaylistRef: () => `current_playlist=${config?.current_playlist ?? -1}`,
+    isReplayActive: () => replay.isActive(),
+    getStatus: () => stagelinqStatusForApi(),
+  });
+
+  const stateProvider = makeStateProvider({
+    bridge,
+    replay,
+    disconnectTimeoutSec: DISCONNECT_DETECT_TIMEOUT_S,
+  });
+
   const artnet = new ArtNetTimecodeBroadcaster({
     enabled: artnetEnabled,
     targetIps: artnetTargetIps,
@@ -1043,6 +1137,7 @@ async function main() {
     if (nextDeck === selectedDeck) return;
     selectedDeck = nextDeck;
     logLifecycle(`[DECK SELECT] ${selectedDeck ? `Deck ${selectedDeck}` : 'No deck selected'} (${reason})`);
+    recorder?.recordSelected(selectedDeck);
   };
 
   // Latest auto-suggested deck. Updated each snapshot tick by the broadcast
@@ -1088,6 +1183,7 @@ async function main() {
               if (currentSuggestedDeck !== null) {
                 logLifecycle(`[DECK SUGGEST] Execute CH${executeAddress}=${execRaw} (abs ${execAbs}) -> sugDeck_${currentSuggestedDeck}`);
                 oscBpm?.sendCustomCommand(`sugDeck_${currentSuggestedDeck}`);
+                recorder?.recordSacnExecute(currentSuggestedDeck);
               } else {
                 logLifecycle(`[DECK SUGGEST] Execute CH${executeAddress} rising edge ignored — no active suggestion`);
               }
@@ -1170,11 +1266,12 @@ async function main() {
     // beats are arriving (cable pull, device off, mid-reconnect), the worker freezes the
     // cached deck snapshot and freewheels the timeline forward at the last-known speed
     // so the lighting console keeps seeing a smoothly advancing TC across the gap.
-    const stale = reconnecting || bridge.getLastBeatAgeMs() > DISCONNECT_DETECT_TIMEOUT_S * 1000;
+    // During replay, stateProvider returns 0 for getLastBeatAgeMs() so freewheel disengages.
+    const stale = reconnecting || stateProvider.getLastBeatAgeMs() > DISCONNECT_DETECT_TIMEOUT_S * 1000;
 
     if (!selectedDeck) return { deck: undefined, stale };
 
-    const deck = bridge.getDeck(selectedDeck);
+    const deck = stateProvider.getDeck(selectedDeck);
     if (Number(deck.elapsedSec) <= 0) return { deck: undefined, stale };
 
     const fileKey = normalizeTrackName(deck.fileName || '');
@@ -1202,7 +1299,7 @@ async function main() {
     try { ws.send(JSON.stringify(hello)); } catch {}
 
     // Replay any cached waveforms and artwork for currently loaded decks
-    const currentDecks = bridge.getDecks();
+    const currentDecks = stateProvider.getDecks();
     for (const [dStr, deckState] of Object.entries(currentDecks)) {
       const deck = Number(dStr) as DeckNumber;
       const fn = deckState.fileName;
@@ -1258,7 +1355,7 @@ async function main() {
   // log (the actual OSC dispatch is gated by the sACN execute channel).
   let lastSuggestedDeck: DeckNumber | null = null;
   setInterval(() => {
-    const decks = bridge.getDecks();
+    const decks = stateProvider.getDecks();
 
     if (selectedDeck && oscBpm) {
       oscBpm.sendDeckBpm(decks[selectedDeck]);
@@ -1292,6 +1389,12 @@ async function main() {
       lastSuggestedDeck = suggestedDeck;
     }
 
+    const status = stateProvider.getStatus(reconnecting);
+    if (status !== lastReportedStatus) {
+      lastReportedStatus = status;
+      recorder.recordStatus(status);
+    }
+
     const payload: SnapshotPayload = {
       type: 'snapshot',
       seq: ++seq,
@@ -1300,10 +1403,10 @@ async function main() {
       selectedDeck,
       suggestedDeck,
       nextTrack: computeNextTrack(config, selectedDeck ? decks[selectedDeck].fileName : null),
-      stagelinqStatus: reconnecting ? 'reconnecting'
-        : bridge.getLastBeatAgeMs() <= DISCONNECT_DETECT_TIMEOUT_S * 1000 ? 'connected'
-        : 'no-device',
+      stagelinqStatus: status,
       deckNotes,
+      recordingStatus: recorder.getStatus(),
+      replayStatus: replay.getStatus(),
     };
 
     // Log only when meaningful values changed

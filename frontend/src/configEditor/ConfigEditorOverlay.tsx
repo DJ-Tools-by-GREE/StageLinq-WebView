@@ -4,6 +4,7 @@ import { DEFAULT_CONFIG } from './defaults.js';
 import { loadConfig, saveConfig } from './restApi.js';
 import { GlobalSettings } from './components/GlobalSettings.js';
 import { PlaylistEditor } from './components/PlaylistEditor.js';
+import { RecordingsEditor } from './components/RecordingsEditor.js';
 import './editor.css';
 
 interface Props {
@@ -150,6 +151,7 @@ export default function ConfigEditorOverlay({ onClose }: Props) {
             <>
               <GlobalSettings config={config} onChange={updateConfig} />
               <PlaylistEditor config={config} onChange={updateConfig} />
+              <RecordingsEditor config={config} onChange={updateConfig} />
             </>
           )}
         </main>

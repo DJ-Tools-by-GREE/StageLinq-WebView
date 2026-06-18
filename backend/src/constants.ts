@@ -81,3 +81,12 @@ export const WS_BROADCAST_WARN_MS = 5;
  * snap forward to "now + interval" and log a hard-stall warning instead of trying to catch up.
  */
 export const ARTNET_HARD_STALL_INTERVALS = 3;
+
+// Record & Replay
+
+/**
+ * Audio-clock dropout window during replay. If the audio deck's elapsedSec hasn't advanced
+ * for this many ms while play=true, the replay engine freezes simulated state and forces
+ * play=false on all decks (Art-Net worker's freewheel handles the rest).
+ */
+export const REPLAY_FREEWHEEL_DETECT_MS = 250;

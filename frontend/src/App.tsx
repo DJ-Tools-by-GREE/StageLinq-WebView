@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import type { DeckNumber, DeckState, StageLinqStatus, TrackNote, WsPayload } from './types.js';
+import type { DeckNumber, DeckState, RecordingStatus, ReplayStatus, StageLinqStatus, TrackNote, WsPayload } from './types.js';
 import type { WaveformState } from './appTypes.js';
 import DeckCard from './DeckCard.js';
 import HeaderBar from './HeaderBar.js';
@@ -88,6 +88,8 @@ export default function App() {
   const [selectedDeck, setSelectedDeck] = useState<DeckNumber | null>(null);
   const [suggestedDeck, setSuggestedDeck] = useState<DeckNumber | null>(null);
   const [nextTrack, setNextTrack] = useState<string | null>(null);
+  const [recordingStatus, setRecordingStatus] = useState<RecordingStatus | null>(null);
+  const [replayStatus, setReplayStatus] = useState<ReplayStatus | null>(null);
   const [sendWhenStopped, setSendWhenStopped] = useState(false);
   const [settingBusy, setSettingBusy] = useState(false);
   const [headerVisible, setHeaderVisible] = useState(true);
@@ -285,6 +287,8 @@ export default function App() {
         setSuggestedDeck(msg.suggestedDeck ?? null);
         setNextTrack(msg.nextTrack ?? null);
         setStagelinqStatus(msg.stagelinqStatus);
+        setRecordingStatus(msg.recordingStatus ?? null);
+        setReplayStatus(msg.replayStatus ?? null);
         const prev = prevLoadedRef.current;
         const prevFile = prevFileNameRef.current;
         for (const d of DECK_NUMBERS) {
@@ -466,6 +470,8 @@ export default function App() {
           users={FIXED_USERS}
           activeUser={activeUser}
           onChangeUser={setActiveUser}
+          recordingStatus={recordingStatus}
+          replayStatus={replayStatus}
         />
       )}
       <div className="grid">
