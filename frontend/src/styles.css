@@ -845,10 +845,21 @@ html, body {
   border-radius: 8px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
   min-width: 320px;
+  /* Default cap — narrow popups (track-note) keep this. The settings modal
+     overrides via .modalDialog--wide below to fit landscape screens. */
   max-width: min(560px, 92vw);
+  max-height: 92vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+/* Wide variant for the Settings modal — tall single-column stacks were
+   overflowing on horizontal screens. Lay sections out as a grid that
+   collapses back to one column on narrow viewports. */
+.modalDialog--wide {
+  max-width: min(1180px, 96vw);
+  width: 100%;
 }
 
 .modalHeader {
@@ -900,6 +911,30 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  overflow-y: auto;
+}
+
+/* Grid layout for the settings modal: 3 columns on landscape, 2 on
+   medium, 1 on portrait/narrow. Each section becomes a self-contained
+   card so columns visually separate without relying on the original
+   single-column dividers. */
+.modalBody--grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(280px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 1080px) {
+  .modalBody--grid {
+    grid-template-columns: repeat(2, minmax(280px, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .modalBody--grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ── Sectioned settings ─────────────────────────────────────────── */
@@ -914,6 +949,20 @@ html, body {
 .settingsSection:first-child {
   padding-top: 0;
   border-top: none;
+}
+
+/* When sections sit inside the grid layout, drop the sibling divider
+   pattern and turn each one into a card with its own border. */
+.modalBody--grid .settingsSection {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface2) 60%, transparent);
+}
+
+.modalBody--grid .settingsSection:first-child {
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
 }
 
 .settingsSectionTitle {

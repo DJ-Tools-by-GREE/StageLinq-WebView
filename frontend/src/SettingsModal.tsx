@@ -121,7 +121,7 @@ export default function SettingsModal({
     <div className="modalBackdrop" onMouseDown={onClose}>
       <div
         ref={dialogRef}
-        className="modalDialog"
+        className="modalDialog modalDialog--wide"
         role="dialog"
         aria-modal="true"
         aria-labelledby="settingsTitle"
@@ -134,7 +134,7 @@ export default function SettingsModal({
           <button className="modalClose" onClick={onClose} aria-label="Close settings">×</button>
         </div>
 
-        <div className="modalBody">
+        <div className="modalBody modalBody--grid">
           {/* ── User-scoped settings ─────────────────────────────────────────── */}
           <section className="settingsSection">
             <h3 className="settingsSectionTitle">User Settings</h3>
