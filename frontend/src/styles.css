@@ -247,6 +247,11 @@ html, body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  /* Establish a size container so the waveform canvases can size
+     relative to the card height (cqh) instead of the viewport. The
+     2×2 grid means viewport-relative units don't reflect how much
+     room any one card actually has. */
+  container-type: size;
 }
 
 /* Subtle top-edge glow using deck color */

@@ -1417,8 +1417,9 @@ async function main() {
     // Log suggestion edges only — OSC dispatch is no longer automatic; the
     // operator confirms via sACN CH3 (see sACN packet handler).
     if (suggestedDeck !== lastSuggestedDeck) {
+      let reason: string | null = null;
       if (suggestedDeck !== null) {
-        const reason =
+        reason =
           decks[suggestedDeck].play
             ? 'next-track deck playing'
             : 'selected deck stopped, next track pre-loaded';
@@ -1426,6 +1427,7 @@ async function main() {
       } else {
         logLifecycle(`[DECK SUGGEST] cleared`);
       }
+      recorder?.recordSuggested(suggestedDeck, reason);
       lastSuggestedDeck = suggestedDeck;
     }
 
