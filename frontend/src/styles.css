@@ -36,6 +36,13 @@ html, body {
   background: var(--border);
 }
 
+/* 2-deck layout: D1 and D2 side-by-side, full card height. The cards
+   themselves remain identical — only the grid template changes. */
+.grid--2 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr;
+}
+
 /* ── App shell ──────────────────────────────────────────────────── */
 .appShell {
   height: 100%;

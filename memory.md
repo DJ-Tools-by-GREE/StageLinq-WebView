@@ -7,6 +7,17 @@ decision/bug-confirmation/direction change (per CLAUDE.md).
 
 ## Architectural decisions
 
+### 2026-06-18 — Per-user deck layout toggle (2 vs 4 decks)
+
+**What:** Users can pick between the original 4-deck 2×2 grid (default) and a 2-deck side-by-side layout that renders only D1 and D2. Lives in the user-scoped Settings modal, persisted via the existing `users.json` round-trip (new `deckLayout: 2 | 4` field on `UserSettings`). 4 is the default for any user without an explicit choice — all current users keep their existing view.
+
+**Architecture:**
+- `frontend/src/userSettings.ts` adds `DECK_LAYOUTS = [2, 4]`, `DeckLayout` type, `DEFAULT_DECK_LAYOUT = 4`, an `effectiveDeckLayout()` helper, and the `deckLayout?` field on `UserSettings`. Backend is open-ended (`UserSettings = Record<string, unknown>`) so no backend change is needed — the field just appears in `users.json` once a user picks a value.
+- `App.tsx` derives `visibleDecks` (`[1,2]` or `[1,2,3,4]`) and applies a `grid--2` / `grid--4` class so CSS can switch templates. Backend keeps emitting all four deck states; the 2-deck view is purely a render filter on the client. Backend output paths (Art-Net, OSC, sACN) are unaffected — they read from `stateProvider`, not the UI.
+- `styles.css` `.grid--2` overrides to `grid-template-columns: 1fr 1fr; grid-template-rows: 1fr;` (full-height side-by-side); `.grid` (and `.grid--4`) keep the original 2×2.
+
+**Why a render filter, not a backend gate:** the deck-selection sACN channel still needs to accept D3/D4 even when the operator picked the 2-deck UI; lighting console must remain authoritative. Hiding the UI cards is the right level — the user's choice does not lie to the rest of the system.
+
 ### 2026-06-18 — In-app terminal panel (live backend log stream)
 
 **What:** Header has a chevron-prompt icon next to the gear; clicking unfolds a panel below the header that mirrors the backend's per-event log lines (lifecycle, playback, errors, …). Only newly printed lines are shown — the static dashboard rows that take over the bottom of the TTY (`logDashboard`) deliberately bypass the tap, since "the static line" is exactly what the user did NOT want to see in the browser.

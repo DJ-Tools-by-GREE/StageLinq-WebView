@@ -17,10 +17,17 @@ export const DETAIL_ZOOM_MAX = 30;
 // settings object) always wins over the role-derived default.
 export const DEFAULT_SHOW_TRACK_NOTES = false;
 
+// Deck layout: 4 = the original 2×2 grid (D1..D4), 2 = side-by-side D1 & D2
+// only. Default is 4 to preserve existing behavior.
+export const DECK_LAYOUTS = [2, 4] as const;
+export type DeckLayout = typeof DECK_LAYOUTS[number];
+export const DEFAULT_DECK_LAYOUT: DeckLayout = 4;
+
 export interface UserSettings {
   detailZoomSec?: number;
   showTrackNotes?: boolean;
   role?: Role;
+  deckLayout?: DeckLayout;
   // Add more fields freely — server stores whatever shape we send.
 }
 
@@ -39,6 +46,10 @@ export function isUserName(s: string | null | undefined): s is UserName {
 
 export function isRole(s: string | null | undefined): s is Role {
   return s != null && (ROLES as readonly string[]).includes(s);
+}
+
+export function isDeckLayout(n: unknown): n is DeckLayout {
+  return typeof n === 'number' && (DECK_LAYOUTS as readonly number[]).includes(n);
 }
 
 export function loadActiveUser(): UserName {
@@ -63,6 +74,11 @@ export function effectiveZoom(settings: UserSettings | undefined): number {
 export function effectiveRole(settings: UserSettings | undefined): Role {
   if (!settings) return DEFAULT_ROLE;
   return isRole(settings.role) ? settings.role : DEFAULT_ROLE;
+}
+
+export function effectiveDeckLayout(settings: UserSettings | undefined): DeckLayout {
+  if (!settings) return DEFAULT_DECK_LAYOUT;
+  return isDeckLayout(settings.deckLayout) ? settings.deckLayout : DEFAULT_DECK_LAYOUT;
 }
 
 // Explicit user choice wins. Otherwise: DJ → on, everyone else → off.

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { ROLES, type Role, type UserName } from './userSettings.js';
+import { ROLES, DECK_LAYOUTS, type DeckLayout, type Role, type UserName } from './userSettings.js';
 import type { FreewheelSettings, ReloadConfigResult } from './globalSettings.js';
 
 interface Props {
@@ -10,6 +10,8 @@ interface Props {
   onChangeShowTrackNotes: (value: boolean) => void;
   role: Role;
   onChangeRole: (value: Role) => void;
+  deckLayout: DeckLayout;
+  onChangeDeckLayout: (value: DeckLayout) => void;
   onResetRoleDefaults: () => void;
   // True iff at least one role-derived field has an explicit user override
   // right now. Drives the enabled state and label of the reset button.
@@ -34,6 +36,8 @@ export default function SettingsModal({
   onChangeShowTrackNotes,
   role,
   onChangeRole,
+  deckLayout,
+  onChangeDeckLayout,
   onResetRoleDefaults,
   hasRoleOverrides,
   freewheel,
@@ -203,6 +207,33 @@ export default function SettingsModal({
                 delay is per-track via <code>show_secs_after_load</code>.
                 Default follows your role: <strong>DJ</strong> on, others off.
                 Toggling here pins your choice and overrides the role default.
+              </div>
+            </div>
+
+            <div className="settingRow">
+              <div className="settingLabel">
+                Deck layout
+                <span className="settingValue">
+                  {deckLayout === 2 ? '2 decks (D1 & D2)' : '4 decks (2×2)'}
+                </span>
+              </div>
+              <div className="userPicker">
+                <span className="userPickerLabel">DECKS</span>
+                <select
+                  className="userPickerSelect"
+                  value={deckLayout}
+                  onChange={(e) => onChangeDeckLayout(Number(e.target.value) as DeckLayout)}
+                >
+                  {DECK_LAYOUTS.map((n) => (
+                    <option key={n} value={n}>
+                      {n === 2 ? '2 decks — D1 & D2 side by side' : '4 decks — 2×2 grid'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="settingHint">
+                Switch between the full 4-deck 2×2 grid and a 2-deck side-by-side
+                view that only renders D1 and D2. Default: 4 decks.
               </div>
             </div>
 

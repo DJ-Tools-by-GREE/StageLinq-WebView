@@ -13,9 +13,11 @@ import {
   type UsersMap,
   type UserSettings,
   type Role,
+  type DeckLayout,
   effectiveZoom,
   effectiveShowTrackNotes,
   effectiveRole,
+  effectiveDeckLayout,
   fetchAllUsers,
   putUserSettings,
   loadActiveUser,
@@ -118,6 +120,8 @@ export default function App() {
   const detailZoomSec = effectiveZoom(users[activeUser]);
   const showTrackNotes = effectiveShowTrackNotes(users[activeUser]);
   const role = effectiveRole(users[activeUser]);
+  const deckLayout = effectiveDeckLayout(users[activeUser]);
+  const visibleDecks: DeckNumber[] = deckLayout === 2 ? [1, 2] : DECK_NUMBERS;
   // True iff at least one role-derived field is currently overridden by an
   // explicit user value. Drives the reset-button enabled state in Settings.
   const hasRoleOverrides = ROLE_DERIVED_KEYS.some(
@@ -487,8 +491,8 @@ export default function App() {
       {terminalOpen && (
         <TerminalPanel lines={terminalLines} onClose={toggleTerminal} />
       )}
-      <div className="grid">
-        {DECK_NUMBERS.map((d) => (
+      <div className={`grid grid--${deckLayout}`}>
+        {visibleDecks.map((d) => (
           <DeckCard
             key={d}
             state={decks[d]}
@@ -522,6 +526,10 @@ export default function App() {
           role={role}
           onChangeRole={(v: Role) =>
             updateUserSettings(activeUser, { role: v })
+          }
+          deckLayout={deckLayout}
+          onChangeDeckLayout={(v: DeckLayout) =>
+            updateUserSettings(activeUser, { deckLayout: v })
           }
           onResetRoleDefaults={() => {
             const patch: Partial<UserSettings> = {};
