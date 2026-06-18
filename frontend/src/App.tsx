@@ -90,8 +90,6 @@ export default function App() {
   const [nextTrack, setNextTrack] = useState<string | null>(null);
   const [recordingStatus, setRecordingStatus] = useState<RecordingStatus | null>(null);
   const [replayStatus, setReplayStatus] = useState<ReplayStatus | null>(null);
-  const [sendWhenStopped, setSendWhenStopped] = useState(false);
-  const [settingBusy, setSettingBusy] = useState(false);
   const [headerVisible, setHeaderVisible] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [configEditorOpen, setConfigEditorOpen] = useState(false);
@@ -427,32 +425,6 @@ export default function App() {
     setPopupQueue([]);
   }, [showTrackNotes]);
 
-  useEffect(() => {
-    const ac = new AbortController();
-    fetch('/api/timecode/send-when-stopped', { signal: ac.signal })
-      .then((r) => r.json())
-      .then((data: { enabled: boolean }) => { setSendWhenStopped(data.enabled === true); })
-      .catch(() => {});
-    return () => ac.abort();
-  }, []);
-
-  const toggleSendWhenStopped = useCallback(async () => {
-    if (settingBusy) return;
-    setSettingBusy(true);
-    try {
-      const res = await fetch('/api/timecode/send-when-stopped', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enabled: !sendWhenStopped }),
-      });
-      const data: { enabled: boolean } = await res.json();
-      setSendWhenStopped(data.enabled === true);
-    } catch {
-    } finally {
-      setSettingBusy(false);
-    }
-  }, [settingBusy, sendWhenStopped]);
-
   return (
     <div className="appShell">
       {headerVisible && (
@@ -463,9 +435,6 @@ export default function App() {
           selectedDeckState={selectedDeck ? decks[selectedDeck] : null}
           suggestedDeck={suggestedDeck}
           nextTrack={nextTrack}
-          sendWhenStopped={sendWhenStopped}
-          settingBusy={settingBusy}
-          onToggleSendWhenStopped={toggleSendWhenStopped}
           onOpenSettings={() => setSettingsOpen(true)}
           users={FIXED_USERS}
           activeUser={activeUser}

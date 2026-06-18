@@ -11,9 +11,6 @@ interface Props {
   selectedDeckState: DeckState | null;
   suggestedDeck: DeckNumber | null;
   nextTrack: string | null;
-  sendWhenStopped: boolean;
-  settingBusy: boolean;
-  onToggleSendWhenStopped: () => void;
   onOpenSettings: () => void;
   users: readonly UserName[];
   activeUser: UserName;
@@ -29,9 +26,6 @@ export default function HeaderBar({
   selectedDeckState,
   suggestedDeck,
   nextTrack,
-  sendWhenStopped,
-  settingBusy,
-  onToggleSendWhenStopped,
   onOpenSettings,
   users,
   activeUser,
@@ -130,13 +124,6 @@ export default function HeaderBar({
             ))}
           </select>
         </label>
-        <button
-          className={`toggleBtn ${sendWhenStopped ? 'on' : 'off'}`}
-          onClick={onToggleSendWhenStopped}
-          disabled={settingBusy}
-        >
-          {sendWhenStopped ? 'TC while stopped: ON' : 'TC while stopped: OFF'}
-        </button>
         <button
           className="iconBtn"
           onClick={onOpenSettings}

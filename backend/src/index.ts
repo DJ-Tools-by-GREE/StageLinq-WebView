@@ -460,7 +460,6 @@ async function main() {
   let { config, sourcePath: configPath } = await loadRootConfig();
   if (config?.logging) applyLoggingConfig(config.logging);
   if (config?.display) applyDisplayConfig(config.display);
-  let sendTimecodeWhenStopped = false;
 
   await initWaveformCache(process.cwd());
 
@@ -617,17 +616,6 @@ async function main() {
   // API health
   app.get('/api/health', (_req, res) => {
     res.json({ ok: true, ts: Date.now() });
-  });
-
-  app.get('/api/timecode/send-when-stopped', (_req, res) => {
-    res.json({ enabled: sendTimecodeWhenStopped });
-  });
-
-  app.post('/api/timecode/send-when-stopped', (req, res) => {
-    const enabled = req?.body?.enabled === true;
-    sendTimecodeWhenStopped = enabled;
-    artnet.setSendWhenStopped(enabled);
-    res.json({ ok: true, enabled: sendTimecodeWhenStopped });
   });
 
   app.get('/api/users', (_req, res) => {
@@ -1125,7 +1113,6 @@ async function main() {
     streamId: artnetStreamId,
     deck: artnetDeck,
     latencyCompMs: artnetLatencyCompMs,
-    sendWhenStopped: sendTimecodeWhenStopped,
     enableFreewheeling: initialFw.enable_freewheeling,
     freewheelMaxDurationSec: initialFw.max_duration_sec,
   });

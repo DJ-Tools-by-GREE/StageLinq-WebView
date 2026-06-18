@@ -17,7 +17,6 @@ export interface ArtNetOptions {
   streamId?: number;
   deck: 1 | 2 | 3 | 4;
   latencyCompMs?: number;
-  sendWhenStopped?: boolean;
   enableFreewheeling?: boolean;
   freewheelMaxDurationSec?: number;
 }
@@ -28,7 +27,7 @@ export interface ArtNetOptions {
  *
  * The main thread only does two things:
  *  - poll getDeckState() at sendHz and post it to the worker (a few µs per tick)
- *  - forward setSendWhenStopped() and stop() lifecycle calls
+ *  - forward setFreewheel() and stop() lifecycle calls
  *
  * The worker holds the dgram socket, the self-correcting tick deadline, and all stats.
  */
@@ -43,16 +42,9 @@ export class ArtNetTimecodeBroadcaster {
   private worker: Worker | null = null;
   private pollTimer: NodeJS.Timeout | null = null;
   private pollDeck: (() => DeckPollResult) | null = null;
-  private sendWhenStopped: boolean;
 
   constructor(opts: ArtNetOptions) {
     this.opts = opts;
-    this.sendWhenStopped = opts.sendWhenStopped === true;
-  }
-
-  setSendWhenStopped(enabled: boolean) {
-    this.sendWhenStopped = enabled;
-    this.post({ type: 'setSendWhenStopped', enabled });
   }
 
   setFreewheel(enableFreewheeling: boolean, freewheelMaxDurationSec: number) {
@@ -101,7 +93,6 @@ export class ArtNetTimecodeBroadcaster {
       fpsType: this.opts.fpsType,
       streamId: this.opts.streamId ?? 0x00,
       latencyCompMs: this.opts.latencyCompMs ?? 80,
-      sendWhenStopped: this.sendWhenStopped,
       enableFreewheeling: this.opts.enableFreewheeling ?? true,
       freewheelMaxDurationSec: this.opts.freewheelMaxDurationSec ?? 30,
     };

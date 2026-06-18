@@ -292,8 +292,6 @@ Waveforms and artwork are extracted automatically when a track loads and cached 
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/api/health` | Health check |
-| `GET` | `/api/timecode/send-when-stopped` | Query current "send when stopped" state |
-| `POST` | `/api/timecode/send-when-stopped` | Set state; body: `{ "enabled": true \| false }` |
 | `GET` | `/api/artwork/:deck` | Serve cached album artwork for deck 1–4 |
 | `GET` | `/api/users` | List all users and their UI-settings blobs (`{ users: [{ name, settings }] }`) |
 | `GET` | `/api/users/:name/settings` | Get one user's settings blob |

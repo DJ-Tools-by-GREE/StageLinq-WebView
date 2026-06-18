@@ -29,15 +29,24 @@ A new shim ([backend/src/stateProvider.ts](backend/src/stateProvider.ts)) sits b
 
 **Invariant:** all output paths read from `stateProvider`, never `bridge` directly. The waveform extraction code path is the only exception (it asks the real bridge for `totalSec` of the deck currently being downloaded — fine, since mapped audio files are gated out before that path runs).
 
-### 2026-06-18 — Art-Net: no TC frame on paused deck switch
+### 2026-06-18 — Art-Net: TC silent whenever a deck isn't moving (toggle removed)
 
-**What:** When `sendWhenStopped` is off and the operator switches the selected
-deck via sACN while everything is paused, the worker no longer fires the
-"snapshot at the new position" packet. Previously the diff `lastSentStoppedFrames !== stoppedFrame` would trigger because the new deck's frozen `elapsedSec` differs, so the lighting console jumped to that deck's frozen TC despite nothing playing. Fixed in [backend/src/artnetWorker.ts](backend/src/artnetWorker.ts) by tracking `lastSentStoppedDeck` and silently re-baselining (no packet) on a deck-identity change.
+**What:** Removed the `sendWhenStopped` toggle and its supporting plumbing
+end-to-end. TC must never be emitted while the selected deck is paused — the
+toggle was always-off in practice, so keeping it added live-show foot-gun
+surface for no benefit.
 
-**Preserved:** the original "snap when scrubbing on a paused deck" behavior
-(commit `4c2d50a`) — within the same deck, a position change while paused still
-emits one packet.
+**Removed (dead):**
+- Frontend: `<button>` in [HeaderBar.tsx](frontend/src/HeaderBar.tsx), `sendWhenStopped` / `settingBusy` state, `toggleSendWhenStopped` callback, GET-on-mount and POST handlers in [App.tsx](frontend/src/App.tsx).
+- Backend: `GET`/`POST /api/timecode/send-when-stopped` endpoints, `sendTimecodeWhenStopped` module var ([index.ts](backend/src/index.ts)).
+- Worker harness: `setSendWhenStopped()` method, `sendWhenStopped` option/field ([artnetTimecode.ts](backend/src/artnetTimecode.ts)).
+- Worker thread: `sendWhenStopped` field/setter, `setSendWhenStopped` message dispatch, **and the scrub-while-paused emission arm** along with `lastSentStoppedFrames` / `lastSentStoppedDeck` bookkeeping ([artnetWorker.ts](backend/src/artnetWorker.ts), [artnetWorkerMessages.ts](backend/src/artnetWorkerMessages.ts)).
+
+**Preserved:** the freewheel path is unchanged. The stopped-branch in `doSend()`
+collapses to "deck paused → reset `timelineFrames` / `lastTickMs` and return
+without emitting a packet." A play-resume still rebases cleanly off the source
+position. The 2026-06-18 deck-switch fix becomes vacuous (no packet was going
+to fire on a paused deck switch anyway).
 
 ### 2026-06-18 — In-app config editor (absorbed from stagelinq-config-editor)
 
@@ -210,8 +219,7 @@ caps:
 2. **Global Settings** — freewheel duration slider (range from server's
    `meta.freewheel_max_duration_sec`).
 3. **Controls** — single toggle button to enable/disable freewheeling
-   instantly. Reuses the existing `.toggleBtn on/off` styles for consistency
-   with the "TC while stopped" toggle.
+   instantly. Reuses the existing `.toggleBtn on/off` styles.
 
 Hydration: App fetches `/api/global-settings` once on mount; updates are
 optimistic with reconcile-on-success and refetch-on-failure.
@@ -485,7 +493,7 @@ out of the main event loop into a dedicated `worker_threads` worker
 The main thread keeps the public class
 ([backend/src/artnetTimecode.ts](backend/src/artnetTimecode.ts)) as a thin harness
 that spawns the worker, runs a `sendHz` polling pump that posts the latest
-`DeckState` snapshot to the worker, and forwards `setSendWhenStopped`/`stop`
+`DeckState` snapshot to the worker, and forwards `setFreewheel`/`stop`
 lifecycle calls. Message contract is typed in
 [backend/src/artnetWorkerMessages.ts](backend/src/artnetWorkerMessages.ts).
 

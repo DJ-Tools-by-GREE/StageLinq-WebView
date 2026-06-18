@@ -9,7 +9,6 @@ export interface ArtNetWorkerInitOptions {
   fpsType: number;
   streamId: number;
   latencyCompMs: number;
-  sendWhenStopped: boolean;
   /** When false, the worker stops emitting TC immediately on stale (no freewheel at all). */
   enableFreewheeling: boolean;
   /** Max seconds to freewheel after the source went stale; past this the worker goes silent. */
@@ -26,7 +25,6 @@ export type MainToWorker =
    * across a brief drop instead of stalling and snapping back.
    */
   | { type: 'updateDeck'; deck: DeckState | null; stale: boolean }
-  | { type: 'setSendWhenStopped'; enabled: boolean }
   | { type: 'setFreewheel'; enableFreewheeling: boolean; freewheelMaxDurationSec: number }
   | { type: 'shutdown' };
 

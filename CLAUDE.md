@@ -255,8 +255,6 @@ Port `8090` (configurable via `PORT` env). Path `/ws`.
 | Method | Path | Description |
 |---|---|---|
 | `GET` | `/api/health` | Health check → `{ ok: true, ts: number }` |
-| `GET` | `/api/timecode/send-when-stopped` | Query "send timecode while paused" flag |
-| `POST` | `/api/timecode/send-when-stopped` | Set flag; body: `{ "enabled": true \| false }` |
 | `POST` | `/api/config/reload` | Hot-reload `config.json` mid-show (same code path as Ctrl+R on the backend TTY). Returns `409` if a reload is already in progress. Backs the Settings → Controls "Reload config" button. |
 | `GET` | `/api/artwork/:deck` | Serve cached artwork image for deck 1–4 (Content-Type from file) |
 | `POST` | `/api/record/start` / `POST /api/record/stop` / `GET /api/record/status` | Record & Replay: control the JSONL recorder. |

@@ -68,15 +68,9 @@ class ArtNetWorker {
   private freewheelExpiredLogged = false;
   private enableFreewheeling = true;
   private freewheelMaxDurationSec = 30;
-  private sendWhenStopped = false;
 
   private timelineFrames: number | null = null;
   private lastTickMs: number | null = null;
-  private lastSentStoppedFrames: number | null = null;
-  // Track which deck the last stopped-frame snapshot belonged to so a sACN
-  // deck switch (paused → paused on a different deck) silently re-baselines
-  // instead of firing a packet at the newly-selected deck's frozen position.
-  private lastSentStoppedDeck: number | null = null;
 
   private socketFaulted = false;
   private lastSocketRecoveryMs = 0;
@@ -94,7 +88,6 @@ class ArtNetWorker {
 
   async start(opts: ArtNetWorkerInitOptions) {
     this.opts = opts;
-    this.sendWhenStopped = opts.sendWhenStopped;
     this.enableFreewheeling = opts.enableFreewheeling;
     this.freewheelMaxDurationSec = Math.max(0, opts.freewheelMaxDurationSec);
 
@@ -129,10 +122,6 @@ class ArtNetWorker {
       `[ArtNet/wk] ready: ${opts.targetIps.join(', ')}:${opts.port} @ ${opts.fps}fps, send=${sendHz}Hz (target interval ${this.targetIntervalMs.toFixed(3)}ms)`
     );
     send({ type: 'ready' });
-  }
-
-  setSendWhenStopped(enabled: boolean) {
-    this.sendWhenStopped = enabled;
   }
 
   setFreewheel(enableFreewheeling: boolean, freewheelMaxDurationSec: number) {
@@ -243,33 +232,12 @@ class ArtNetWorker {
     // the stopped branch and freeze TC mid-show across a brief disconnect.
     const treatAsPlaying = this.deckIsStale ? this.lastTickMs !== null : deckState.play === true;
 
-    if (!this.sendWhenStopped && !treatAsPlaying) {
-      const wasPlaying = this.lastTickMs !== null;
+    // Deck is paused (and not freewheeling through a stall). Reset the timeline so a
+    // play-resume restarts from the source position, and emit no packet — TC must be
+    // silent whenever the deck isn't moving.
+    if (!treatAsPlaying) {
       this.timelineFrames = sourceFrames;
       this.lastTickMs = null;
-
-      let stoppedFrame = Math.floor(sourceFrames);
-      const totalSec = Number(deckState.totalSec) || 0;
-      if (totalSec > 0) {
-        stoppedFrame = Math.min(stoppedFrame, Math.max(0, Math.floor(totalSec * this.opts.fps) - 1));
-      }
-
-      if (wasPlaying) {
-        this.lastSentStoppedFrames = stoppedFrame;
-        this.lastSentStoppedDeck = deckState.deck;
-      } else if (this.lastSentStoppedDeck !== deckState.deck) {
-        // Selection just moved to a different (paused) deck — re-baseline silently;
-        // no packet, otherwise the lighting console jumps to that deck's frozen position.
-        this.lastSentStoppedFrames = stoppedFrame;
-        this.lastSentStoppedDeck = deckState.deck;
-      } else if (this.lastSentStoppedFrames !== stoppedFrame) {
-        this.lastSentStoppedFrames = stoppedFrame;
-        if (stoppedFrame > 0 && !this.socketFaulted) {
-          const tc = framesToHMSF(stoppedFrame, this.opts.fps);
-          const pkt = buildArtNetTimecode(tc.hours, tc.minutes, tc.seconds, tc.frames, this.opts.fpsType, this.opts.streamId);
-          this.sendPacket(pkt);
-        }
-      }
       return;
     }
 
@@ -455,9 +423,6 @@ port.on('message', (raw: MainToWorker) => {
       break;
     case 'updateDeck':
       worker.updateDeck(raw.deck, raw.stale);
-      break;
-    case 'setSendWhenStopped':
-      worker.setSendWhenStopped(raw.enabled);
       break;
     case 'setFreewheel':
       worker.setFreewheel(raw.enableFreewheeling, raw.freewheelMaxDurationSec);
