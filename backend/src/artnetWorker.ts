@@ -73,6 +73,10 @@ class ArtNetWorker {
   private timelineFrames: number | null = null;
   private lastTickMs: number | null = null;
   private lastSentStoppedFrames: number | null = null;
+  // Track which deck the last stopped-frame snapshot belonged to so a sACN
+  // deck switch (paused → paused on a different deck) silently re-baselines
+  // instead of firing a packet at the newly-selected deck's frozen position.
+  private lastSentStoppedDeck: number | null = null;
 
   private socketFaulted = false;
   private lastSocketRecoveryMs = 0;
@@ -252,6 +256,12 @@ class ArtNetWorker {
 
       if (wasPlaying) {
         this.lastSentStoppedFrames = stoppedFrame;
+        this.lastSentStoppedDeck = deckState.deck;
+      } else if (this.lastSentStoppedDeck !== deckState.deck) {
+        // Selection just moved to a different (paused) deck — re-baseline silently;
+        // no packet, otherwise the lighting console jumps to that deck's frozen position.
+        this.lastSentStoppedFrames = stoppedFrame;
+        this.lastSentStoppedDeck = deckState.deck;
       } else if (this.lastSentStoppedFrames !== stoppedFrame) {
         this.lastSentStoppedFrames = stoppedFrame;
         if (stoppedFrame > 0 && !this.socketFaulted) {

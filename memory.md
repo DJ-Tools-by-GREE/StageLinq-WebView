@@ -7,6 +7,16 @@ decision/bug-confirmation/direction change (per CLAUDE.md).
 
 ## Architectural decisions
 
+### 2026-06-18 — Art-Net: no TC frame on paused deck switch
+
+**What:** When `sendWhenStopped` is off and the operator switches the selected
+deck via sACN while everything is paused, the worker no longer fires the
+"snapshot at the new position" packet. Previously the diff `lastSentStoppedFrames !== stoppedFrame` would trigger because the new deck's frozen `elapsedSec` differs, so the lighting console jumped to that deck's frozen TC despite nothing playing. Fixed in [backend/src/artnetWorker.ts](backend/src/artnetWorker.ts) by tracking `lastSentStoppedDeck` and silently re-baselining (no packet) on a deck-identity change.
+
+**Preserved:** the original "snap when scrubbing on a paused deck" behavior
+(commit `4c2d50a`) — within the same deck, a position change while paused still
+emits one packet.
+
 ### 2026-06-18 — In-app config editor (absorbed from stagelinq-config-editor)
 
 **What:** The standalone `stagelinq-config-editor` repo's components have been
