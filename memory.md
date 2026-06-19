@@ -641,6 +641,22 @@ snapshot tick fire in between.
 
 ---
 
+## Hot cue extraction (offline, not StageLinq)
+
+Engine DJ **does not** stream hot-cue positions on StageLinq StateMap, even though the `@gree44/stagelinq` package will technically match `/Engine/DeckX/Track/HotCueN` keys. The `HotCue1..8` handlers in [backend/src/stagelinqBridge.ts](backend/src/stagelinqBridge.ts) lines 756-776 / 1113-1131 never fire on real hardware (Prime 4+ / SC6000) because the device just doesn't publish those keys. Confirmed by inspection: `DeckState.hotCues` stays `[]` from network sources alone.
+
+The `@gree44/stagelinq` package *does* expose `FileTransfer.getFile()` and `Databases.downloadDb()`, which can pull `m.db` over the wire — but the offline path is simpler, faster (no 60 s download timeout, no FLTX handshake), works without the device powered on, and the blob format is byte-identical. So we extract from the SD card / USB drive directly.
+
+**Tool:** [backend/src/scripts/extractCues.ts](backend/src/scripts/extractCues.ts), invoked via `npm run -w backend extract-cues`. Auto-detects `/Volumes/*/Engine Library/Database2/m.db`, the in-repo `copy of exported library/...` snapshot, and `~/Music/Engine Library/Database2/m.db`; prompts on stdin if multiple are found. Iterates every `song_index` in `config.playlists[*].content[*]` (or `--current-only`), opens `m.db` read-only, decodes `PerformanceData.quickCues` (zlib-compressed big-endian `int64` count + per-slot `u8` name-length + UTF-8 name + `f64` sample position + `u32` ARGB), writes one `<md5(fileName).slice(0,16)>.json` file to `backend/hotcue-cache/`.
+
+**Cache key matches waveform cache:** identical stem function to `waveformStem()` in [backend/src/waveformWorker.ts](backend/src/waveformWorker.ts). A future feature that wants cues + waveform + artwork together can compute the stem once and look up all three caches.
+
+**Standalone by design:** the script imports nothing from the rest of the backend (no StageLinq, no express, no waveform pipeline). Safe to re-run mid-show against a freshly mutated SD card. Separate `tsx` entry point, not part of the runtime backend.
+
+The runtime backend does not yet read `hotcue-cache/` — the script builds the cache; consumption is a separate feature still to be wired up.
+
+---
+
 ## In-progress / blockers
 
 (none)

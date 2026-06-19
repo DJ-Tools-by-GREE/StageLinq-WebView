@@ -290,6 +290,108 @@ Waveforms and artwork are extracted automatically when a track loads and cached 
 
 **Runs in a dedicated worker thread.** ffmpeg, peak compute, JSON serialization of the peaks array, base64 encoding of the artwork, and disk-cache I/O all run off the main thread (in [backend/src/waveformWorker.ts](backend/src/waveformWorker.ts)). The main thread only forwards the StageLinq-downloaded audio bytes into the worker (zero-copy `ArrayBuffer` transfer) and fans out the pre-built WS frame strings on the way back. This keeps the Art-Net deck-state polling pump at full 30 Hz cadence across track changes — the lighting console no longer sees TC jumps when a new track is loaded on any deck.
 
+### Hot cue cache
+
+Engine DJ does not stream hot-cue positions over StageLinq's StateMap (StageLinq advertises the keys, but Prime 4+ / SC6000 firmware doesn't publish them). To make cues available to the app anyway, an offline extraction script reads the `quickCues` BLOB out of the Engine DJ SQLite database (the `m.db` on the SD card or USB drive the controller boots from) and writes one JSON file per track to `backend/hotcue-cache/`.
+
+#### Usage
+
+Run from the repo root, **before the show**, with the SD card / USB drive plugged into the laptop:
+
+```bash
+npm run -w backend extract-cues
+```
+
+The script auto-detects all candidate `m.db` locations:
+1. Every mounted volume — `/Volumes/*/Engine Library/Database2/m.db`
+2. The in-repo snapshot — `copy of exported library/Engine Library/Database2/m.db` (if you keep one for testing)
+3. The on-PC Engine DJ install — `~/Music/Engine Library/Database2/m.db`
+
+If multiple are found, you'll be prompted to pick one:
+
+```
+Multiple Engine DJ databases detected:
+  [1] /Volumes/BACKUP 8GB/Engine Library/Database2/m.db  (33.9 MB)
+  [2] /Users/jan/Music/Engine Library/Database2/m.db     (12.4 MB)
+Pick one (1-2):
+```
+
+If exactly one is found, the script uses it without prompting. If none are found, it errors out and asks you to plug something in or pass `--db`.
+
+##### Flags
+
+| Flag | Meaning |
+|---|---|
+| `--db <path>` | Skip auto-detection and prompt — use this exact `m.db`. Useful in scripts. |
+| `--current-only` | Only process the playlist at `config.current_playlist`. |
+| `--all-playlists` | Process every playlist in `config.playlists` (the default). |
+| `-h`, `--help` | Print usage and exit. |
+
+##### Examples
+
+```bash
+# Default: prompt if multiple DBs, scan every playlist
+npm run -w backend extract-cues
+
+# Skip prompt — use the SD card directly
+npm run -w backend extract-cues -- --db "/Volumes/BACKUP 8GB/Engine Library/Database2/m.db"
+
+# Skip prompt + only the active playlist (faster on huge libraries)
+npm run -w backend extract-cues -- --db "/Volumes/BACKUP 8GB/Engine Library/Database2/m.db" --current-only
+```
+
+##### Output
+
+Per-track summary on stdout, plus a list of any tracks listed in `config.json` that aren't found in the database (usually playlist drift — the song was renamed or removed since the playlist was edited):
+
+```
+Config: /Users/jan/Git_Repos/StageLinq-WebView/config.json
+Scope: all playlists
+Tracks to look up: 29
+
+Wrote: 28
+No cues stored:   0
+Missing in DB:    1
+
+Tracks not found in Track.filename (check naming / playlist drift):
+  - 06. Shake It Off (Extended Mix).flac
+
+Cache: /Users/jan/Git_Repos/StageLinq-WebView/backend/hotcue-cache
+```
+
+##### Re-running
+
+Safe at any time — even mid-show. The script:
+
+- imports nothing from the runtime backend (no StageLinq, no express, no waveform pipeline) and opens the database read-only,
+- overwrites entries in place (one full-file write per track), and
+- never deletes anything, so stale entries from removed playlists stick around. To wipe and rebuild from scratch: `rm -rf backend/hotcue-cache && npm run -w backend extract-cues`.
+
+The runtime backend does not yet load `hotcue-cache/` at boot — the script populates the cache; consumption (e.g. seeding `DeckState.hotCues` on track-load) is a separate feature still to be wired up.
+
+#### Cache layout
+
+[backend/hotcue-cache/](backend/hotcue-cache/) — one file per track, named `<md5(fileName).slice(0,16)>.json`, matching `waveformStem()` in [backend/src/waveformWorker.ts](backend/src/waveformWorker.ts) so the cue cache, the waveform cache, and the artwork cache all share a key.
+
+```jsonc
+{
+  "fileName": "02 Messy (Łaszewo Extended Edit).mp3",  // the cache key (basename)
+  "trackId": 28,                                        // Engine DJ Track.id, traceability
+  "source": "/Volumes/BACKUP 8GB/Engine Library/Database2/m.db",
+  "extractedAt": "2026-06-19T11:40:12.599Z",
+  "cues": [
+    { "index": 1, "samples": 0,           "sec": 0.000,  "label": "Cue 1", "argb": "FFF4D338" },
+    { "index": 2, "samples": 631880.5970, "sec": 14.328, "label": "Cue 2", "argb": "FFEF8130" },
+    // ...only set slots, sorted by index ascending; unset slots elided
+  ]
+}
+```
+
+- `cues[]` is **sorted by `index` ascending** (1..8) and **only contains set slots**.
+- `samples` is preserved alongside `sec` so a future consumer with a non-44100 Hz track can recompute exactly. Convention: `sec = samples / 44100`.
+- `argb` is an 8-char uppercase hex string — alpha (always `FF` in practice), R, G, B. Drop in CSS as `'#' + argb.slice(2)`.
+- `label` is whatever Engine DJ stored. Hardware default is `"Cue 1"`, `"Cue 2"`, … but the DJ may have renamed cues.
+
 ## API endpoints
 
 | Method | Path | Description |
