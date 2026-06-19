@@ -145,7 +145,10 @@ for await (const rawLine of rl) {
     currentSuggestedDeck = computeSuggestedDeck(cfg, decks, selectedDeck);
   } else if (ev.type === 'selected') {
     const newDeck = ev.deck === null || ev.deck === undefined ? null : Number(ev.deck);
-    if (selectedDeck !== null && newDeck !== null && newDeck !== selectedDeck) {
+    // Count any change to a non-null deck as a transition. The first non-null press
+    // of the show counts too — the recording starts with selectedDeck === null until
+    // the operator's first sACN edge arrives.
+    if (newDeck !== null && newDeck !== selectedDeck) {
       // Sample the suggestion at the instant of the switch — this is the value
       // the lighting console would have seen on screen when the operator pressed CH1.
       transitions.push({
