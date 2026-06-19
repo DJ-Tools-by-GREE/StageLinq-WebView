@@ -87,7 +87,7 @@ async function parseLog(filePath: string): Promise<ParsedLog> {
     } else if (ev.type === 'status') {
       statusEvents.push({ t, value: ev.value });
     }
-    // sacn_execute is intentionally ignored on replay (live sACN drives suggestion-execute).
+    // Unknown event types from older recordings (e.g. sacn_execute, suggested) are silently ignored.
   }
 
   const durationMs = stoppedAt && startedAt ? Math.max(stoppedAt - startedAt, maxT) : maxT;

@@ -79,17 +79,6 @@ export const ELAPSED_THROTTLE_S = 0;
 /** Milliseconds between periodic OSC BPM heartbeat sends (independent of on-change sends). */
 export const OSC_HEARTBEAT_INTERVAL_MS = 1000;
 
-// Auto deck-suggestion
-
-/**
- * Minimum elapsed time (seconds) on the selected deck for Trigger B
- * ("selected stopped, next track loaded elsewhere") to fire. Stops within
- * the first N seconds — typical of a tap-play-stop / scratch / mis-cue —
- * do not produce a hand-off suggestion. Trigger A (next-track deck started
- * playing) is unaffected.
- */
-export const MIN_TRIGGER_B_ELAPSED_SEC = 30;
-
 // Waveform generation
 
 /** Sample rate used when extracting raw PCM from audio files via ffmpeg. */

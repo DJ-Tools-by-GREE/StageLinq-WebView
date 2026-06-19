@@ -14,9 +14,7 @@ type Event =
   | { t: number; type: 'deck'; n: DeckNumber; state: DeckState }
   | { t: number; type: 'deck'; n: DeckNumber; diff: DeckDiff }
   | { t: number; type: 'selected'; deck: DeckNumber | null }
-  | { t: number; type: 'suggested'; deck: DeckNumber | null; reason: string | null }
   | { t: number; type: 'status'; value: StageLinqStatus }
-  | { t: number; type: 'sacn_execute'; deck: DeckNumber | null }
   // Crash/restart marker. `t` is when the resume happens (real wall clock since startedAt);
   // `lastEventT` is the relative timestamp of the last event before the crash, so a gap
   // duration can be computed without parsing the whole prefix.
@@ -408,19 +406,9 @@ export class Recorder {
     this.write({ t: this.tNow(), type: 'selected', deck });
   }
 
-  recordSuggested(deck: DeckNumber | null, reason: string | null) {
-    if (!this.active) return;
-    this.write({ t: this.tNow(), type: 'suggested', deck, reason });
-  }
-
   recordStatus(status: StageLinqStatus) {
     if (!this.active) return;
     this.write({ t: this.tNow(), type: 'status', value: status });
-  }
-
-  recordSacnExecute(deck: DeckNumber | null) {
-    if (!this.active) return;
-    this.write({ t: this.tNow(), type: 'sacn_execute', deck });
   }
 
   async stop(): Promise<{ ok: true; file: string; durationMs: number; eventCount: number } | { ok: false; error: string; code: number }> {

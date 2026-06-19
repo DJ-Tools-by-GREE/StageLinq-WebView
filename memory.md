@@ -156,9 +156,9 @@ session (steady-state inter-beat intervals are 50–200 ms).
 
 ### 2026-06-18 — Record & Replay (backup-show fallback)
 
-**What:** Operator can record every state change the StageLinq bridge produces during a live show into a JSONL log under `recordings/`, then later replay that log synchronized to a single prerecorded audio file played on a deck. From the lighting console's perspective the replay is byte-identical to the live show — same Art-Net timecode, OSC, WS UI — and the console keeps full live control of `selectedDeck` (sACN CH1) and the suggestion-execute channel (sACN CH3) regardless of what was recorded.
+**What:** Operator can record every state change the StageLinq bridge produces during a live show into a JSONL log under `recordings/`, then later replay that log synchronized to a single prerecorded audio file played on a deck. From the lighting console's perspective the replay is byte-identical to the live show — same Art-Net timecode, OSC, WS UI — and the console keeps full live control of `selectedDeck` (sACN CH1) regardless of what was recorded.
 
-**Architecture:** Recording happens at the **bridge output boundary** — every call to `bridge.touch(deck)` notifies registered listeners ([backend/src/stagelinqBridge.ts](backend/src/stagelinqBridge.ts) — new `subscribeDeckState()` / `DeckStateListener`). The recorder ([backend/src/recorder.ts](backend/src/recorder.ts)) maintains per-deck "last emitted" snapshots and writes either a full `state` keyframe (on track change / session start) or a field-level `diff` to JSONL. selectedDeck and sACN CH3 events are recorded from `index.ts` callsites since they are not bridge state.
+**Architecture:** Recording happens at the **bridge output boundary** — every call to `bridge.touch(deck)` notifies registered listeners ([backend/src/stagelinqBridge.ts](backend/src/stagelinqBridge.ts) — new `subscribeDeckState()` / `DeckStateListener`). The recorder ([backend/src/recorder.ts](backend/src/recorder.ts)) maintains per-deck "last emitted" snapshots and writes either a full `state` keyframe (on track change / session start) or a field-level `diff` to JSONL. selectedDeck transitions are recorded from `index.ts` callsites since they are not bridge state.
 
 A new shim ([backend/src/stateProvider.ts](backend/src/stateProvider.ts)) sits between the bridge and the three output paths (Art-Net poll, OSC poll, WS snapshot loop). When replay is overriding outputs, all four decks come from the replay engine ([backend/src/replay.ts](backend/src/replay.ts)) — including the audio playback deck, whose real state is hidden from the console. When idle, stateProvider passes through to the bridge.
 
@@ -167,8 +167,6 @@ A new shim ([backend/src/stateProvider.ts](backend/src/stateProvider.ts)) sits b
 **Track-changed waveform suppression:** Mapped audio files (the long backup-set wavs) are gated out of the waveform/artwork extraction path in `onTrackChanged` regardless of replay state — they're large and useless to scan.
 
 **Filename matching:** uses `normalizeTrackName()` (basename, case-sensitive). Same rule as playlist offsets.
-
-**sACN CH3 during replay:** recorded `sacn_execute` events are NOT replayed. The lighting console's automation drives suggestion-execute on its own timecode-aligned schedule, exactly as in a live show.
 
 **REST endpoints:** `POST /api/record/start|stop`, `GET /api/record/status`, `GET /api/recordings`, `POST /api/replay/arm|disarm`, `GET /api/replay/status`. Mappings live in `config.json` under `recordings: [{ audio_file, log_file }]`. The config editor has a new "Recordings (Replay)" section with a dropdown of available logs from the recordings dir.
 
@@ -257,75 +255,6 @@ remain the single source of truth for config diff-cleanliness.
 
 **Status of standalone repo:** `stagelinq-config-editor` is now redundant.
 Keep the repo around for archive but consider it deprecated.
-
-### 2026-06-18 — Auto deck-suggestion (UI tag, blinking artwork, OSC out)
-
-**What:** The backend now emits a `suggestedDeck: DeckNumber | null` field on
-every snapshot. It is the deck the operator is advised to switch to next; it
-never overrides the manual sACN CH1 selection.
-
-**Triggers** (either fires; both require: candidate has the playlist's "next
-track" loaded, no loop active on the candidate, candidate ≠ selected deck):
-- **A** — candidate deck `play === true`.
-- **B** — selected deck `play === false` AND `elapsedSec >
-  MIN_TRIGGER_B_ELAPSED_SEC` (default 30 s, in
-  [backend/src/constants.ts](backend/src/constants.ts)) AND candidate has
-  the next track loaded. The elapsed-time gate was added after a tap-play-stop
-  at the very start of a freshly-loaded track was producing a spurious
-  hand-off suggestion — only stops *after meaningful play* (or near the end
-  of the track, naturally) cross the threshold. Trigger A is unaffected.
-
-Common gates: active playlist resolves a non-null `computeNextTrack(...)` for
-the selected deck's current file, and exactly one (or, on a tie, the playing
-one wins; otherwise lowest deck number) deck holds that filename. All
-implemented in `computeSuggestedDeck` in
-[backend/src/index.ts](backend/src/index.ts), keyed off the same
-`normalizeTrackName` helper that backs offsets/notes.
-
-**OSC fan-out:** OSC dispatch is gated by a new sACN execute channel
-(`control_input.execute_address`, default 3, env `SACN_EXECUTE_ADDRESS`). On
-the **rising edge** of that channel above 127 (≤127 → >127), the sACN packet
-handler in [backend/src/index.ts](backend/src/index.ts) sends one
-`/cmd "sugDeck_<n>"` for whatever `currentSuggestedDeck` holds at that
-instant. Held-high does nothing until the value drops back ≤127. If no
-suggestion is active when the edge fires, it's logged and ignored.
-Implementation reuses `OscBpmSender` via a new `sendCustomCommand` method
-([backend/src/oscBpm.ts](backend/src/oscBpm.ts)) so we keep one socket / one
-config block. The snapshot loop publishes the latest suggestion to a
-closure-scoped `currentSuggestedDeck` variable each tick; the sACN handler
-reads it.
-
-**Edge tracker init:** `lastExecuteHigh` starts as `true` so a packet that
-arrives already-high (re-subscribe mid-show, console sitting on >127) does
-NOT count as a fresh edge — only a transition through the threshold fires.
-
-**No automatic OSC.** Earlier iteration of this feature emitted
-`sugDeck_<n>` on every change of the suggestion; that's been replaced by the
-operator-confirmation flow above. The UI still reflects suggestions live
-(header pill, blinking artwork) regardless of whether CH3 is fired.
-
-**Manual deck-select unchanged.** The execute channel does not touch
-`selectedDeck`. CH1 (`control_input.address`, default 1) keeps mapping
-0–101 / –152 / –203 / –255 to decks 1/2/3/4 exactly as before.
-
-**Frontend:**
-- `App.tsx` carries `suggestedDeck` state, threads it to
-  [HeaderBar.tsx](frontend/src/HeaderBar.tsx) (new `SUGGESTED DECK` pill, sits
-  next to the selected-deck badge in the suggested deck's accent color) and
-  [DeckCard.tsx](frontend/src/DeckCard.tsx) (new `art--suggested` outline +
-  `.artChangeOverlay` blinking "Change Deck" overlay covering the artwork at
-  1 Hz via `@keyframes artChangeBlink`).
-- The overlay clears the moment the suggestion goes away or moves — React
-  unmounts it on the next snapshot.
-
-**Logging:** every suggestion change emits a `[DECK SUGGEST]` line via
-`logLifecycle` with the trigger reason ("next-track deck playing" or
-"selected deck stopped, next track pre-loaded"), or "cleared" on the falling
-edge.
-
-**Why:** automates the operator's "the next track just dropped on deck N,
-switch the timecode/lighting focus over there" chore. Suggestion only — the
-lighting console is still the authority on which deck is live.
 
 ---
 
@@ -604,10 +533,7 @@ played standalone.
 - [`computeNextTrack`](backend/src/index.ts) filters mashups out of the
   playlist before doing any cursor work: a flagged track yields `pos = -1`
   (so it can never be the "current track" anchor), and lookahead skips
-  flagged candidates. The same path feeds `computeSuggestedDeck`, so the
-  auto deck-select feature inherits this behavior — no suggestion ever
-  fires while a mashup is the currently-selected track, and no mashup is
-  ever proposed as the next deck.
+  flagged candidates.
 
 **Out of scope by design:** if the operator selects (via sACN) a deck that is
 holding a `mashup_only` track, that's user error. No fallback or auto-switch
