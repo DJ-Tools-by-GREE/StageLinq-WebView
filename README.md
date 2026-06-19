@@ -374,6 +374,46 @@ The runtime backend does not yet load `hotcue-cache/` at boot — the script pop
 - `argb` is an 8-char uppercase hex string — alpha (always `FF` in practice), R, G, B. Drop in CSS as `'#' + argb.slice(2)`.
 - `label` is whatever Engine DJ stored. Hardware default is `"Cue 1"`, `"Cue 2"`, … but the DJ may have renamed cues.
 
+## Timecode simulator (offline TC analysis)
+
+Standalone, read-only addon that takes a Record & Replay `.jsonl` and produces a graph of the timecode every deck *would* emit if it were continuously sACN-selected. Useful for post-show review (where did the TC stall, drift-snap, freewheel?), playlist-offset sanity checks (do the per-track offsets line up where expected?), and pre-show dry runs.
+
+The TC simulator is a **faithful port of the live Art-Net worker's tick loop** ([backend/src/artnetWorker.ts](backend/src/artnetWorker.ts)): same drift-snap (15% of one frame), same 80 ms latency comp, same freewheel-on-stall, same `speedState` handling, same clamp to track length. The only thing missing is the UDP send.
+
+Run from the repo root:
+
+```bash
+npm run -w backend simulate-tc -- /absolute/path/to/recording.jsonl
+```
+
+Pass an absolute path (the workspace runs from `backend/`, so a path relative to the repo root won't resolve). Output is a self-contained HTML file — no external assets, opens in any browser — written next to the input by default.
+
+#### Flags
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `--out <file>` | `<input>.tc-analysis.html` | Output HTML path. |
+| `--json <file>` | (off) | Also dump per-deck stats + freewheel spans as JSON. |
+| `--config <file>` | (auto) | Use this `config.json` for track offsets. By default the recording's own header offsets are used; if absent, a `config.json` next to the cwd is auto-loaded. |
+| `--fps <n>` | `30` | TC fps (must match what the worker would use). |
+| `--latency <ms>` | `80` | Latency-comp added to every emitted frame, mirroring `latencyCompMs`. |
+| `--tickHz <n>` | `30` | Simulation tick rate. |
+| `--freewheel-max <s>` | `30` | Max freewheel duration before going silent. |
+| `--no-freewheel` | (off) | Disable freewheel — silent on first stall instead of coasting. |
+| `--stale-ms <ms>` | `250` | Stale threshold for freewheel detection. |
+
+#### What's in the HTML
+
+- **Overlay graph** — each deck's hypothetical TC plotted as `HH:MM:SS` over wall-clock time, in the same colors as the live UI (D1 purple, D2 blue, D3 green, D4 red).
+- **Freewheel bands** — translucent shading per deck wherever the worker logic would have been freewheeling at that moment.
+- **Recording gaps** — vertical dashed amber lines at any `gap` event from the recorder (only present in crash-recovered logs).
+- **sACN selected-deck timeline** — a thin colored bar under the chart showing which deck *was* actually selected during the show, for cross-reference against the hypothetical-per-deck plots.
+- **Per-deck files list** — every `(t, fileName)` transition per deck.
+- **Analysis blob** — JSON dump of duration, offset count, drift-snap counts, freewheel spans, file counts.
+- **Hover tooltip** — hover anywhere on the chart to see the exact `HH:MM:SS:FF` value each deck would be emitting at that wall-clock moment.
+
+The simulation treats every deck as if it were *the* selected deck for the whole recording, so the graph shows what each deck *could* have emitted — not just what the actual sACN selection picked. The selected-deck bar at the bottom records what was actually live.
+
 ## API endpoints
 
 | Method | Path | Description |

@@ -7,6 +7,24 @@ decision/bug-confirmation/direction change (per CLAUDE.md).
 
 ## Architectural decisions
 
+### 2026-06-19 — Offline timecode simulator (TC analysis addon)
+
+**What:** Standalone read-only script at [backend/src/scripts/simulateTimecode.ts](backend/src/scripts/simulateTimecode.ts), wired as `npm run -w backend simulate-tc -- <recording.jsonl>`. Reads a Record & Replay `.jsonl`, reconstructs all four `DeckState` timelines from keyframes + diffs, then runs **one Art-Net-worker tick loop per deck in parallel** — each deck simulated as if it were continuously sACN-selected — and writes a single self-contained HTML page with an inline SVG overlay of every deck's hypothetical TC, plus a JSON analysis blob.
+
+**Why "hypothetical per deck", not "follow recorded selectedDeck":** the live worker only emits TC for whichever deck is sACN-selected; in a recording, that's mostly one deck at a time, so a graph of recorded TC is mostly silent gaps. The analytical question we actually want to answer post-show is "where would each deck's TC have landed at any moment?" — which catches mis-set per-track `offset_seconds`, freewheel triggers, drift-snaps, and TC clamps that *would* have been visible if that deck had been the selected one. The actual sACN selection is still rendered as a colored bar under the plot for cross-reference.
+
+**TC fidelity:** the script is a line-for-line port of [backend/src/artnetWorker.ts](backend/src/artnetWorker.ts) `doSend()`. Same `timelineFrames` state machine, same `treatAsPlaying` with stale-coasting, same drift-snap at 15% of one frame (only when not stale), same monotonic guard, same 80 ms latency comp, same clamp to `floor(totalSec * fps) - 1`. The freewheel-stale check uses the same logic — derived per-tick from "no fresh deck event globally for > `stale-ms`" — instead of a `lastBeatAtMs` since the script doesn't have a live beat stream.
+
+**Why a single SVG, not a JS chart lib:** zero new deps (this is the project's first script that produces user-facing artifacts), portable across browsers, no offline-vs-online concerns, opens fine on a phone next to the booth. ~3000 chart points per deck after decimation keeps the page under 500 KB even on a 70-minute show.
+
+**Track offsets resolution priority:** (1) the recording's own header `trackOffsets` block (it's a snapshot of what was active at recording start, the most accurate source for replaying that show); (2) `--config <file>` if passed; (3) auto-detected `config.json` at cwd. Prevents the common confusion of "I edited offsets after the show, why does the simulator show the new ones?".
+
+**Verification:** smoke-tested on `recordings/2026-06-18T20-32-59-281Z.jsonl` (72 min, 159 637 deck events, 23 sACN flips). Output: deck 1 emitted 81 645 packets / 4254.6s span / 177 drift-snaps, deck 2 71 569 / 4063.8s / 205 snaps, deck 3 unused (one load, never played → 0 emits, 0 freewheel — correct), deck 4 7 745 / 329.9s / 30 snaps. HTML 375 KB, JSON 14 KB. Drift-snap counts come out elevated because the simulation ticks at exactly the same `tickHz` as the recording's diff cadence, so source/timeline alignment is essentially perfect — drift-snaps in this output should be read as "rare boundary events" (track loads, deck flips) not "show stability" — matches expectation.
+
+**Why `--out` defaults next to the input** (not under a `tc-analyses/` dir): the project doesn't have a convention for analysis artifacts, and operators are likely to want the HTML in the same folder as the `.jsonl` they're investigating. If we accumulate more analysis tools, that folder convention can come later.
+
+---
+
 ### 2026-06-19 — Art-Net pump-in-worker (TC immune to main-thread stalls)
 
 **What:** The Art-Net worker now owns the **entire timecode pipeline**, not just the UDP send. It holds the 30 Hz tick timer, the deck-state cache for all 4 decks, the `selectedDeck` pointer, the per-track offset map, and the freewheel-stale derivation. The main thread no longer runs a polling pump — it just **pushes state changes** to the worker as they happen.

@@ -6,7 +6,8 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
-    "extract-cues": "tsx src/scripts/extractCues.ts"
+    "extract-cues": "tsx src/scripts/extractCues.ts",
+    "simulate-tc": "tsx src/scripts/simulateTimecode.ts"
   },
   "dependencies": {
     "@gree44/stagelinq": "^3.1.0",
