@@ -258,6 +258,18 @@ function buildTrackOffsetMap(cfg: RootConfig | null): Map<string, { offsetSec: n
   return map;
 }
 
+/**
+ * Map → plain object for IPC transport to the Art-Net worker. The worker has no
+ * shared reference to the main-thread Map; we serialize once on change.
+ */
+function buildTrackOffsetObject(
+  m: Map<string, { offsetSec: number; offsetFrame: number }>,
+): Record<string, { offsetSec: number; offsetFrame: number }> {
+  const obj: Record<string, { offsetSec: number; offsetFrame: number }> = {};
+  for (const [k, v] of m) obj[k] = v;
+  return obj;
+}
+
 function buildTrackNoteMap(cfg: RootConfig | null): Map<string, { description: string; showSecsAfterLoad: number }> {
   const map = new Map<string, { description: string; showSecsAfterLoad: number }>();
   const playlists = cfg?.playlists ?? [];
@@ -559,6 +571,8 @@ async function main() {
       trackNotes = buildTrackNoteMap(config);
       activePlaylistFiles = buildActivePlaylistFileSet(config);
       waveformAllTracks = config?.waveform?.all_tracks ?? true;
+      // Push the new offsets into the Art-Net worker so the next tick uses them.
+      artnet.setTrackOffsets(buildTrackOffsetObject(trackOffsets));
       // Re-apply freewheel from the reloaded file. Operator-edited (via UI) values are
       // already on disk, so the round-trip is the same as a fresh boot.
       const fw = readFreewheelFromConfig(config);
@@ -1048,10 +1062,15 @@ async function main() {
     onCommunicationLost: async () => {
       if (reconnecting) return;
       reconnecting = true;
+      // Force the Art-Net worker into stale immediately. The worker would
+      // otherwise wait FREEWHEEL_STALE_THRESHOLD_MS for its own derivation to
+      // trip, but we already know beats are gone by the time this fires.
+      artnet.setReconnecting(true);
       logLifecycle(`${RED}[StageLinq] Communication lost — reconnecting...${RST}`);
       try { await bridge.disconnect(); } catch {}
       await connectWithRetry();
       reconnecting = false;
+      artnet.setReconnecting(false);
     },
     onTrackChanged: (deck, fileName, rawNetworkPath) => {
       const t0 = Date.now();
@@ -1186,6 +1205,7 @@ async function main() {
     latencyCompMs: artnetLatencyCompMs,
     enableFreewheeling: initialFw.enable_freewheeling,
     freewheelMaxDurationSec: initialFw.max_duration_sec,
+    freewheelStaleThresholdMs: FREEWHEEL_STALE_THRESHOLD_MS,
   });
 
   let oscBpm: OscBpmSender | null = null;
@@ -1194,6 +1214,10 @@ async function main() {
   const setSelectedDeck = (nextDeck: DeckNumber | null, reason: string) => {
     if (nextDeck === selectedDeck) return;
     selectedDeck = nextDeck;
+    // Forward to the Art-Net worker so it can re-resolve the source deck on its
+    // very next tick, and reset its internal timeline so the new deck rebases
+    // off the new source position cleanly (no drift-snap on the boundary).
+    artnet.setSelectedDeck(selectedDeck);
     logLifecycle(`[DECK SELECT] ${selectedDeck ? `Deck ${selectedDeck}` : 'No deck selected'} (${reason})`);
     recorder?.recordSelected(selectedDeck);
   };
@@ -1366,36 +1390,42 @@ async function main() {
     );
   });
 
-  await artnet.start(() => {
-    // Freewheel uses its own short threshold (FREEWHEEL_STALE_THRESHOLD_MS, ~250 ms),
-    // independent of the longer DISCONNECT_DETECT_TIMEOUT_S that gates the UI badge and
-    // bridge reconnect. The lighting console can't tolerate even a one-second TC stall
-    // before catching up — typical beat gaps are 50–200 ms, so anything past one missed
-    // beat is already audible drift on the receiver. The 2-second threshold is still
-    // correct for "is the device gone, time to reconnect"; this is "is the next beat
-    // overdue, freewheel now". Both `reconnecting` and the per-stall window also force it.
-    // During replay, stateProvider returns 0 for getLastBeatAgeMs() so freewheel disengages.
-    const stale = reconnecting || stateProvider.getLastBeatAgeMs() > FREEWHEEL_STALE_THRESHOLD_MS;
+  // Pump-in-worker wiring:
+  //
+  // The Art-Net worker now owns the 30 Hz tick, the deck cache, selectedDeck,
+  // trackOffsets, and freewheel-stale derivation. We push state into it from
+  // three places — bridge subscription (the steady state), the snapshot tick
+  // (replay-override path), and config reloads (offsets) — so the worker keeps
+  // ticking even when main-thread CPU stalls (huge StageLinq downloads, ffmpeg
+  // bursts, GC pauses). When main resumes and pushes the catch-up state, the
+  // worker exits stale cleanly: drift snap is disabled while stale, so the
+  // timeline rebases off the new source position without the per-tick drift
+  // correction throwing a one-frame jump on the boundary.
+  await artnet.start();
 
-    if (!selectedDeck) return { deck: undefined, stale };
+  // Seed the worker with current offsets and selected deck before the first tick.
+  artnet.setTrackOffsets(buildTrackOffsetObject(trackOffsets));
+  artnet.setSelectedDeck(selectedDeck);
 
-    const deck = stateProvider.getDeck(selectedDeck);
-    if (Number(deck.elapsedSec) <= 0) return { deck: undefined, stale };
-
-    const fileKey = normalizeTrackName(deck.fileName || '');
-    const offset = trackOffsets.get(fileKey);
-    if (!offset) return { deck, stale };
-
-    const offsetSec = offset.offsetSec + offset.offsetFrame / artnetFps;
-    return {
-      deck: {
-        ...deck,
-        elapsedSec: Math.max(0, deck.elapsedSec + offsetSec),
-        totalSec: Math.max(0, deck.totalSec + offsetSec),
-      },
-      stale,
-    };
+  // Steady-state: every bridge state mutation is forwarded to the worker. While
+  // replay is overriding outputs, this listener still fires (the bridge tracks
+  // the audio deck's real state for the replay clock) but its values are
+  // ignored — the snapshot tick below pushes the synthesized states instead.
+  bridge.subscribeDeckState((deck, state) => {
+    if (replay.isOverridingOutputs()) return;
+    artnet.pushDeckState(deck, state);
   });
+
+  // Seed the worker's deck cache with whatever the bridge currently holds.
+  // Blank-deck values are fine — they just establish presence so the worker
+  // doesn't have to wait for the first state mutation before its first tick
+  // can resolve a (silent) source deck.
+  {
+    const seed = bridge.getDecks();
+    for (const d of [1, 2, 3, 4] as DeckNumber[]) {
+      artnet.pushDeckState(d, seed[d]);
+    }
+  }
 
 
   wss.on('connection', (ws) => {
@@ -1485,6 +1515,16 @@ async function main() {
   let lastSuggestedDeck: DeckNumber | null = null;
   setInterval(() => {
     const decks = stateProvider.getDecks();
+
+    // Replay-override path: the bridge subscription is gated off (its real
+    // states would be wrong), so the snapshot tick is the only place we can
+    // forward the synthesized states to the Art-Net worker. The audio deck's
+    // real elapsedSec drives the replay clock, which means a steady tick from
+    // the bridge keeps `bumpBeat` fresh — the worker won't go stale during
+    // replay either.
+    if (replay.isOverridingOutputs()) {
+      artnet.pushAllDeckStates(decks, true);
+    }
 
     if (selectedDeck && oscBpm) {
       oscBpm.sendDeckBpm(decks[selectedDeck]);

@@ -7,6 +7,38 @@ decision/bug-confirmation/direction change (per CLAUDE.md).
 
 ## Architectural decisions
 
+### 2026-06-19 — Art-Net pump-in-worker (TC immune to main-thread stalls)
+
+**What:** The Art-Net worker now owns the **entire timecode pipeline**, not just the UDP send. It holds the 30 Hz tick timer, the deck-state cache for all 4 decks, the `selectedDeck` pointer, the per-track offset map, and the freewheel-stale derivation. The main thread no longer runs a polling pump — it just **pushes state changes** to the worker as they happen.
+
+**Why:** the prior architecture (worker for the send loop only, main thread polled `stateProvider.getDeck()` at 30 Hz and posted to the worker) was still vulnerable to any main-thread stall: if `pumpDeckState()` couldn't run for ≥ 33 ms, the worker's `lastBeatAtMs` didn't refresh and freewheel kicked in, then snapped back when the pump caught up. We saw three classes of stall in production:
+
+1. **Large StageLinq downloads.** `bridge.downloadFile()` runs `getFile()` over the StageLinq library's TCP socket on the main thread. For audio files (3–10 MB) this is ~500 ms; for the 100+ MB `.mp4` that the operator loaded one evening, it produced 7 minutes of continuous 200–500 ms event-loop lag. The downloads can't be slowed down (the library doesn't expose backpressure on `getFile()`), can't move to a worker thread (they share the StageLinq TCP socket with `beatMessage` traffic — head-of-line blocking is at the protocol layer, not Node's CPU). The right fix is to make the timecode pump *not care* what main is doing.
+2. **sACN deck flips.** Each `selectedDeck` change rebases the source deck (different `elapsedSec`, different per-track offset). Under the old design, the next pump tick posted the new deck's frame, and the worker's drift snap re-aligned timeline → source — emitting one bad frame at the boundary. The lighting console flagged that as a TC jump.
+3. **Recorder writes / WS broadcasts / GC pauses.** Sub-50 ms stalls are below the warning threshold but still drop a tick or two.
+
+**Architecture after the change:**
+- [backend/src/artnetWorker.ts](backend/src/artnetWorker.ts) holds: `decks: Record<DeckNumber, DeckState | null>`, `selectedDeck`, `trackOffsets`, `lastBeatAtMs`, `reconnecting`, the freewheel timeline, and the self-correcting tick deadline. On every tick it computes `stale = reconnecting || (now - lastBeatAtMs) > FREEWHEEL_STALE_THRESHOLD_MS` itself — main no longer derives that flag.
+- [backend/src/artnetWorkerMessages.ts](backend/src/artnetWorkerMessages.ts) exposes new message types: `setSelectedDeck`, `setTrackOffsets`, `pushDeckState`, `pushAllDeckStates` (replay path), `beatPulse`, `setReconnecting`. `pollDeck` and the old "pull from main" model are gone.
+- [backend/src/artnetTimecode.ts](backend/src/artnetTimecode.ts) is a thin push API: no `setInterval`, no main-thread timer, no `pollDeck` closure. Just `setSelectedDeck()`, `setTrackOffsets()`, `pushDeckState()`, etc.
+- [backend/src/index.ts](backend/src/index.ts) wiring:
+  - `bridge.subscribeDeckState((deck, state) => artnet.pushDeckState(deck, state))` — every bridge mutation forwards to the worker. While replay overrides outputs, this listener short-circuits.
+  - `setSelectedDeck()` helper now also calls `artnet.setSelectedDeck()`. The worker resets `timelineFrames`/`lastTickMs` on the boundary so the new deck rebases cleanly without the drift snap firing on the boundary frame.
+  - `reloadConfig()` calls `artnet.setTrackOffsets(buildTrackOffsetObject(trackOffsets))` so the new offsets take effect on the worker's next tick (no race with the live show).
+  - `onCommunicationLost` calls `artnet.setReconnecting(true)`/`(false)` around the reconnect loop, so the worker engages freewheel immediately rather than waiting `FREEWHEEL_STALE_THRESHOLD_MS` for its own derivation to trip.
+  - Snapshot-loop replay path: when `replay.isOverridingOutputs()`, the synthesized 4-deck state is pushed via `artnet.pushAllDeckStates(decks, true)` (the `bumpBeat: true` flag keeps `lastBeatAtMs` fresh because the audio-deck-elapsedSec replay clock is the source-of-truth for "is the show still moving").
+  - On startup, before the first tick, we seed the worker with `bridge.getDecks()` (blank-deck values) so it doesn't have to wait for the first state mutation to resolve a (silent) source deck.
+
+**Why a clean rebase on selectedDeck flip:** the worker's `setSelectedDeck()` deliberately nulls `timelineFrames` and `lastTickMs`. Without that, the next tick's `dtSec` calculation would use the previous deck's source position, then drift-snap to the new one — emitting one bad frame at the boundary value (which the lighting console flags). With the reset, the next tick sees `timelineFrames == null`, takes the new source frame on the spot, and starts fresh.
+
+**The drift-snap suppression while stale is the linchpin.** Whenever any class of main-thread stall happens, the worker tips into stale (no fresh `pushDeckState`/`beatPulse`), freewheels at the last-known speed, and on resume — when main pushes catch-up state — exits stale. `doSend` skips the drift snap during stale, so the timeline keeps advancing from where freewheel left it instead of snapping to the catch-up source frame. The lighting console sees one continuous TC stream regardless of how long main was blocked.
+
+**Cost of the change:** every bridge state mutation now costs one structured-clone postMessage (DeckState is ~20 fields, mostly numbers). That's a few µs per call, swamped by everything else the bridge does on the same hot path. The `pushAllDeckStates` call is one per 33 ms during replay — same scale.
+
+**Verification (smoke-boot):** worker reports `[ArtNet/wk] ready: ... (target interval 33.333ms, stale=250ms)` with the pump-in-worker note in lifecycle. Steady-state heartbeat: `avg=33.34ms p50=33.0 maxBehind=1.7ms hardStalls=0`. No regressions on the existing freewheel/flap detector path or the replay-override path.
+
+---
+
 ### 2026-06-19 — sACN 0–50 explicitly deselects (TC silent)
 
 **What:** [`mapDmxToDeck`](backend/src/index.ts) now returns `null` for DMX
