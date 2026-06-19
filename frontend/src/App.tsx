@@ -88,6 +88,14 @@ export default function App() {
   });
   const artworkObjectUrlsRef = useRef<Record<string, string>>({});
   const [artworkUrls, setArtworkUrls] = useState<Record<string, string>>({});
+  // Frontend-side peaks cache, keyed by fileName. The backend `waveform_data`
+  // frame arrives keyed only by fileName (no `deck` field) — and frequently
+  // arrives BEFORE the snapshot that announces the new fileName on a deck
+  // (on initial WS connect the backend sends cached frames, then snapshots
+  // start; on a track-change `setImmediate` lands the frame ahead of the next
+  // 30 Hz tick). We cache the peaks here and apply them to whichever deck
+  // currently holds — or later loads — that file.
+  const peaksByFileRef = useRef<Record<string, { peaks: number[]; peaksPerSec: number }>>({});
   const [connected, setConnected] = useState(false);
   const [stagelinqStatus, setStagelinqStatus] = useState<StageLinqStatus>('no-device');
   const [freewheelActive, setFreewheelActive] = useState(false);
@@ -324,6 +332,22 @@ export default function App() {
             setPopupQueue((q) => q.filter((p) => p.deck !== d));
           }
 
+          // If we already have peaks cached for this deck's current file (e.g.
+          // the waveform_data frame arrived before this snapshot announced the
+          // fileName), bind them now. Cheap no-op when the deck already shows
+          // the same fileName as last tick.
+          const fnNow = nextDecks[d].fileName;
+          if (fnNow && prevFile[d] !== fnNow) {
+            const cached = peaksByFileRef.current[fnNow];
+            if (cached) {
+              setWaveforms((w) => (
+                w[d].fileName === fnNow && w[d].peaks
+                  ? w
+                  : { ...w, [d]: { peaks: cached.peaks, peaksPerSec: cached.peaksPerSec, stage: 'ready', progress: 100, fileName: fnNow } }
+              ));
+            }
+          }
+
           // Schedule the note popup once per (deck, fileName). Re-evaluating on
           // every snapshot is cheap; the seenNoteForFile guard ensures the
           // timer is created exactly once for a given load.
@@ -379,8 +403,11 @@ export default function App() {
         });
       } else if (msg.type === 'waveform_data') {
         const { peaks, peaksPerSec, fileName } = msg;
-        // Apply to every deck currently holding this file. Same track on two
-        // decks renders correctly without the backend having to fan out.
+        // Cache by fileName so a frame that lands before the matching snapshot
+        // (initial connect + setImmediate-deferred track-change broadcasts both
+        // race the next 30 Hz snapshot) still gets bound when the deck reports
+        // the file. Then apply to every deck currently holding it.
+        peaksByFileRef.current[fileName] = { peaks, peaksPerSec };
         setWaveforms((prev) => {
           let changed = false;
           const next = { ...prev };
