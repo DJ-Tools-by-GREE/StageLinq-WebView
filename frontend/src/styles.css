@@ -332,6 +332,9 @@ html, body {
   align-items: center;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  /* `column-gap` matters once we collapse to a single column below — the
+     2-column layout doesn't need it (the 190px sub-grid is right-edge). */
+  column-gap: 12px;
 }
 
 /* ── Track info (art + title) ───────────────────────────────────── */
@@ -533,7 +536,9 @@ html, body {
   display: flex;
   gap: 6px;
   align-items: center;
-  flex-wrap: wrap;
+  /* Key + Loop pill must always stay on one row — wrapping made the loop
+     pill drop below the key pill on narrow cards, doubling header height. */
+  flex-wrap: nowrap;
   justify-content: flex-end;
 }
 
@@ -1301,4 +1306,100 @@ html, body {
   cursor: help;
 }
 
+
+/* ── Compact-card layout (narrow per-card width) ────────────────── */
+/* `.card` is a size-container (see `container-type: size`) so each
+   quadrant reflows independently of the viewport. At 4-up on small
+   screens, each card is ~half the viewport wide; below this threshold
+   the 190px stats column starts pushing the title under the artwork
+   and the time/BPM block collides with the Key/Loop pills. Collapse
+   the header to a single column and shrink the heaviest typography. */
+@container (max-width: 520px) {
+  .cardHeader {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 8px;
+    padding: 10px 12px 10px 16px;
+  }
+
+  .stats {
+    justify-self: stretch;
+    align-items: stretch;
+    text-align: left;
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .pills {
+    justify-content: flex-start;
+  }
+
+  .kv {
+    text-align: right;
+    align-items: flex-end;
+  }
+
+  /* Smaller artwork + title leaves room for everything else. */
+  .art {
+    width: 56px;
+    height: 56px;
+    font-size: 13px;
+  }
+
+  .title {
+    font-size: 15px;
+  }
+
+  .artist {
+    font-size: 12px;
+  }
+
+  .kv strong {
+    font-size: 15px;
+  }
+
+  .kv > div:nth-child(2) {
+    font-size: 12px;
+  }
+
+  /* The big BPM readout in `.middle` is the other piece that overflows
+     on narrow cards — drop it one step so it fits next to "BPM"/"Track BPM"
+     labels without wrapping. */
+  .value {
+    font-size: 16px;
+  }
+
+  .middle {
+    padding: 0 12px 8px 16px;
+    gap: 8px;
+  }
+
+  .waveformWrap {
+    padding: 0 12px 10px 16px;
+  }
+}
+
+/* Extra-narrow safety net: if a card ends up below ~360px (e.g. 4-up on a
+   phone-width window), drop the artwork to icon size and tighten further. */
+@container (max-width: 360px) {
+  .art {
+    width: 44px;
+    height: 44px;
+    font-size: 11px;
+  }
+
+  .title {
+    font-size: 13px;
+  }
+
+  .value {
+    font-size: 14px;
+  }
+
+  .pill {
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+}
 

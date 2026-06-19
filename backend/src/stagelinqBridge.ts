@@ -117,7 +117,6 @@ export class StageLinqBridge {
     total: false,
     key: false,
     speed: false,
-    cues: false,
     loops: false,
   };
 
@@ -741,39 +740,17 @@ export class StageLinqBridge {
         }
       }
 
-      // ---- Discover unmatched cue/loop paths ----
-      if (/cue|hotcue|loop/i.test(tail)) {
-        if (!this.seen.cues && /cue|hotcue/i.test(tail)) {
-          this.seen.cues = true;
-          logDiscover(deck, "[DISCOVER] First cue path (message):", name, "=", JSON.stringify(rawValue));
-        }
+      // ---- Discover unmatched loop paths ----
+      if (/loop/i.test(tail)) {
         if (!this.seen.loops && /loop/i.test(tail)) {
           this.seen.loops = true;
           logDiscover(deck, "[DISCOVER] First loop path (message):", name, "=", JSON.stringify(rawValue));
         }
       }
 
-      // ---- HotCues (samples → seconds) ----
-      const hotCueMatch = tail.match(/^(?:Track\/)?HotCue([1-8])$/i);
-      if (hotCueMatch) {
-        const idx = Number(hotCueMatch[1]);
-        const samples = typeof rawValue === "number" ? rawValue
-          : (typeof rawValue === "object" && rawValue !== null ? (rawValue as any).value ?? (rawValue as any).samples ?? (rawValue as any).position : undefined);
-        if (typeof samples === "number" && samples >= 0) {
-          const sr = this.sampleRateHz[deck];
-          const sec = (typeof sr === "number" && sr > 0) ? samples / sr : samples;
-          ds.hotCues = [
-            ...ds.hotCues.filter((c) => c.index !== idx),
-            { index: idx, sec },
-          ].sort((a, b) => a.index - b.index);
-          this.touch(deck);
-          logCues(deck, `[CUE] Deck ${deck} HotCue${idx} set @ ${sec.toFixed(3)}s`);
-        } else if (samples === -1 || samples === null || samples === undefined) {
-          ds.hotCues = ds.hotCues.filter((c) => c.index !== idx);
-          this.touch(deck);
-          logCues(deck, `[CUE] Deck ${deck} HotCue${idx} cleared`);
-        }
-      }
+      // ---- HotCues are not exposed by Engine OS over StageLinq StateMap.
+      // Hot-cue positions are populated offline from the SD-card m.db via
+      // backend/src/scripts/extractCues.ts; see backend/hotcue-cache/. ----
 
       // ---- Active loop ----
       if (/^(?:Track\/)?LoopEnableState$/i.test(tail)) {
@@ -1098,37 +1075,15 @@ export class StageLinqBridge {
         }
       }
 
-      // ---- Discover unmatched cue/loop paths via stateChanged ----
-      if (/cue|hotcue|loop/i.test(tail)) {
-        if (!this.seen.cues && /cue|hotcue/i.test(tail)) {
-          this.seen.cues = true;
-          logDiscover(deck, "[DISCOVER] First cue path (stateChanged):", name, "=", JSON.stringify(value));
-        }
+      // ---- Discover unmatched loop paths via stateChanged ----
+      if (/loop/i.test(tail)) {
         if (!this.seen.loops && /loop/i.test(tail)) {
           this.seen.loops = true;
           logDiscover(deck, "[DISCOVER] First loop path (stateChanged):", name, "=", JSON.stringify(value));
         }
       }
 
-      // ---- HotCues via stateChanged ----
-      const hotCueMatch2 = tail.match(/^(?:Track\/)?HotCue([1-8])$/i);
-      if (hotCueMatch2) {
-        const idx = Number(hotCueMatch2[1]);
-        const samples = typeof value === "number" ? value
-          : (typeof value === "object" && value !== null ? (value as any).value ?? (value as any).samples ?? (value as any).position : undefined);
-        if (typeof samples === "number" && samples >= 0) {
-          const sr = this.sampleRateHz[deck];
-          const sec = (typeof sr === "number" && sr > 0) ? samples / sr : samples;
-          ds.hotCues = [
-            ...ds.hotCues.filter((c) => c.index !== idx),
-            { index: idx, sec },
-          ].sort((a, b) => a.index - b.index);
-          logCues(deck, `[CUE] Deck ${deck} HotCue${idx} set @ ${sec.toFixed(3)}s`);
-        } else if (samples === -1) {
-          ds.hotCues = ds.hotCues.filter((c) => c.index !== idx);
-          logCues(deck, `[CUE] Deck ${deck} HotCue${idx} cleared`);
-        }
-      }
+      // ---- HotCues: not exposed via stateChanged either; see m.db extraction script. ----
 
       // ---- Active loop via stateChanged ----
       if (tail === "Track/LoopEnableState" || tail === "LoopEnableState") {

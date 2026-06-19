@@ -384,6 +384,10 @@ function computeSuggestedDeck(
 }
 
 function mapDmxToDeck(value: number): DeckNumber | null {
+  // 0–50 is the documented "off" band — explicit deselection from the lighting
+  // console. The Art-Net poll lambda turns a null selection into a no-packet
+  // tick, so timecode stops cleanly on the receiver side.
+  if (value <= 50) return null;
   if (value <= 101) return 1;
   if (value <= 152) return 2;
   if (value <= 203) return 3;
@@ -801,6 +805,15 @@ async function main() {
     res.json(recorder.getStatus());
   });
 
+  app.post('/api/record/resume-abort', (_req, res) => {
+    if (!recorder.hasPendingResume()) {
+      res.status(409).json({ ok: false, error: 'no pending resume' });
+      return;
+    }
+    recorder.abortPendingResume();
+    res.json({ ok: true });
+  });
+
   app.get('/api/recordings', async (_req, res) => {
     try {
       const list = await listRecordings(recordingsDir);
@@ -1133,6 +1146,27 @@ async function main() {
     isReplayActive: () => replay.isActive(),
     getStatus: () => stagelinqStatusForApi(),
   });
+
+  // Crash-recovery: if the previous session left an unfinished recording on disk,
+  // stage it for resume. The actual file-open + gap event is deferred until the
+  // bridge reports 'connected' (handled in the snapshot loop below) so the gap
+  // marker is paired with a fresh keyframe of real deck state.
+  await recorder.prepareResumeFromOrphan().catch(e => logError('[REC] prepareResumeFromOrphan threw:', e));
+
+  // Graceful shutdown: stop any active recording so we get a clean .meta.json sidecar
+  // and don't leave the file looking like an orphan to the next boot. SIGKILL still
+  // leaves an orphan — that's exactly what prepareResumeFromOrphan() is for.
+  let shutdownInProgress = false;
+  const stopRecorderOnExit = async () => {
+    if (shutdownInProgress) return;
+    shutdownInProgress = true;
+    if (recorder.isActive()) {
+      try { await recorder.stop(); } catch (e) { logError('[REC] shutdown stop failed:', e); }
+    }
+  };
+  process.once('SIGINT', () => { void stopRecorderOnExit(); });
+  process.once('SIGTERM', () => { void stopRecorderOnExit(); });
+  process.once('beforeExit', () => { void stopRecorderOnExit(); });
 
   const stateProvider = makeStateProvider({
     bridge,
@@ -1490,6 +1524,14 @@ async function main() {
     if (status !== lastReportedStatus) {
       lastReportedStatus = status;
       recorder.recordStatus(status);
+      // First connect after boot: if we found an unfinished recording on disk, resume it
+      // now that the bridge has fresh state to keyframe. Other status flips (no-device,
+      // reconnecting) just update the recorded status; resume only fires once.
+      if (status === 'connected' && recorder.hasPendingResume() && !replay.isActive()) {
+        recorder.finalizeResume().then(r => {
+          if (!r.ok) logError(`[REC] resume failed: ${r.error}`);
+        }).catch(e => logError('[REC] resume threw:', e));
+      }
     }
 
     const payload: SnapshotPayload = {

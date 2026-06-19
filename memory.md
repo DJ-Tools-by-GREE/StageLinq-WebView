@@ -7,6 +7,29 @@ decision/bug-confirmation/direction change (per CLAUDE.md).
 
 ## Architectural decisions
 
+### 2026-06-19 — sACN 0–50 explicitly deselects (TC silent)
+
+**What:** [`mapDmxToDeck`](backend/src/index.ts) now returns `null` for DMX
+values ≤ 50, matching the documented "off" band in
+[CLAUDE.md](CLAUDE.md). Previously 0–101 all selected D1, so there was no way
+to deselect without unplugging sACN. The Art-Net poll lambda already converts
+a null `selectedDeck` into `{ deck: undefined, stale }` — the worker sees a
+null `currentDeck` in `doSend()` and skips the UDP packet entirely, so timecode
+goes silent on the receiver immediately.
+
+**Worker timeline reset on deselect:** [`updateDeck`](backend/src/artnetWorker.ts)
+now also clears `timelineFrames` and `lastTickMs` when a non-stale `null` deck
+arrives. Without this, a later reselection would compute a multi-second `dt`
+on the first tick, jump the freewheel timeline, then drift-snap back — emitting
+one wrong TC packet at re-engagement. With the reset, reselection starts
+cleanly from the source `elapsedSec`. The stale path is unchanged (it keeps
+the last-good snapshot for freewheel continuity, as designed).
+
+**Why:** the operator needs an explicit "no deck selected" sACN value so the
+lighting console can pause TC at section breaks without hard-disconnecting.
+
+---
+
 ### 2026-06-19 — Waveform/artwork pipeline moved to a worker thread
 
 **What:** ffmpeg invocations (peaks + artwork extraction), `computePeaks` PCM scan, JSON serialization of the peaks array, base64 encoding of the artwork, and waveform/artwork disk-cache I/O **all run in a dedicated worker thread** ([backend/src/waveformWorker.ts](backend/src/waveformWorker.ts)). The main thread is reduced to: StageLinq audio download (must stay on main, FileTransfer service binding lives there) → zero-copy `postMessage` of the audio `ArrayBuffer` into the worker → fan-out of pre-built WS frame strings on the way back. Pattern mirrors [backend/src/artnetWorker.ts](backend/src/artnetWorker.ts).
@@ -120,6 +143,20 @@ A new shim ([backend/src/stateProvider.ts](backend/src/stateProvider.ts)) sits b
 **Storage:** JSONL + `.meta.json` sidecars in `<repo-root>/recordings/`, gitignored. Full event rate (no throttling).
 
 **Invariant:** all output paths read from `stateProvider`, never `bridge` directly. The waveform extraction code path is the only exception (it asks the real bridge for `totalSec` of the deck currently being downloaded — fine, since mapped audio files are gated out before that path runs).
+
+### 2026-06-19 — Record & Replay: crash-recovery resume
+
+**What:** If the backend dies mid-recording (crash, kill -9, power cut), the next start scans `recordings/` for a `.jsonl` without a matching `.meta.json` sidecar (sidecar is only written on clean stop). If exactly one is found, ≤24 h old, and has a valid header, the recorder stages a resume in memory: replays the file to rebuild per-deck `lastEmitted`, but does not open the file or mark `active` yet. Once `stagelinqStatus` flips to `'connected'` (handled in the snapshot-loop status-edge block), the file is reopened in append mode and the recorder writes a `gap` event (`crashedAtWall`, `resumedAtWall`, `gapMs`) followed by fresh keyframes for all four decks, then continues normal recording.
+
+**Why deferred until 'connected':** the gap marker should be paired with a real keyframe of current deck state. Resuming into a still-broken bridge (no-device / reconnecting) would write `play=false` blanks into the keyframe slot.
+
+**Skip cases (logged, no resume):** ≥2 orphan files (don't guess which to graft onto), file >24 h old, file has no header line, replay is currently active.
+
+**Graceful shutdown:** `SIGINT`/`SIGTERM`/`beforeExit` handlers call `recorder.stop()` first, so the sidecar gets written and no orphan is left for next boot.
+
+**Operator escape hatch:** `POST /api/record/resume-abort` discards a pending resume so a fresh recording can be started. `POST /api/record/start` refuses with 409 while a resume is pending — the operator must explicitly choose between resume and fresh.
+
+**Cannot recover the gap content** — the bridge has no history. The `gap` event is a forensic marker so analysis tools detect the discontinuity. New `gap` event type added to the JSONL schema; replay's parser silently ignores unknown event types so old replay engines don't break.
 
 ### 2026-06-18 — Art-Net: TC silent whenever a deck isn't moving (toggle removed)
 
@@ -638,6 +675,22 @@ snapshot tick fire in between.
 ## Known hardware quirks
 
 (none recorded yet beyond what's already in [CLAUDE.md](CLAUDE.md))
+
+---
+
+## Hot cue extraction (offline, not StageLinq)
+
+Engine DJ **does not** stream hot-cue positions on StageLinq StateMap, even though the `@gree44/stagelinq` package will technically match `/Engine/DeckX/Track/HotCueN` keys. The `HotCue1..8` handlers in [backend/src/stagelinqBridge.ts](backend/src/stagelinqBridge.ts) lines 756-776 / 1113-1131 never fire on real hardware (Prime 4+ / SC6000) because the device just doesn't publish those keys. Confirmed by inspection: `DeckState.hotCues` stays `[]` from network sources alone.
+
+The `@gree44/stagelinq` package *does* expose `FileTransfer.getFile()` and `Databases.downloadDb()`, which can pull `m.db` over the wire — but the offline path is simpler, faster (no 60 s download timeout, no FLTX handshake), works without the device powered on, and the blob format is byte-identical. So we extract from the SD card / USB drive directly.
+
+**Tool:** [backend/src/scripts/extractCues.ts](backend/src/scripts/extractCues.ts), invoked via `npm run -w backend extract-cues`. Auto-detects `/Volumes/*/Engine Library/Database2/m.db`, the in-repo `copy of exported library/...` snapshot, and `~/Music/Engine Library/Database2/m.db`; prompts on stdin if multiple are found. Iterates every `song_index` in `config.playlists[*].content[*]` (or `--current-only`), opens `m.db` read-only, decodes `PerformanceData.quickCues` (zlib-compressed big-endian `int64` count + per-slot `u8` name-length + UTF-8 name + `f64` sample position + `u32` ARGB), writes one `<md5(fileName).slice(0,16)>.json` file to `backend/hotcue-cache/`.
+
+**Cache key matches waveform cache:** identical stem function to `waveformStem()` in [backend/src/waveformWorker.ts](backend/src/waveformWorker.ts). A future feature that wants cues + waveform + artwork together can compute the stem once and look up all three caches.
+
+**Standalone by design:** the script imports nothing from the rest of the backend (no StageLinq, no express, no waveform pipeline). Safe to re-run mid-show against a freshly mutated SD card. Separate `tsx` entry point, not part of the runtime backend.
+
+The runtime backend does not yet read `hotcue-cache/` — the script builds the cache; consumption is a separate feature still to be wired up.
 
 ---
 

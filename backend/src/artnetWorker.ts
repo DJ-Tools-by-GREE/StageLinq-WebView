@@ -152,6 +152,15 @@ class ArtNetWorker {
       this.freewheelExpiredLogged = false;
     }
     this.deckIsStale = false;
+    // Explicit deselection (e.g. sACN value drops into the 0–50 "off" band).
+    // Reset the timeline so a later reselection starts cleanly from the source
+    // position instead of advancing by the dt accumulated while no deck was active.
+    if (!deck) {
+      this.currentDeck = null;
+      this.timelineFrames = null;
+      this.lastTickMs = null;
+      return;
+    }
     this.currentDeck = deck;
   }
 
