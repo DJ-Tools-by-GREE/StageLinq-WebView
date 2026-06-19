@@ -21,7 +21,7 @@ Real-time DJ deck visualizer for Denon Prime 4+ (Engine DJ / StageLinq). Display
 - Configurable FPS, target IP/port, deck selection, and latency compensation
 - Drift detection and re-sync; suppresses frames before 00:00:00:00 and after track end
 - Per-track offset mapping via `config.json` for alignment with external systems
-- **Runs in a dedicated Node worker thread** with its own dgram socket and a self-correcting deadline timer, so the timecode cadence is unaffected by waveform extraction, WebSocket broadcasts, or any other main-thread work
+- **Runs in a dedicated Node worker thread** that owns the entire timecode pipeline — the dgram socket, the 30 Hz self-correcting tick, the per-deck state cache, the selected-deck pointer, the per-track offsets, and the freewheel-stale derivation. The main thread only **pushes** state changes (bridge mutations, sACN deck flips, config reloads). Even multi-second main-thread stalls (huge StageLinq downloads, ffmpeg storms, GC pauses) cannot drop a tick — the worker freewheels cleanly across the gap and rebases when state pushes resume.
 
 **sACN / DMX control input** (optional)
 - Receives a single DMX channel over sACN to select which deck's timecode is broadcast
@@ -110,6 +110,16 @@ Replay uses the audio deck's `elapsedSec` as the master timeline (sample-accurat
 ### Storage
 
 Logs and sidecars live in `recordings/` at the repo root (gitignored). One JSONL line per event, full bridge cadence, with deck-state diffs between keyframes. Header line records the playlist offset map at recording time. A multi-hour show is typically a few hundred KB to low single-digit MB.
+
+### Offline analysis
+
+[scripts/analyse-suggestions.mjs](scripts/analyse-suggestions.mjs) replays a recording and reports, for each operator deck transition (sACN CH1 change), whether the auto-suggestion engine had already pre-suggested the destination deck at the instant of the press — using the same `computeSuggestedDeck()` logic the live system runs and sampling the suggestion at each transition with no lookback window (real-time semantics). Useful for tuning trigger thresholds against a real show.
+
+```bash
+node scripts/analyse-suggestions.mjs recordings/<iso>.jsonl [config.json]
+```
+
+The script reads the playlist (mashup flags + ordering) from `config.json` since the recording header only captures `trackOffsets`. Run it against the same config that was active during recording for accurate results.
 
 ## Prerequisites
 
@@ -300,7 +310,7 @@ Waveforms and artwork are extracted automatically when a track loads and cached 
 }
 ```
 
-**Runs in a dedicated worker thread.** ffmpeg, peak compute, JSON serialization of the peaks array, base64 encoding of the artwork, and disk-cache I/O all run off the main thread (in [backend/src/waveformWorker.ts](backend/src/waveformWorker.ts)). The main thread only forwards the StageLinq-downloaded audio bytes into the worker (zero-copy `ArrayBuffer` transfer) and fans out the pre-built WS frame strings on the way back. This keeps the Art-Net deck-state polling pump at full 30 Hz cadence across track changes — the lighting console no longer sees TC jumps when a new track is loaded on any deck.
+**Runs in a dedicated worker thread.** ffmpeg, peak compute, JSON serialization of the peaks array, base64 encoding of the artwork, and disk-cache I/O all run off the main thread (in [backend/src/waveformWorker.ts](backend/src/waveformWorker.ts)). The main thread only forwards the StageLinq-downloaded audio bytes into the worker (zero-copy `ArrayBuffer` transfer) and fans out the pre-built WS frame strings on the way back. The Art-Net worker is fully decoupled — even if main *does* stall while extracting waveforms, the pump-in-worker design (see Architecture Overview) means TC keeps streaming without a missed tick.
 
 ### Hot cue cache
 
