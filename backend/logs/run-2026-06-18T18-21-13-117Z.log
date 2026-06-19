@@ -1,0 +1,2 @@
+--- session start 2026-06-18T18:21:13.117Z ---
+[18:21:13.116] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001ms avg=33.36ms (29.49fps) p50=33.0 p95=35.0 max=36.0 maxBehind=1.7ms hardStalls=0 target=33.33ms

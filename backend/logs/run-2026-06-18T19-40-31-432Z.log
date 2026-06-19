@@ -1,0 +1,11 @@
+--- session start 2026-06-18T19:40:31.432Z ---
+[19:40:31.432] [ERROR] [main] WS broadcast slow: 7ms (clients=1)
+[19:41:31.215] [ERROR] [main] WS broadcast slow: 6ms (clients=2)
+[19:41:47.599] [ERROR] [main] WS broadcast slow: 20ms (clients=2)
+[19:43:39.452] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001ms avg=33.32ms (29.49fps) p50=33.0 p95=36.0 max=36.0 maxBehind=1.8ms hardStalls=0 target=33.33ms
+[19:44:12.017] [ERROR] [main] WS broadcast slow: 6ms (clients=2)
+[19:45:26.476] [ERROR] [main] WS broadcast slow: 9ms (clients=2)
+[19:45:27.485] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001ms avg=33.31ms (29.49fps) p50=33.0 p95=35.0 max=36.0 maxBehind=1.7ms hardStalls=0 target=33.33ms
+[19:47:56.111] [ERROR] [main] WS broadcast slow: 6ms (clients=2)
+[19:48:41.523] [ERROR] [main] WS broadcast slow: 8ms (clients=2)
+[19:51:30.888] [ERROR] [Watchdog] No beat for 2.0s — triggering reconnect

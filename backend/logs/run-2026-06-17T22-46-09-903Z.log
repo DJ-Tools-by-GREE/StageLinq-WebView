@@ -1,0 +1,16 @@
+--- session start 2026-06-17T22:46:09.904Z ---
+[22:46:09.903] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001ms avg=33.32ms (29.49fps) p50=33.0 p95=35.0 max=35.0 maxBehind=1.7ms hardStalls=0 target=33.33ms
+[22:46:30.737] [ERROR] [main] WS broadcast slow: 13ms (clients=2)
+[22:46:50.250] [ERROR] [main] WS broadcast slow: 8ms (clients=2)
+[22:47:09.687] [ERROR] [main] WS broadcast slow: 7ms (clients=2)
+[22:47:58.384] [ERROR] [main] WS broadcast slow: 9ms (clients=2)
+[22:48:26.720] [ERROR] [main] WS broadcast slow: 10ms (clients=2)
+[22:49:19.711] [ERROR] [main] WS broadcast slow: 19ms (clients=2)
+[22:49:39.986] [ERROR] [main] WS broadcast slow: 14ms (clients=2)
+[22:50:52.034] [ERROR] [main] WS broadcast slow: 10ms (clients=2)
+[22:51:32.169] [ERROR] [main] WS broadcast slow: 10ms (clients=2)
+[22:52:31.309] [ERROR] [main] WS broadcast slow: 12ms (clients=2)
+[22:52:52.010] [ERROR] [main] WS broadcast slow: 10ms (clients=2)
+[22:54:51.650] [ERROR] [main] WS broadcast slow: 7ms (clients=2)
+[22:56:47.164] [ERROR] [main] WS broadcast slow: 6ms (clients=2)
+[22:56:56.977] [ERROR] [main] WS broadcast slow: 10ms (clients=2)

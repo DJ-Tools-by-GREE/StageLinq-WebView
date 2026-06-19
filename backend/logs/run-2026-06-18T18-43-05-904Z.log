@@ -1,0 +1,38 @@
+--- session start 2026-06-18T18:43:05.905Z ---
+[18:43:05.904] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001ms avg=33.31ms (29.49fps) p50=33.0 p95=36.0 max=36.0 maxBehind=1.7ms hardStalls=0 target=33.33ms
+[18:47:01.970] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001ms avg=33.31ms (29.49fps) p50=33.0 p95=35.0 max=36.0 maxBehind=1.9ms hardStalls=0 target=33.33ms
+[18:51:04.036] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001ms avg=33.31ms (29.49fps) p50=33.0 p95=35.0 max=35.0 maxBehind=1.8ms hardStalls=0 target=33.33ms
+[18:58:08.201] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001ms avg=33.34ms (29.49fps) p50=33.0 p95=36.0 max=36.0 maxBehind=1.9ms hardStalls=0 target=33.33ms
+[18:58:59.649] [ERROR] [main] WS broadcast slow: 16ms (clients=2)
+[18:59:56.234] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001ms avg=33.32ms (29.49fps) p50=33.0 p95=35.0 max=40.0 maxBehind=6.5ms hardStalls=0 target=33.33ms
+[19:00:16.919] [ERROR] [main] WS broadcast slow: 14ms (clients=2)
+[19:01:36.266] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001ms avg=33.34ms (29.49fps) p50=33.0 p95=35.0 max=36.0 maxBehind=1.7ms hardStalls=0 target=33.33ms
+[19:02:27.501] [ERROR] [main] WS broadcast slow: 12ms (clients=2)
+[19:03:14.501] [ERROR] [main] WS broadcast slow: 14ms (clients=2)
+[19:05:07.189] [WARN] [ArtNet/wk] Late tick: 56.0ms (target 33.3ms, behind 23.6ms)
+[19:06:52.401] [WARN] [ArtNet/wk] tick stats: 59 ticks/2002ms avg=33.32ms (29.47fps) p50=33.0 p95=36.0 max=40.0 maxBehind=6.5ms hardStalls=0 target=33.33ms
+[19:08:56.896] [ERROR] [main] event-loop lag 177ms (probe 250ms)
+[19:08:56.896] [WARN] [ArtNet/wk] Late tick: 91.0ms (target 33.3ms, behind 57.1ms)
+[19:08:56.896] [WARN] [ArtNet/wk] Hard stall: behind by 196.8ms (>3 intervals); resyncing deadline.
+[19:08:58.463] [WARN] [ArtNet/wk] tick stats: 54 ticks/2001ms avg=36.96ms (26.99fps) p50=33.0 p95=73.0 max=173.0 maxBehind=196.8ms hardStalls=1 target=33.33ms
+[19:10:50.496] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001ms avg=33.34ms (29.49fps) p50=33.0 p95=35.0 max=36.0 maxBehind=1.9ms hardStalls=0 target=33.33ms
+[19:19:09.153] [WARN] [ArtNet/wk] Late tick: 127.0ms (target 33.3ms, behind 92.8ms)
+[19:19:09.197] [ERROR] [main] event-loop lag 93ms (probe 250ms)
+[19:19:10.714] [ERROR] [Watchdog] No beat for 2.1s — triggering reconnect
+[19:19:10.755] [WARN] [ArtNet/wk] tick stats: 62 ticks/2092ms avg=33.34ms (29.64fps) p50=33.0 p95=35.0 max=127.0 maxBehind=92.8ms hardStalls=0 target=33.33ms
+[19:19:30.741] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:19:41.626] [WARN] [ArtNet/wk] Freewheel timeout reached (31s) — going silent until beats resume
+[19:19:50.762] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:20:10.781] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:20:30.802] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:20:50.827] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:21:05.109] [ERROR] [main] WS broadcast slow: 13ms (clients=0)
+[19:21:10.848] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:21:18.914] [ERROR] [main] WS broadcast slow: 14ms (clients=0)
+[19:21:30.867] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:21:40.053] [WARN] [ArtNet/wk] Late tick: 58.0ms (target 33.3ms, behind 25.5ms)
+[19:21:50.886] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:21:57.130] [ERROR] [sACN] PacketOutOfOrder: Packet significantly out of order in universe 20 from light-1467 (117 -> 0)
+[19:22:10.908] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[19:25:16.894] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001ms avg=33.34ms (29.49fps) p50=33.0 p95=36.0 max=37.0 maxBehind=1.7ms hardStalls=0 target=33.33ms
+[19:34:45.094] [WARN] [ArtNet/wk] tick stats: 59 ticks/2003ms avg=33.34ms (29.46fps) p50=33.0 p95=35.0 max=37.0 maxBehind=2.8ms hardStalls=0 target=33.33ms

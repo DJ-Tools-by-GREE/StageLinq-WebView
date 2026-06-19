@@ -1,0 +1,4 @@
+--- session start 2026-06-18T18:12:10.963Z ---
+[18:12:10.963] [WARN] [ArtNet/wk] tick stats: 58 ticks/2006ms avg=33.33ms (28.91fps) p50=33.0 p95=35.0 max=35.0 maxBehind=2.3ms hardStalls=0 target=33.33ms
+[18:14:04.003] [WARN] [ArtNet/wk] Late tick: 54.0ms (target 33.3ms, behind 19.9ms)
+[18:14:04.985] [WARN] [ArtNet/wk] tick stats: 60 ticks/2000ms avg=33.33ms (30.00fps) p50=33.0 p95=60.0 max=69.0 maxBehind=80.3ms hardStalls=0 target=33.33ms

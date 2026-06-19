@@ -1,0 +1,260 @@
+
+--- session start 2026-06-12T21:47:11.131Z ---
+[21:47:21.215] new max gap: 30.0 ms
+[21:47:21.290] new max gap: 47.0 ms
+[21:47:21.710] new max gap: 56.0 ms
+[21:47:22.102] new max gap: 93.0 ms
+[21:47:25.979] new max gap: 94.0 ms
+[21:47:31.417] new max gap: 110.0 ms
+[21:47:37.496] new max gap: 157.0 ms
+[21:47:40.612] new max gap: 162.0 ms
+[21:47:44.949] new max gap: 428.0 ms
+[21:47:47.419] new max gap: 532.0 ms
+[21:48:33.969] new max gap: 830.0 ms
+
+--- session start 2026-06-12T22:24:33.933Z ---
+[22:24:44.006] new max gap: 24.0 ms
+[22:24:44.033] new max gap: 27.0 ms
+[22:24:44.134] new max gap: 101.0 ms
+[22:24:45.906] new max gap: 123.0 ms
+[22:24:47.329] new max gap: 130.0 ms
+[22:24:50.948] new max gap: 158.0 ms
+[22:25:15.428] new max gap: 191.0 ms
+[22:30:06.421] new max gap: 192.0 ms
+[22:30:47.492] new max gap: 354.0 ms
+[22:30:48.322] new max gap: 830.0 ms
+[22:31:23.486] new max gap: 846.0 ms
+[22:31:58.643] new max gap: 1519.0 ms
+[22:33:06.593] new max gap: 1816.0 ms
+
+--- session start 2026-06-15T21:27:44.684Z ---
+[21:27:54.796] new max gap: 32.0 ms
+[21:27:54.829] new max gap: 33.0 ms
+[21:27:54.863] new max gap: 34.0 ms
+[21:27:54.999] new max gap: 36.0 ms
+[21:27:55.079] new max gap: 44.0 ms
+[21:27:55.496] new max gap: 45.0 ms
+[21:27:55.845] new max gap: 46.0 ms
+[21:27:56.262] new max gap: 48.0 ms
+[21:27:58.212] new max gap: 50.0 ms
+[21:27:59.537] new max gap: 78.0 ms
+[21:32:44.978] new max gap: 97.0 ms
+[21:34:37.984] new max gap: 208.0 ms
+[21:34:55.031] new max gap: 452.0 ms
+[21:34:57.003] new max gap: 713.0 ms
+[21:37:59.596] new max gap: 1551.0 ms
+
+--- session start 2026-06-15T21:41:16.437Z ---
+[21:41:20.556] new max gap: 28.0 ms
+[21:41:20.591] new max gap: 35.0 ms
+[21:41:20.635] new max gap: 44.0 ms
+[21:41:21.410] new max gap: 56.0 ms
+[21:41:24.817] new max gap: 85.0 ms
+[21:41:37.904] new max gap: 293.0 ms
+[21:41:38.259] new max gap: 355.0 ms
+[21:41:39.706] new max gap: 1064.0 ms
+[22:09:41.092] new max gap: 1925.0 ms
+[22:22:46.487] new max gap: 2381.0 ms
+
+--- session start 2026-06-16T19:17:32.947Z ---
+[19:17:43.115] new max gap: 33.0 ms
+[19:17:43.184] new max gap: 37.0 ms
+[19:17:43.228] new max gap: 44.0 ms
+[19:17:43.991] new max gap: 45.0 ms
+[19:17:56.341] new max gap: 47.0 ms
+[19:19:09.346] new max gap: 48.0 ms
+[19:20:50.496] new max gap: 51.0 ms
+
+--- session start 2026-06-16T19:22:50.082Z ---
+[19:23:00.227] new max gap: 32.0 ms
+[19:23:00.261] new max gap: 34.0 ms
+[19:23:00.340] new max gap: 45.0 ms
+[19:23:01.142] new max gap: 47.0 ms
+[19:23:04.875] new max gap: 58.0 ms
+[19:24:48.022] new max gap: 64.0 ms
+[19:25:56.939] new max gap: 397.0 ms
+[20:04:14.495] new max gap: 413.0 ms
+[20:20:12.954] new max gap: 617.0 ms
+[20:43:47.480] new max gap: 1219.0 ms
+[20:54:31.682] new max gap: 1266.0 ms
+[21:09:14.220] new max gap: 1505.0 ms
+[21:15:24.929] new max gap: 1716.0 ms
+
+--- session start 2026-06-16T21:59:26.502Z ---
+[21:59:36.747] new max gap: 35.0 ms
+[21:59:36.793] new max gap: 47.0 ms
+[21:59:40.982] new max gap: 61.0 ms
+[22:00:27.661] new max gap: 62.0 ms
+[22:00:28.622] new max gap: 100.0 ms
+[22:00:29.426] new max gap: 544.0 ms
+
+--- session start 2026-06-17T12:50:58.393Z ---
+[12:51:08.633] new max gap: 32.0 ms
+[12:51:08.668] new max gap: 35.0 ms
+[12:51:08.738] new max gap: 36.0 ms
+[12:51:08.783] new max gap: 45.0 ms
+[12:51:09.134] new max gap: 48.0 ms
+[12:51:12.883] new max gap: 71.0 ms
+[12:52:16.675] new max gap: 72.0 ms
+[12:52:29.084] new max gap: 96.0 ms
+[12:55:41.822] new max gap: 99.0 ms
+[12:55:58.086] new max gap: 168.0 ms
+[12:55:58.945] new max gap: 176.0 ms
+
+--- session start 2026-06-17T13:55:13.659Z ---
+[13:55:23.881] new max gap: 33.0 ms
+[13:55:23.915] new max gap: 34.0 ms
+[13:55:24.019] new max gap: 38.0 ms
+[13:55:24.197] new max gap: 46.0 ms
+[13:55:24.614] new max gap: 48.0 ms
+[13:55:25.009] new max gap: 58.0 ms
+[13:55:28.615] new max gap: 72.0 ms
+
+--- session start 2026-06-17T13:55:49.604Z ---
+[13:55:59.811] new max gap: 32.0 ms
+[13:55:59.845] new max gap: 34.0 ms
+[13:55:59.948] new max gap: 35.0 ms
+[13:56:00.036] new max gap: 53.0 ms
+[13:56:04.551] new max gap: 79.0 ms
+
+--- session start 2026-06-17T13:56:29.232Z ---
+[13:56:33.426] new max gap: 33.0 ms
+[13:56:33.526] new max gap: 34.0 ms
+[13:56:33.596] new max gap: 36.0 ms
+[13:56:33.709] new max gap: 45.0 ms
+[13:56:34.059] new max gap: 47.0 ms
+[13:56:36.011] new max gap: 50.0 ms
+[13:56:37.687] new max gap: 82.0 ms
+
+--- session start 2026-06-17T14:00:48.499Z ---
+[14:00:58.622] new max gap: 39.0 ms
+[14:00:58.688] new max gap: 44.0 ms
+[14:00:59.068] new max gap: 53.0 ms
+[14:01:00.081] new max gap: 72.0 ms
+[14:04:25.409] new max gap: 265.0 ms
+[14:04:26.776] new max gap: 1087.0 ms
+[14:04:42.670] new max gap: 1664.0 ms
+
+--- session start 2026-06-17T14:06:20.628Z ---
+[14:06:24.706] new max gap: 34.0 ms
+[14:06:24.741] new max gap: 35.0 ms
+[14:06:24.854] new max gap: 45.0 ms
+[14:06:25.204] new max gap: 47.0 ms
+[14:06:27.502] new max gap: 48.0 ms
+[14:06:29.477] new max gap: 76.0 ms
+[14:07:16.595] new max gap: 267.0 ms
+[14:07:16.898] new max gap: 303.0 ms
+[14:07:17.882] new max gap: 793.0 ms
+[14:07:22.881] new max gap: 1854.0 ms
+
+--- session start 2026-06-17T22:30:02.895Z ---
+[22:30:12.995] new max gap: 37.0 ms
+[22:30:13.036] new max gap: 41.0 ms
+[22:30:14.026] new max gap: 43.0 ms
+[22:30:15.994] new max gap: 44.0 ms
+[22:30:16.114] new max gap: 54.0 ms
+[22:30:17.415] new max gap: 102.0 ms
+[22:30:20.987] new max gap: 107.0 ms
+[22:30:33.361] new max gap: 207.0 ms
+[22:31:43.016] new max gap: 334.0 ms
+[22:31:43.673] new max gap: 657.0 ms
+[22:31:45.098] new max gap: 1175.0 ms
+[22:36:01.679] new max gap: 1186.0 ms
+[22:42:15.724] new max gap: 1400.0 ms
+
+--- session start 2026-06-17T22:46:07.825Z ---
+[22:46:17.946] new max gap: 31.0 ms
+[22:46:17.991] new max gap: 45.0 ms
+[22:46:18.133] new max gap: 47.0 ms
+[22:46:18.277] new max gap: 50.0 ms
+[22:46:18.870] new max gap: 52.0 ms
+[22:46:20.134] new max gap: 64.0 ms
+[22:46:20.252] new max gap: 80.0 ms
+[22:46:20.752] new max gap: 93.0 ms
+[22:46:22.661] new max gap: 123.0 ms
+[22:46:36.065] new max gap: 149.0 ms
+[22:46:40.606] new max gap: 319.0 ms
+[22:46:44.501] new max gap: 506.0 ms
+[22:48:39.879] new max gap: 548.0 ms
+[22:48:41.039] new max gap: 1160.0 ms
+[22:53:32.238] new max gap: 1489.0 ms
+
+--- session start 2026-06-17T23:01:43.668Z ---
+[23:01:53.782] new max gap: 28.0 ms
+[23:01:53.821] new max gap: 39.0 ms
+[23:01:54.103] new max gap: 43.0 ms
+[23:01:54.409] new max gap: 65.0 ms
+[23:01:55.232] new max gap: 87.0 ms
+[23:01:55.695] new max gap: 178.0 ms
+[23:04:42.274] new max gap: 183.0 ms
+[23:06:31.380] new max gap: 198.0 ms
+[23:12:46.966] new max gap: 316.0 ms
+
+--- session start 2026-06-18T18:12:08.864Z ---
+[18:12:19.023] new max gap: 33.0 ms
+[18:12:19.090] new max gap: 34.0 ms
+[18:12:19.173] new max gap: 50.0 ms
+[18:12:23.744] new max gap: 62.0 ms
+[18:12:27.403] new max gap: 154.0 ms
+[18:19:17.233] new max gap: 169.0 ms
+[18:19:29.907] new max gap: 325.0 ms
+[18:19:30.457] new max gap: 550.0 ms
+[18:19:31.948] new max gap: 1491.0 ms
+
+--- session start 2026-06-18T18:21:09.028Z ---
+[18:21:19.171] new max gap: 33.0 ms
+[18:21:19.219] new max gap: 48.0 ms
+[18:21:23.773] new max gap: 77.0 ms
+[18:28:27.322] new max gap: 172.0 ms
+[18:28:29.811] new max gap: 424.0 ms
+[18:28:30.259] new max gap: 448.0 ms
+
+--- session start 2026-06-18T18:43:03.811Z ---
+[18:43:07.969] new max gap: 45.0 ms
+[18:43:08.318] new max gap: 46.0 ms
+[18:43:09.468] new max gap: 47.0 ms
+[18:43:12.696] new max gap: 65.0 ms
+[18:58:16.798] new max gap: 173.0 ms
+[18:58:25.868] new max gap: 195.0 ms
+[18:58:26.889] new max gap: 353.0 ms
+[18:58:27.344] new max gap: 455.0 ms
+[18:58:28.938] new max gap: 996.0 ms
+
+--- session start 2026-06-18T19:40:27.277Z ---
+[19:40:37.437] new max gap: 36.0 ms
+[19:40:37.482] new max gap: 45.0 ms
+[19:40:38.248] new max gap: 47.0 ms
+[19:40:41.865] new max gap: 70.0 ms
+[19:47:56.095] new max gap: 80.0 ms
+[19:51:26.853] new max gap: 112.0 ms
+[19:51:28.877] new max gap: 557.0 ms
+
+--- session start 2026-06-18T20:11:54.488Z ---
+[20:11:58.628] new max gap: 31.0 ms
+[20:11:58.662] new max gap: 34.0 ms
+[20:11:58.697] new max gap: 35.0 ms
+[20:11:58.742] new max gap: 45.0 ms
+[20:11:58.986] new max gap: 46.0 ms
+[20:12:00.900] new max gap: 48.0 ms
+[20:12:04.102] new max gap: 49.0 ms
+[20:12:11.099] new max gap: 55.0 ms
+[20:12:11.608] new max gap: 419.0 ms
+[20:12:29.783] new max gap: 449.0 ms
+[20:27:26.667] new max gap: 1021.0 ms
+[20:37:59.726] new max gap: 1533.0 ms
+[20:57:12.445] new max gap: 2466.0 ms
+[21:07:20.029] new max gap: 2552.0 ms
+
+--- session start 2026-06-18T21:44:57.397Z ---
+[21:45:01.619] new max gap: 30.0 ms
+[21:45:01.653] new max gap: 34.0 ms
+[21:45:01.788] new max gap: 35.0 ms
+[21:45:01.824] new max gap: 36.0 ms
+[21:45:01.902] new max gap: 47.0 ms
+[21:45:05.461] new max gap: 57.0 ms
+[21:45:05.965] new max gap: 67.0 ms
+[21:45:10.590] new max gap: 524.0 ms
+[21:45:36.859] new max gap: 525.0 ms
+[21:51:15.021] new max gap: 1151.0 ms
+[21:57:33.782] new max gap: 1601.0 ms
+[22:01:25.754] new max gap: 2142.0 ms
