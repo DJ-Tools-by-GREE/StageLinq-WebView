@@ -384,6 +384,10 @@ function computeSuggestedDeck(
 }
 
 function mapDmxToDeck(value: number): DeckNumber | null {
+  // 0–50 is the documented "off" band — explicit deselection from the lighting
+  // console. The Art-Net poll lambda turns a null selection into a no-packet
+  // tick, so timecode stops cleanly on the receiver side.
+  if (value <= 50) return null;
   if (value <= 101) return 1;
   if (value <= 152) return 2;
   if (value <= 203) return 3;

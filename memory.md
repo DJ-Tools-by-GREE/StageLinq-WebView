@@ -7,6 +7,29 @@ decision/bug-confirmation/direction change (per CLAUDE.md).
 
 ## Architectural decisions
 
+### 2026-06-19 — sACN 0–50 explicitly deselects (TC silent)
+
+**What:** [`mapDmxToDeck`](backend/src/index.ts) now returns `null` for DMX
+values ≤ 50, matching the documented "off" band in
+[CLAUDE.md](CLAUDE.md). Previously 0–101 all selected D1, so there was no way
+to deselect without unplugging sACN. The Art-Net poll lambda already converts
+a null `selectedDeck` into `{ deck: undefined, stale }` — the worker sees a
+null `currentDeck` in `doSend()` and skips the UDP packet entirely, so timecode
+goes silent on the receiver immediately.
+
+**Worker timeline reset on deselect:** [`updateDeck`](backend/src/artnetWorker.ts)
+now also clears `timelineFrames` and `lastTickMs` when a non-stale `null` deck
+arrives. Without this, a later reselection would compute a multi-second `dt`
+on the first tick, jump the freewheel timeline, then drift-snap back — emitting
+one wrong TC packet at re-engagement. With the reset, reselection starts
+cleanly from the source `elapsedSec`. The stale path is unchanged (it keeps
+the last-good snapshot for freewheel continuity, as designed).
+
+**Why:** the operator needs an explicit "no deck selected" sACN value so the
+lighting console can pause TC at section breaks without hard-disconnecting.
+
+---
+
 ### 2026-06-19 — Waveform/artwork pipeline moved to a worker thread
 
 **What:** ffmpeg invocations (peaks + artwork extraction), `computePeaks` PCM scan, JSON serialization of the peaks array, base64 encoding of the artwork, and waveform/artwork disk-cache I/O **all run in a dedicated worker thread** ([backend/src/waveformWorker.ts](backend/src/waveformWorker.ts)). The main thread is reduced to: StageLinq audio download (must stay on main, FileTransfer service binding lives there) → zero-copy `postMessage` of the audio `ArrayBuffer` into the worker → fan-out of pre-built WS frame strings on the way back. Pattern mirrors [backend/src/artnetWorker.ts](backend/src/artnetWorker.ts).
