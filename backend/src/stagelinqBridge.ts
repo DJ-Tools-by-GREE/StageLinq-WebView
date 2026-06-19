@@ -1,21 +1,8 @@
-import { fileURLToPath } from "node:url";
 import type { DeckNumber, DeckState } from "./types.js";
-import fs from "node:fs";
 import path from "node:path";
 import { keyIndexToCamelot } from "./camelot.js";
 import { logBpmDebug, logDiscover, logDiscoverSpeed, logError, logLifecycle, logPlayback, logWaveform, logCues, GRN, YEL, RST } from "./logging.js";
 import { BEAT_WATCHDOG_TIMEOUT_S, DISCONNECT_DETECT_TIMEOUT_S, CONNECT_BEAT_GRACE_S, ELAPSED_THROTTLE_S } from "./constants.js";
-
-// Beat-gap instrumentation: log each inter-beat interval so we can determine the
-// safe minimum for DISCONNECT_DETECT_TIMEOUT_S.
-// backend/src/ → backend/ → repo root
-const BEAT_GAP_LOG = path.resolve(fileURLToPath(import.meta.url), '..', '..', '..', 'beat-gap.log');
-const beatGapStream = fs.createWriteStream(BEAT_GAP_LOG, { flags: 'a' });
-beatGapStream.write(`\n--- session start ${new Date().toISOString()} ---\n`);
-let beatGapMaxMs = 0;
-const beatGapWindow: number[] = [];
-const BEAT_GAP_WINDOW = 10;
-let beatGapCount = 0;
 
 // Ring buffer of recent gaps that are wide enough to be worth correlating with a
 // freewheel-flap log. We keep them keyed by wall-clock so the flap detector can
@@ -24,9 +11,9 @@ let beatGapCount = 0;
 interface BeatGapEntry { atMs: number; gapMs: number }
 const RECENT_GAP_RING_CAP = 64;
 const RECENT_GAP_MAX_AGE_MS = 30_000;
-// Capture-floor — gaps below this are uninteresting (steady state is 50–200 ms,
-// see beat-gap.log). Anything ≥ this is a candidate "near miss" or "actual stall"
-// and gets stored for the flap detector to correlate with on demand.
+// Capture-floor — gaps below this are uninteresting (steady state is 50–200 ms).
+// Anything ≥ this is a candidate "near miss" or "actual stall" and gets stored
+// for the flap detector to correlate with on demand.
 const RECENT_GAP_CAPTURE_FLOOR_MS = 200;
 const recentGaps: BeatGapEntry[] = [];
 
@@ -39,18 +26,6 @@ export function getRecentOverThresholdGaps(thresholdMs: number, sinceMs: number)
 }
 
 function recordBeatGap(gapMs: number) {
-  if (gapMs > beatGapMaxMs) {
-    beatGapMaxMs = gapMs;
-    const ts = new Date().toISOString().slice(11, 23);
-    beatGapStream.write(`[${ts}] new max gap: ${gapMs.toFixed(1)} ms\n`);
-  }
-  beatGapWindow.push(gapMs);
-  if (beatGapWindow.length > BEAT_GAP_WINDOW) beatGapWindow.shift();
-  beatGapCount++;
-  if (beatGapCount % BEAT_GAP_WINDOW === 0) {
-    const avg = beatGapWindow.reduce((a, b) => a + b, 0) / beatGapWindow.length;
-    logBpmDebug(`[beatMsg] avg interval: ${avg.toFixed(1)} ms (${(1000 / avg).toFixed(1)} Hz) over last ${BEAT_GAP_WINDOW} msgs`);
-  }
   if (gapMs >= RECENT_GAP_CAPTURE_FLOOR_MS) {
     const now = Date.now();
     recentGaps.push({ atMs: now, gapMs });

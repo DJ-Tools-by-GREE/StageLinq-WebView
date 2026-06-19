@@ -100,7 +100,6 @@ export default function App() {
   const [stagelinqStatus, setStagelinqStatus] = useState<StageLinqStatus>('no-device');
   const [freewheelActive, setFreewheelActive] = useState(false);
   const [selectedDeck, setSelectedDeck] = useState<DeckNumber | null>(null);
-  const [suggestedDeck, setSuggestedDeck] = useState<DeckNumber | null>(null);
   const [nextTrack, setNextTrack] = useState<string | null>(null);
   const [recordingStatus, setRecordingStatus] = useState<RecordingStatus | null>(null);
   const [replayStatus, setReplayStatus] = useState<ReplayStatus | null>(null);
@@ -308,7 +307,6 @@ export default function App() {
         }
         setDecks(nextDecks);
         setSelectedDeck(msg.selectedDeck ?? null);
-        setSuggestedDeck(msg.suggestedDeck ?? null);
         setNextTrack(msg.nextTrack ?? null);
         setStagelinqStatus(msg.stagelinqStatus);
         setFreewheelActive(msg.freewheelActive === true);
@@ -515,7 +513,6 @@ export default function App() {
           freewheelActive={freewheelActive}
           selectedDeck={selectedDeck}
           selectedDeckState={selectedDeck ? decks[selectedDeck] : null}
-          suggestedDeck={suggestedDeck}
           nextTrack={nextTrack}
           onOpenSettings={() => setSettingsOpen(true)}
           users={FIXED_USERS}
@@ -537,7 +534,6 @@ export default function App() {
             state={decks[d]}
             waveform={waveforms[d]}
             selected={selectedDeck === d}
-            suggested={suggestedDeck === d}
             artworkUrl={artworkUrls[decks[d].fileName] ?? null}
             elapsedSecRef={elapsedRefs.current[d]}
             detailZoomSec={detailZoomSec}

@@ -160,34 +160,6 @@ html, body {
   flex-shrink: 0;
 }
 
-/* ── Suggested-deck pill (header) ───────────────────────────────── */
-.headerSuggest {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 3px 8px 3px 6px;
-  border-radius: 3px;
-  border: 1px solid color-mix(in srgb, var(--accent) 65%, transparent);
-  background: color-mix(in srgb, var(--accent) 14%, var(--surface2));
-  flex-shrink: 0;
-  font-family: var(--font-mono);
-  box-shadow: 0 0 8px 0 color-mix(in srgb, var(--accent) 35%, transparent);
-}
-
-.headerSuggestLabel {
-  font-size: 9px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: color-mix(in srgb, var(--accent) 80%, var(--fg));
-}
-
-.headerSuggestDeck {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: var(--accent);
-}
-
 /* ── Big red error badge in the center of the header (StageLinq down) ── */
 .headerError {
   display: inline-flex;
@@ -370,47 +342,6 @@ html, body {
   outline: 3px solid var(--accent);
   outline-offset: 3px;
   box-shadow: 0 0 12px 2px color-mix(in srgb, var(--accent) 50%, transparent);
-}
-
-/* Suggested-deck artwork glow — distinct from --selected so both can co-exist
-   visually if the suggestion ever points at the active deck (suppressed in
-   logic, but the styles stay independent). */
-.art--suggested {
-  outline: 2px solid color-mix(in srgb, var(--accent) 80%, transparent);
-  outline-offset: 2px;
-  box-shadow: 0 0 14px 2px color-mix(in srgb, var(--accent) 60%, transparent);
-}
-
-/* Blinking "Change Deck" overlay — covers the artwork while a suggestion is
-   active for this deck. Cleared by the backend the instant the operator
-   switches (suggestedDeck → null or different deck) so React unmounts it. */
-.artChangeOverlay {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  background: rgba(0, 0, 0, 0.55);
-  border-radius: 5px;
-  z-index: 2;
-  animation: artChangeBlink 1s steps(2, jump-none) infinite;
-}
-
-.artChangeText {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #fff;
-  text-shadow: 0 0 6px color-mix(in srgb, var(--accent) 70%, transparent);
-  text-align: center;
-  padding: 0 4px;
-  line-height: 1.1;
-}
-
-@keyframes artChangeBlink {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: 0.25; }
 }
 
 .artImg {

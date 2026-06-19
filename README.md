@@ -7,8 +7,7 @@ Real-time DJ deck visualizer for Denon Prime 4+ (Engine DJ / StageLinq). Display
 **Web UI**
 - 4-quadrant dark-theme layout, one deck per quadrant
 - Per deck: title, artist, album artwork, elapsed/total/remaining time, key (Camelot notation), current BPM, derived track BPM, relative pitch %, channel fader, scrollable waveform with playhead
-- Header bar showing selected deck, live BPM, next-track name, and a **Suggested Deck** pill when the auto-suggest logic recommends a switch (see *Auto deck suggestion*)
-- A blinking **Change Deck** overlay on the suggested deck's artwork until the operator switches to it
+- Header bar showing selected deck, live BPM, and the next-track name from the active playlist
 - Live connection status badge (LIVE / OFFLINE)
 - Overlay button to toggle timecode transmission while playback is stopped
 - **User switcher** (header dropdown) — `Default User`, `Jan`, `Dennis`. Each user has their own UI settings (waveform zoom, role, track-note popups, deck layout, …), stored server-side in `users.json` and applied on the fly when switched. The active-user pick is per-browser (`localStorage`). Each user carries a fixed-vocabulary `role` (`Viewer` / `DJ` / `Lighting & Tech`); the role can be picked from the Settings modal but new roles require a code change. Users with role `DJ` get track-note popups on by default; everyone else gets them off — an explicit toggle in Settings always overrides the role-derived default.
@@ -26,45 +25,16 @@ Real-time DJ deck visualizer for Denon Prime 4+ (Engine DJ / StageLinq). Display
 **sACN / DMX control input** (optional)
 - Receives a single DMX channel over sACN to select which deck's timecode is broadcast
 - DMX thresholds: 0–49 → off, 50–100 → deck 1, 101–151 → deck 2, 152–202 → deck 3, 203–255 → deck 4
-- A second DMX channel (default 3) acts as the **execute-suggestion** trigger: a rising edge above 127 confirms the currently displayed auto-suggestion and fires `/cmd "sugDeck_<n>"` over OSC. Held-high does nothing — the value must drop back ≤127 and rise again to fire a fresh edge.
 
 **OSC BPM output** (optional)
 - Sends BPM to an OSC-compatible device when a deck is active via sACN
 - Format: `/cmd "Master 3.<channel> At BPM <bpm>"`
-- Also emits a one-shot `/cmd "sugDeck_<n>"` (n = 1–4) when the lighting console fires the execute-suggestion sACN channel — see *Auto deck suggestion*
-
-## Auto deck suggestion
-
-The backend continuously computes a **suggested deck** — the deck the operator should switch to next — based on the active playlist and the live deck states. It never changes the selected deck on its own; the lighting console is responsible for confirming the suggestion (typically by driving its existing CH1 to the new deck).
-
-A suggestion fires when **either** of the following holds, and **all** common conditions are met:
-
-| Trigger | Condition |
-|---|---|
-| **A — next-track deck started** | The deck holding the playlist's next track has `play = true`. |
-| **B — selected deck stopped** | The currently selected deck has `play = false`, `elapsedSec > MIN_TRIGGER_B_ELAPSED_SEC` (default 30 s — see [`backend/src/constants.ts`](backend/src/constants.ts)), and the playlist's next track is loaded on another deck. The elapsed-time gate makes a tap-play-stop / mis-cue at the very beginning of a track not count as a hand-off. |
-
-Common conditions (apply to both triggers):
-
-- The active playlist has a defined "next track" relative to the selected deck's current file.
-- That next track is currently loaded on exactly one deck (or, on a tie, the playing one wins, then the lowest deck number).
-- The candidate deck has **no loop active**.
-- The candidate is not already the selected deck.
-
-When the suggestion changes (no suggestion → deck N, or deck M → deck N), the backend:
-
-1. Sets `suggestedDeck` in every snapshot frame (visible to the UI as a header pill + blinking "Change Deck" overlay on the suggested deck's artwork).
-2. Logs the change as `[DECK SUGGEST] Deck N (reason)` via `logLifecycle`.
-
-OSC dispatch is **not automatic**. The lighting console confirms a suggestion by driving the **execute-suggestion sACN channel** (default 3) above 127. On the rising edge (≤127 → >127), the backend fires `/cmd "sugDeck_<n>"` once for whatever deck is currently suggested. While the channel sits high, no further commands are sent — the value must drop back below 127 before another edge counts. If no suggestion is active when the edge fires, the rising edge is logged and ignored.
-
-Manual deck selection via sACN CH1 keeps working unchanged at all times — the execute channel does not touch the selected-deck state, it only emits OSC.
 
 ## Record & Replay (backup show)
 
 Use this when the lighting console is timecoded against a fixed playlist and you need a guaranteed-identical backup show that can be triggered when StageLinq glitches mid-set. The backend records every state change the bridge produces during a live show (full event rate, no throttling), then replays that log later — synchronized to a single prerecorded audio file you play on a deck — so the lighting console sees the exact same Art-Net timecode, OSC BPM, and WebSocket UI as if the set were live.
 
-The lighting console keeps full control of `selectedDeck` (sACN CH1) and the suggestion-execute channel (sACN CH3) during replay: live sACN drives both regardless of what was recorded. From the console's perspective, replay is indistinguishable from a live show.
+The lighting console keeps full control of `selectedDeck` (sACN CH1) during replay: live sACN drives selection regardless of what was recorded. From the console's perspective, replay is indistinguishable from a live show.
 
 ### Recording
 
@@ -112,16 +82,6 @@ Replay uses the audio deck's `elapsedSec` as the master timeline (sample-accurat
 ### Storage
 
 Logs and sidecars live in `recordings/` at the repo root (gitignored). One JSONL line per event, full bridge cadence, with deck-state diffs between keyframes. Header line records the playlist offset map at recording time. A multi-hour show is typically a few hundred KB to low single-digit MB.
-
-### Offline analysis
-
-[scripts/analyse-suggestions.mjs](scripts/analyse-suggestions.mjs) replays a recording and reports, for each operator deck transition (sACN CH1 change), whether the auto-suggestion engine had already pre-suggested the destination deck at the instant of the press — using the same `computeSuggestedDeck()` logic the live system runs and sampling the suggestion at each transition with no lookback window (real-time semantics). Useful for tuning trigger thresholds against a real show.
-
-```bash
-node scripts/analyse-suggestions.mjs recordings/<iso>.jsonl [config.json]
-```
-
-The script reads the playlist (mashup flags + ordering) from `config.json` since the recording header only captures `trackOffsets`. Run it against the same config that was active during recording for accurate results.
 
 ## Prerequisites
 
@@ -227,7 +187,6 @@ Hot-reload: press **Ctrl+R** in the terminal running the backend to reload `conf
 | `CONTROL_INPUT_MODE` | `sacn` | Set to `none` to disable |
 | `SACN_UNIVERSE` | `20` | sACN universe to listen on |
 | `SACN_ADDRESS` | `1` | DMX channel (1-indexed) for deck-select |
-| `SACN_EXECUTE_ADDRESS` | `3` | DMX channel (1-indexed) that fires the OSC `sugDeck_<n>` for the current suggestion on a rising edge >127 |
 
 ### OSC BPM output
 
@@ -261,8 +220,7 @@ All settings can also be placed in `config.json` at the repo root (or in `backen
   "control_input": {
     "mode": "sacn",
     "universe": 20,
-    "address": 1,
-    "execute_address": 3
+    "address": 1
   },
   "osc": {
     "enabled": true,
@@ -416,6 +374,46 @@ The runtime backend does not yet load `hotcue-cache/` at boot — the script pop
 - `argb` is an 8-char uppercase hex string — alpha (always `FF` in practice), R, G, B. Drop in CSS as `'#' + argb.slice(2)`.
 - `label` is whatever Engine DJ stored. Hardware default is `"Cue 1"`, `"Cue 2"`, … but the DJ may have renamed cues.
 
+## Timecode simulator (offline TC analysis)
+
+Standalone, read-only addon that takes a Record & Replay `.jsonl` and produces a graph of the timecode every deck *would* emit if it were continuously sACN-selected. Useful for post-show review (where did the TC stall, drift-snap, freewheel?), playlist-offset sanity checks (do the per-track offsets line up where expected?), and pre-show dry runs.
+
+The TC simulator is a **faithful port of the live Art-Net worker's tick loop** ([backend/src/artnetWorker.ts](backend/src/artnetWorker.ts)): same drift-snap (15% of one frame), same 80 ms latency comp, same freewheel-on-stall, same `speedState` handling, same clamp to track length. The only thing missing is the UDP send.
+
+Run from the repo root:
+
+```bash
+npm run -w backend simulate-tc -- /absolute/path/to/recording.jsonl
+```
+
+Pass an absolute path (the workspace runs from `backend/`, so a path relative to the repo root won't resolve). Output is a self-contained HTML file — no external assets, opens in any browser — written next to the input by default.
+
+#### Flags
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `--out <file>` | `<input>.tc-analysis.html` | Output HTML path. |
+| `--json <file>` | (off) | Also dump per-deck stats + freewheel spans as JSON. |
+| `--config <file>` | (auto) | Use this `config.json` for track offsets. By default the recording's own header offsets are used; if absent, a `config.json` next to the cwd is auto-loaded. |
+| `--fps <n>` | `30` | TC fps (must match what the worker would use). |
+| `--latency <ms>` | `80` | Latency-comp added to every emitted frame, mirroring `latencyCompMs`. |
+| `--tickHz <n>` | `30` | Simulation tick rate. |
+| `--freewheel-max <s>` | `30` | Max freewheel duration before going silent. |
+| `--no-freewheel` | (off) | Disable freewheel — silent on first stall instead of coasting. |
+| `--stale-ms <ms>` | `250` | Stale threshold for freewheel detection. |
+
+#### What's in the HTML
+
+- **Overlay graph** — each deck's hypothetical TC plotted as `HH:MM:SS` over wall-clock time, in the same colors as the live UI (D1 purple, D2 blue, D3 green, D4 red).
+- **Freewheel bands** — translucent shading per deck wherever the worker logic would have been freewheeling at that moment.
+- **Recording gaps** — vertical dashed amber lines at any `gap` event from the recorder (only present in crash-recovered logs).
+- **sACN selected-deck timeline** — a thin colored bar under the chart showing which deck *was* actually selected during the show, for cross-reference against the hypothetical-per-deck plots.
+- **Per-deck files list** — every `(t, fileName)` transition per deck.
+- **Analysis blob** — JSON dump of duration, offset count, drift-snap counts, freewheel spans, file counts.
+- **Hover tooltip** — hover anywhere on the chart to see the exact `HH:MM:SS:FF` value each deck would be emitting at that wall-clock moment.
+
+The simulation treats every deck as if it were *the* selected deck for the whole recording, so the graph shows what each deck *could* have emitted — not just what the actual sACN selection picked. The selected-deck bar at the bottom records what was actually live.
+
 ## API endpoints
 
 | Method | Path | Description |
@@ -488,7 +486,7 @@ On connect the server sends a hello frame, then snapshot frames at 30 Hz. Additi
 { "type": "hello", "ts": 1234567890, "version": "1.0.0", "fps": 30 }
 
 // snapshot (30 Hz)
-{ "type": "snapshot", "seq": 42, "ts": 1234567890, "selectedDeck": 1, "suggestedDeck": 2, "nextTrack": "song.mp3", "decks": { "1": DeckState, ... } }
+{ "type": "snapshot", "seq": 42, "ts": 1234567890, "selectedDeck": 1, "nextTrack": "song.mp3", "decks": { "1": DeckState, ... } }
 
 // waveform_status — progress during peak analysis (per-deck, has `deck` field)
 { "type": "waveform_status", "deck": 1, "stage": "downloading|analyzing|done|error", "progress": 0.0, "fileName": "..." }
