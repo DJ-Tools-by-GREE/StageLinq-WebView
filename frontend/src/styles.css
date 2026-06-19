@@ -227,6 +227,37 @@ html, body {
   50%      { box-shadow: 0 0 22px 4px rgba(255, 45, 45, 0.85); }
 }
 
+/* ── Freewheel pill (header) ────────────────────────────────────── */
+/* Amber so it reads as "degraded but synthesizing", distinct from the red
+   StageLinq-down badge. Driven by a snapshot field; no animation on the
+   pill body itself, but the dot pulses to signal "live, ongoing". */
+.headerFreewheel {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 10px 3px 8px;
+  border-radius: 3px;
+  background: color-mix(in srgb, #ffab00 18%, var(--surface2));
+  border: 1px solid rgba(255, 171, 0, 0.55);
+  color: #ffab00;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+  box-shadow: 0 0 8px 0 rgba(255, 171, 0, 0.35);
+}
+
+.headerFreewheelDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ffab00;
+  box-shadow: 0 0 6px 1px rgba(255, 171, 0, 0.65);
+  animation: reconnPulse 1s ease-in-out infinite;
+}
+
 /* ── Header visibility toggle ───────────────────────────────────── */
 .headerToggle {
   position: fixed;

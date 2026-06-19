@@ -8,13 +8,13 @@ import path from 'node:path';
 import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
-import { StageLinqBridge } from './stagelinqBridge.js';
+import { StageLinqBridge, getRecentOverThresholdGaps } from './stagelinqBridge.js';
 import type { DeckNumber, SnapshotPayload, StageLinqStatus, TrackNote, WaveformStatusPayload, WsPayload } from './types.js';
 import { ArtNetTimecodeBroadcaster } from './artnetTimecode.js';
 import { OscBpmSender } from './oscBpm.js';
-import { RECONNECT_DELAY_MS, WS_FPS, DISCONNECT_DETECT_TIMEOUT_S, FREEWHEEL_STALE_THRESHOLD_MS, MAIN_EVENT_LOOP_LAG_WARN_MS, WS_BROADCAST_WARN_MS, MIN_TRIGGER_B_ELAPSED_SEC } from './constants.js';
+import { RECONNECT_DELAY_MS, WS_FPS, DISCONNECT_DETECT_TIMEOUT_S, FREEWHEEL_STALE_THRESHOLD_MS, FREEWHEEL_FLAP_SHORT_CYCLE_MAX_MS, FREEWHEEL_FLAP_WINDOW_MS, FREEWHEEL_FLAP_MIN_CYCLES, FREEWHEEL_FLAP_LOG_COOLDOWN_MS, MAIN_EVENT_LOOP_LAG_WARN_MS, WS_BROADCAST_WARN_MS, MIN_TRIGGER_B_ELAPSED_SEC } from './constants.js';
 import { States, StageLinqValue } from "@gree44/stagelinq";
-import { logError, logLifecycle, logWaveform, logUiOut, applyLoggingConfig, applyDisplayConfig, DISPLAY_ENABLED, logDashboard, deckColor, getStatusSlot, DIM, R, GRN, YEL, RED, RST, subscribeTerminalLines, getTerminalRing } from './logging.js';
+import { logError, logLifecycle, logWarn, logWaveform, logUiOut, applyLoggingConfig, applyDisplayConfig, DISPLAY_ENABLED, logDashboard, deckColor, getStatusSlot, DIM, R, GRN, YEL, RED, RST, subscribeTerminalLines, getTerminalRing } from './logging.js';
 import {
   initWaveformCache,
   requestExtraction,
@@ -1289,6 +1289,49 @@ async function main() {
     logLifecycle(`[OSC] BPM -> ${oscTargetIps.join(', ')}:${oscTargetPort} (SpeedMaster ${oscSpeedMaster})`);
   }
 
+  // ── Freewheel-flap detector ────────────────────────────────────────────────
+  // Tracks short on→off cycles. If freewheel toggled on and back off in
+  // ≤ FREEWHEEL_FLAP_SHORT_CYCLE_MAX_MS, that cycle is "short". When we see
+  // ≥ FREEWHEEL_FLAP_MIN_CYCLES short cycles inside a rolling
+  // FREEWHEEL_FLAP_WINDOW_MS span, the threshold is almost certainly too low —
+  // healthy networks shouldn't engage freewheel multiple times per 10 s. We
+  // emit one warn (rate-limited by FREEWHEEL_FLAP_LOG_COOLDOWN_MS) and append
+  // every recent beat-gap that crossed the configured threshold so the operator
+  // can see exactly which gaps tripped it.
+  let freewheelOnAtMs: number | null = null;
+  const shortCycleEndsMs: number[] = [];
+  let lastFlapWarnMs = 0;
+  artnet.onFreewheelChange((active) => {
+    const now = Date.now();
+    if (active) {
+      freewheelOnAtMs = now;
+      return;
+    }
+    if (freewheelOnAtMs == null) return; // off→off, nothing to record
+    const onDurationMs = now - freewheelOnAtMs;
+    freewheelOnAtMs = null;
+    if (onDurationMs > FREEWHEEL_FLAP_SHORT_CYCLE_MAX_MS) return;
+    shortCycleEndsMs.push(now);
+    // Drop entries that fell out of the rolling window.
+    const windowStart = now - FREEWHEEL_FLAP_WINDOW_MS;
+    while (shortCycleEndsMs.length > 0 && shortCycleEndsMs[0] < windowStart) {
+      shortCycleEndsMs.shift();
+    }
+    if (shortCycleEndsMs.length < FREEWHEEL_FLAP_MIN_CYCLES) return;
+    if (now - lastFlapWarnMs < FREEWHEEL_FLAP_LOG_COOLDOWN_MS) return;
+    lastFlapWarnMs = now;
+    const gaps = getRecentOverThresholdGaps(FREEWHEEL_STALE_THRESHOLD_MS, windowStart);
+    const gapsStr = gaps.length > 0
+      ? gaps.map((g) => `${g.toFixed(0)}ms`).join(', ')
+      : '<none captured>';
+    logWarn(
+      `[ArtNet] Freewheel flap: ${shortCycleEndsMs.length} short on/off cycles ` +
+      `in ${(FREEWHEEL_FLAP_WINDOW_MS / 1000).toFixed(0)}s ` +
+      `(threshold ${FREEWHEEL_STALE_THRESHOLD_MS}ms may be too low). ` +
+      `Triggering beat-gaps: [${gapsStr}]`,
+    );
+  });
+
   await artnet.start(() => {
     // Freewheel uses its own short threshold (FREEWHEEL_STALE_THRESHOLD_MS, ~250 ms),
     // independent of the longer DISCONNECT_DETECT_TIMEOUT_S that gates the UI badge and
@@ -1458,6 +1501,7 @@ async function main() {
       suggestedDeck,
       nextTrack: computeNextTrack(config, selectedDeck ? decks[selectedDeck].fileName : null),
       stagelinqStatus: status,
+      freewheelActive: artnet.isFreewheelActive(),
       deckNotes,
       recordingStatus: recorder.getStatus(),
       replayStatus: replay.getStatus(),

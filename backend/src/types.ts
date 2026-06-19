@@ -81,6 +81,11 @@ export interface SnapshotPayload {
   suggestedDeck: DeckNumber | null;
   nextTrack: string | null;
   stagelinqStatus: StageLinqStatus;
+  // True iff the Art-Net worker is currently freewheeling TC (gated on stale ∧
+  // enabled ∧ within max-duration ∧ deck-was-running). Edge-driven from the
+  // worker so it flips on/off the same tick the lighting console sees TC
+  // start/stop being synthetic.
+  freewheelActive: boolean;
   deckNotes: Record<DeckNumber, TrackNote | null>;
   recordingStatus?: RecordingStatus;
   replayStatus?: ReplayStatus;

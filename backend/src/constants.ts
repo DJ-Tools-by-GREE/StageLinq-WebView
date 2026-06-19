@@ -18,6 +18,19 @@ export const DISCONNECT_DETECT_TIMEOUT_S = 2;
  */
 export const FREEWHEEL_STALE_THRESHOLD_MS = 250;
 
+/**
+ * Flap-detection knobs. A "short freewheel cycle" is one whose on-duration is
+ * ≤ FREEWHEEL_FLAP_SHORT_CYCLE_MAX_MS — long enough to engage but back off again
+ * before any real disconnect happened. Once we see ≥ FREEWHEEL_FLAP_MIN_CYCLES of
+ * those inside FREEWHEEL_FLAP_WINDOW_MS, that's strong evidence the threshold is
+ * too low and we emit a warn log. The log is rate-limited to one per
+ * FREEWHEEL_FLAP_LOG_COOLDOWN_MS so a sustained jittery network doesn't spam.
+ */
+export const FREEWHEEL_FLAP_SHORT_CYCLE_MAX_MS = 500;
+export const FREEWHEEL_FLAP_WINDOW_MS = 10_000;
+export const FREEWHEEL_FLAP_MIN_CYCLES = 3;
+export const FREEWHEEL_FLAP_LOG_COOLDOWN_MS = 30_000;
+
 /** Default for whether the Art-Net worker freewheels TC during a StageLinq stall. */
 export const DEFAULT_ENABLE_FREEWHEELING = true;
 

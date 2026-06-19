@@ -7,6 +7,7 @@ const DECK_LABEL: Record<DeckNumber, string> = { 1: 'D1', 2: 'D2', 3: 'D3', 4: '
 interface Props {
   connected: boolean;
   stagelinqStatus: StageLinqStatus;
+  freewheelActive: boolean;
   selectedDeck: DeckNumber | null;
   selectedDeckState: DeckState | null;
   suggestedDeck: DeckNumber | null;
@@ -24,6 +25,7 @@ interface Props {
 export default function HeaderBar({
   connected,
   stagelinqStatus,
+  freewheelActive,
   selectedDeck,
   selectedDeckState,
   suggestedDeck,
@@ -84,6 +86,13 @@ export default function HeaderBar({
           <span className="headerError" role="status" aria-live="polite">
             <span className="headerErrorIcon" aria-hidden="true">!</span>
             {centerErrorLabel}
+          </span>
+        )}
+
+        {freewheelActive && (
+          <span className="headerFreewheel" role="status" aria-live="polite" title="Art-Net TC is being freewheeled at the last-known speed">
+            <span className="headerFreewheelDot" aria-hidden="true" />
+            FREEWHEEL
           </span>
         )}
 

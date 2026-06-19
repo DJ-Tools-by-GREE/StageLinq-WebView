@@ -53,4 +53,13 @@ export type WorkerToMain =
    */
   | { type: 'statsHeartbeat'; msg: string; stats: TickStats }
   | { type: 'stats'; stats: TickStats }
-  | { type: 'tcDisplay'; text: string; hms: string };
+  | { type: 'tcDisplay'; text: string; hms: string }
+  /**
+   * Edge-triggered freewheel state. The worker emits this exactly when the
+   * boolean flips, so the main thread doesn't have to mirror the gate logic
+   * (stale ∧ enabled ∧ within max-duration ∧ was-running). The UI uses it to
+   * show a tag that appears the same tick freewheel engages and disappears
+   * the same tick it stops — including when freewheel times out and the
+   * worker goes silent past max_duration_sec.
+   */
+  | { type: 'freewheelState'; active: boolean };

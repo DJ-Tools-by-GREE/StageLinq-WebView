@@ -16,6 +16,28 @@ let beatGapMaxMs = 0;
 const beatGapWindow: number[] = [];
 const BEAT_GAP_WINDOW = 10;
 let beatGapCount = 0;
+
+// Ring buffer of recent gaps that are wide enough to be worth correlating with a
+// freewheel-flap log. We keep them keyed by wall-clock so the flap detector can
+// pull just the gaps that happened during its rolling window. Cap is generous so
+// a couple of bursty disconnects don't evict legitimate evidence.
+interface BeatGapEntry { atMs: number; gapMs: number }
+const RECENT_GAP_RING_CAP = 64;
+const RECENT_GAP_MAX_AGE_MS = 30_000;
+// Capture-floor — gaps below this are uninteresting (steady state is 50–200 ms,
+// see beat-gap.log). Anything ≥ this is a candidate "near miss" or "actual stall"
+// and gets stored for the flap detector to correlate with on demand.
+const RECENT_GAP_CAPTURE_FLOOR_MS = 200;
+const recentGaps: BeatGapEntry[] = [];
+
+export function getRecentOverThresholdGaps(thresholdMs: number, sinceMs: number): number[] {
+  const out: number[] = [];
+  for (const g of recentGaps) {
+    if (g.atMs >= sinceMs && g.gapMs > thresholdMs) out.push(g.gapMs);
+  }
+  return out;
+}
+
 function recordBeatGap(gapMs: number) {
   if (gapMs > beatGapMaxMs) {
     beatGapMaxMs = gapMs;
@@ -28,6 +50,16 @@ function recordBeatGap(gapMs: number) {
   if (beatGapCount % BEAT_GAP_WINDOW === 0) {
     const avg = beatGapWindow.reduce((a, b) => a + b, 0) / beatGapWindow.length;
     logBpmDebug(`[beatMsg] avg interval: ${avg.toFixed(1)} ms (${(1000 / avg).toFixed(1)} Hz) over last ${BEAT_GAP_WINDOW} msgs`);
+  }
+  if (gapMs >= RECENT_GAP_CAPTURE_FLOOR_MS) {
+    const now = Date.now();
+    recentGaps.push({ atMs: now, gapMs });
+    // Evict by capacity AND by age — both bounds matter so a quiet hour can't
+    // leave a stale entry that pollutes the next flap correlation.
+    while (recentGaps.length > RECENT_GAP_RING_CAP) recentGaps.shift();
+    while (recentGaps.length > 0 && now - recentGaps[0].atMs > RECENT_GAP_MAX_AGE_MS) {
+      recentGaps.shift();
+    }
   }
 }
 

@@ -90,6 +90,7 @@ export default function App() {
   const [artworkUrls, setArtworkUrls] = useState<Record<string, string>>({});
   const [connected, setConnected] = useState(false);
   const [stagelinqStatus, setStagelinqStatus] = useState<StageLinqStatus>('no-device');
+  const [freewheelActive, setFreewheelActive] = useState(false);
   const [selectedDeck, setSelectedDeck] = useState<DeckNumber | null>(null);
   const [suggestedDeck, setSuggestedDeck] = useState<DeckNumber | null>(null);
   const [nextTrack, setNextTrack] = useState<string | null>(null);
@@ -302,6 +303,7 @@ export default function App() {
         setSuggestedDeck(msg.suggestedDeck ?? null);
         setNextTrack(msg.nextTrack ?? null);
         setStagelinqStatus(msg.stagelinqStatus);
+        setFreewheelActive(msg.freewheelActive === true);
         setRecordingStatus(msg.recordingStatus ?? null);
         setReplayStatus(msg.replayStatus ?? null);
         const prev = prevLoadedRef.current;
@@ -483,6 +485,7 @@ export default function App() {
         <HeaderBar
           connected={connected}
           stagelinqStatus={stagelinqStatus}
+          freewheelActive={freewheelActive}
           selectedDeck={selectedDeck}
           selectedDeckState={selectedDeck ? decks[selectedDeck] : null}
           suggestedDeck={suggestedDeck}

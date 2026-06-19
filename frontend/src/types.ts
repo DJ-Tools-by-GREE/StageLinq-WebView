@@ -76,6 +76,9 @@ export interface SnapshotPayload {
   suggestedDeck: DeckNumber | null;
   nextTrack: string | null;
   stagelinqStatus: StageLinqStatus;
+  // True iff Art-Net TC is currently being freewheeled (no fresh beats from
+  // StageLinq, but the worker is synthesizing TC at the last-known speed).
+  freewheelActive: boolean;
   deckNotes: Record<DeckNumber, TrackNote | null>;
   recordingStatus?: RecordingStatus;
   replayStatus?: ReplayStatus;
