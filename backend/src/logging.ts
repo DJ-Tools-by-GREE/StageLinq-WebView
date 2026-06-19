@@ -197,12 +197,44 @@ function splitDeckArgs(args: any[]): { shouldLog: boolean; deck: number | null; 
     return { shouldLog: allow, deck: first, payload: args.slice(1) };
 }
 
+// ── Subscriber tap for live log streaming (e.g. browser terminal panel) ───
+// The dashboard rows (`logDashboard`) deliberately bypass this — only the
+// scrolling per-event lines emitted via `printLog` flow through here.
+const ANSI_RE = /\x1b\[[0-9;?]*[A-Za-z]/g;
+const TERMINAL_RING_MAX = 500;
+const terminalRing: { ts: number; level: 'log' | 'error'; text: string }[] = [];
+type TerminalSubscriber = (line: { ts: number; level: 'log' | 'error'; text: string }) => void;
+const terminalSubscribers = new Set<TerminalSubscriber>();
+
+function pushTerminalLine(level: 'log' | 'error', plainText: string) {
+    const entry = { ts: Date.now(), level, text: plainText };
+    terminalRing.push(entry);
+    if (terminalRing.length > TERMINAL_RING_MAX) terminalRing.shift();
+    if (terminalSubscribers.size === 0) return;
+    for (const fn of terminalSubscribers) {
+        try { fn(entry); } catch {}
+    }
+}
+
+export function subscribeTerminalLines(fn: TerminalSubscriber): () => void {
+    terminalSubscribers.add(fn);
+    return () => { terminalSubscribers.delete(fn); };
+}
+
+export function getTerminalRing(): readonly { ts: number; level: 'log' | 'error'; text: string }[] {
+    return terminalRing;
+}
+
 function printLog(method: 'log' | 'error', ...args: any[]) {
+    const text = tcPrefix() + utilFormat(...args);
+    // Tap for the browser terminal — strip ANSI once at capture so subscribers
+    // don't each repeat the work. The ring buffer is always populated (cheap);
+    // fan-out is gated on subscriber count inside pushTerminalLine.
+    pushTerminalLine(method, text.replace(ANSI_RE, ''));
     if (!isTTY || scrollBottom <= 0) {
-        console[method](tcPrefix() + utilFormat(...args));
+        console[method](text);
         return;
     }
-    const text = tcPrefix() + utilFormat(...args);
     // Move to bottom of scroll region, clear line, print.
     // The trailing \n at scrollBottom causes the scroll region [1..scrollBottom] to scroll up by one;
     // the dashboard lives below scrollBottom and is unaffected.

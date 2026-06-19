@@ -68,6 +68,8 @@ class ArtNetWorker {
   private freewheelExpiredLogged = false;
   private enableFreewheeling = true;
   private freewheelMaxDurationSec = 30;
+  // Last emitted freewheel-active edge — used to send `freewheelState` IPC only on transition.
+  private freewheelActiveEmitted = false;
 
   private timelineFrames: number | null = null;
   private lastTickMs: number | null = null;
@@ -180,6 +182,13 @@ class ArtNetWorker {
       logError(`[ArtNet/wk] tick error: ${e?.message || e}`);
     }
 
+    // Edge-emit freewheel-active to the main thread. Derived AFTER doSend so it reflects
+    // the same gate doSend uses to decide whether a packet went out: stale ∧ enabled ∧
+    // within max-duration ∧ deck-was-running (lastTickMs set). Once the worker goes silent
+    // for any reason — pause, track-end, freewheel timeout, kill-switch — `lastTickMs`
+    // becomes null and active drops in the same tick the UI badge needs to disappear.
+    this.maybeEmitFreewheelState(now);
+
     // Per-interval cadence tracking.
     if (this.lastSendAtMs != null) {
       const dt = now - this.lastSendAtMs;
@@ -195,6 +204,17 @@ class ArtNetWorker {
     this.lastSendAtMs = now;
 
     this.scheduleNext();
+  }
+
+  private maybeEmitFreewheelState(nowMs: number) {
+    let active = false;
+    if (this.deckIsStale && this.opts.enabled && this.enableFreewheeling && this.lastTickMs !== null) {
+      const stalledForSec = this.staleSinceMs ? (nowMs - this.staleSinceMs) / 1000 : 0;
+      if (stalledForSec <= this.freewheelMaxDurationSec) active = true;
+    }
+    if (active === this.freewheelActiveEmitted) return;
+    this.freewheelActiveEmitted = active;
+    send({ type: 'freewheelState', active });
   }
 
   private doSend(nowMs: number) {

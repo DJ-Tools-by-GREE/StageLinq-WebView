@@ -76,6 +76,9 @@ export interface SnapshotPayload {
   suggestedDeck: DeckNumber | null;
   nextTrack: string | null;
   stagelinqStatus: StageLinqStatus;
+  // True iff Art-Net TC is currently being freewheeled (no fresh beats from
+  // StageLinq, but the worker is synthesizing TC at the last-known speed).
+  freewheelActive: boolean;
   deckNotes: Record<DeckNumber, TrackNote | null>;
   recordingStatus?: RecordingStatus;
   replayStatus?: ReplayStatus;
@@ -100,10 +103,28 @@ export interface ArtworkDataPayload {
 
 export interface WaveformDataPayload {
   type: 'waveform_data';
-  deck: DeckNumber;
+  // Keyed by fileName — apply to whichever deck(s) currently hold this file.
   fileName: string;
   peaks: number[];
   peaksPerSec: number;
 }
 
-export type WsPayload = HelloPayload | SnapshotPayload | WaveformStatusPayload | WaveformDataPayload | ArtworkDataPayload;
+export interface TerminalLogLine {
+  ts: number;
+  level: 'log' | 'error';
+  text: string;
+}
+
+export interface TerminalLinesPayload {
+  type: 'terminal_lines';
+  mode: 'replace' | 'append';
+  lines: TerminalLogLine[];
+}
+
+export type WsPayload =
+  | HelloPayload
+  | SnapshotPayload
+  | WaveformStatusPayload
+  | WaveformDataPayload
+  | ArtworkDataPayload
+  | TerminalLinesPayload;

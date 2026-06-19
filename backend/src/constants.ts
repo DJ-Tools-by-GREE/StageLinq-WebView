@@ -6,6 +6,31 @@ export const BEAT_WATCHDOG_TIMEOUT_S = 5;
 /** Seconds of beat silence before the status indicator turns red AND a reconnect is triggered. */
 export const DISCONNECT_DETECT_TIMEOUT_S = 2;
 
+/**
+ * Milliseconds of beat silence before the Art-Net worker switches into freewheel mode.
+ * Independent of DISCONNECT_DETECT_TIMEOUT_S — that value still gates the UI badge and
+ * the reconnect attempt, but TC has to react much sooner: typical beat gaps are 50–200 ms,
+ * so anything past ~one missed beat is already audible drift on the lighting console.
+ *
+ * Tune this UP only if benign beat-gap variance (occasional 200–250 ms outliers) starts
+ * causing visible TC twitch on the receiver. Tune DOWN for a tighter recovery — but stay
+ * comfortably above the steady-state max (~200 ms) to avoid flapping.
+ */
+export const FREEWHEEL_STALE_THRESHOLD_MS = 250;
+
+/**
+ * Flap-detection knobs. A "short freewheel cycle" is one whose on-duration is
+ * ≤ FREEWHEEL_FLAP_SHORT_CYCLE_MAX_MS — long enough to engage but back off again
+ * before any real disconnect happened. Once we see ≥ FREEWHEEL_FLAP_MIN_CYCLES of
+ * those inside FREEWHEEL_FLAP_WINDOW_MS, that's strong evidence the threshold is
+ * too low and we emit a warn log. The log is rate-limited to one per
+ * FREEWHEEL_FLAP_LOG_COOLDOWN_MS so a sustained jittery network doesn't spam.
+ */
+export const FREEWHEEL_FLAP_SHORT_CYCLE_MAX_MS = 500;
+export const FREEWHEEL_FLAP_WINDOW_MS = 10_000;
+export const FREEWHEEL_FLAP_MIN_CYCLES = 3;
+export const FREEWHEEL_FLAP_LOG_COOLDOWN_MS = 30_000;
+
 /** Default for whether the Art-Net worker freewheels TC during a StageLinq stall. */
 export const DEFAULT_ENABLE_FREEWHEELING = true;
 
@@ -53,6 +78,17 @@ export const ELAPSED_THROTTLE_S = 0;
 
 /** Milliseconds between periodic OSC BPM heartbeat sends (independent of on-change sends). */
 export const OSC_HEARTBEAT_INTERVAL_MS = 1000;
+
+// Auto deck-suggestion
+
+/**
+ * Minimum elapsed time (seconds) on the selected deck for Trigger B
+ * ("selected stopped, next track loaded elsewhere") to fire. Stops within
+ * the first N seconds — typical of a tap-play-stop / scratch / mis-cue —
+ * do not produce a hand-off suggestion. Trigger A (next-track deck started
+ * playing) is unaffected.
+ */
+export const MIN_TRIGGER_B_ELAPSED_SEC = 30;
 
 // Waveform generation
 

@@ -11,8 +11,9 @@ Real-time DJ deck visualizer for Denon Prime 4+ (Engine DJ / StageLinq). Display
 - A blinking **Change Deck** overlay on the suggested deck's artwork until the operator switches to it
 - Live connection status badge (LIVE / OFFLINE)
 - Overlay button to toggle timecode transmission while playback is stopped
-- **User switcher** (header dropdown) — `Default User`, `Jan`, `Dennis`. Each user has their own UI settings (waveform zoom, role, track-note popups, …), stored server-side in `users.json` and applied on the fly when switched. The active-user pick is per-browser (`localStorage`). Each user carries a fixed-vocabulary `role` (`Viewer` / `DJ` / `Lighting & Tech`); the role can be picked from the Settings modal but new roles require a code change. Users with role `DJ` get track-note popups on by default; everyone else gets them off — an explicit toggle in Settings always overrides the role-derived default.
-- Settings popup (gear icon in the header) — adjusts the visible time-window of the detail waveform (4–30 s, default 10 s) for the active user; persisted to the server via `PUT /api/users/:name/settings`. Also hosts an **Open config editor…** button that launches a full-screen overlay for editing the on-disk `config.json` (playlists, timecode targets, OSC, sACN, logging, freewheel, …). The editor saves over `PUT /api/config`; saves are **write-only** — press `Ctrl+R` in the backend terminal, click **Settings → Controls → Reload config**, or `POST /api/config/reload` to apply.
+- **User switcher** (header dropdown) — `Default User`, `Jan`, `Dennis`. Each user has their own UI settings (waveform zoom, role, track-note popups, deck layout, …), stored server-side in `users.json` and applied on the fly when switched. The active-user pick is per-browser (`localStorage`). Each user carries a fixed-vocabulary `role` (`Viewer` / `DJ` / `Lighting & Tech`); the role can be picked from the Settings modal but new roles require a code change. Users with role `DJ` get track-note popups on by default; everyone else gets them off — an explicit toggle in Settings always overrides the role-derived default.
+- Settings popup (gear icon in the header) — adjusts the visible time-window of the detail waveform (4–30 s, default 10 s), toggles the **deck layout** between the full 4-deck 2×2 grid (default) and a 2-deck side-by-side view (D1 & D2 only), and other per-user preferences for the active user; persisted to the server via `PUT /api/users/:name/settings`. Also hosts an **Open config editor…** button that launches a full-screen overlay for editing the on-disk `config.json` (playlists, timecode targets, OSC, sACN, logging, freewheel, …). The editor saves over `PUT /api/config`; saves are **write-only** — press `Ctrl+R` in the backend terminal, click **Settings → Controls → Reload config**, or `POST /api/config/reload` to apply.
+- **Live terminal panel** (chevron-prompt icon in the header) — unfolds an overlay below the header that mirrors the backend's per-event log lines as they're printed. Subscribed only while the panel is open: backend pushes nothing over the wire when no client is watching, and the static dashboard rows are excluded by design (only newly printed lines stream). Seeded on open with the recent ring buffer (~500 lines).
 - WebSocket stream at 30 Hz
 
 **Art-Net timecode output** (optional)
@@ -41,7 +42,7 @@ A suggestion fires when **either** of the following holds, and **all** common co
 | Trigger | Condition |
 |---|---|
 | **A — next-track deck started** | The deck holding the playlist's next track has `play = true`. |
-| **B — selected deck stopped** | The currently selected deck has `play = false` and the playlist's next track is loaded on another deck. |
+| **B — selected deck stopped** | The currently selected deck has `play = false`, `elapsedSec > MIN_TRIGGER_B_ELAPSED_SEC` (default 30 s — see [`backend/src/constants.ts`](backend/src/constants.ts)), and the playlist's next track is loaded on another deck. The elapsed-time gate makes a tap-play-stop / mis-cue at the very beginning of a track not count as a hand-off. |
 
 Common conditions (apply to both triggers):
 
@@ -287,6 +288,8 @@ Waveforms and artwork are extracted automatically when a track loads and cached 
 }
 ```
 
+**Runs in a dedicated worker thread.** ffmpeg, peak compute, JSON serialization of the peaks array, base64 encoding of the artwork, and disk-cache I/O all run off the main thread (in [backend/src/waveformWorker.ts](backend/src/waveformWorker.ts)). The main thread only forwards the StageLinq-downloaded audio bytes into the worker (zero-copy `ArrayBuffer` transfer) and fans out the pre-built WS frame strings on the way back. This keeps the Art-Net deck-state polling pump at full 30 Hz cadence across track changes — the lighting console no longer sees TC jumps when a new track is loaded on any deck.
+
 ## API endpoints
 
 | Method | Path | Description |
@@ -332,7 +335,9 @@ StageLinq-WebView/
 │   ├── recorder.ts         # Record-mode JSONL writer (Record & Replay)
 │   ├── replay.ts           # Replay engine (Record & Replay)
 │   ├── stateProvider.ts    # Output-side shim: bridge state vs. replay state
-│   ├── waveformService.ts  # Waveform peak extraction and artwork cache
+│   ├── waveformService.ts  # Main-thread harness for the waveform worker (frame caches + IPC)
+│   ├── waveformWorker.ts   # Waveform worker (ffmpeg + computePeaks + JSON/base64 + disk cache)
+│   ├── waveformWorkerMessages.ts # typed message contract for the waveform worker
 │   ├── camelot.ts          # Key index → Camelot string
 │   ├── constants.ts        # Tunable timing and threshold constants
 │   ├── logging.ts          # Configurable debug logging
@@ -358,14 +363,33 @@ On connect the server sends a hello frame, then snapshot frames at 30 Hz. Additi
 // snapshot (30 Hz)
 { "type": "snapshot", "seq": 42, "ts": 1234567890, "selectedDeck": 1, "suggestedDeck": 2, "nextTrack": "song.mp3", "decks": { "1": DeckState, ... } }
 
-// waveform_status — progress during peak analysis
+// waveform_status — progress during peak analysis (per-deck, has `deck` field)
 { "type": "waveform_status", "deck": 1, "stage": "downloading|analyzing|done|error", "progress": 0.0, "fileName": "..." }
 
-// waveform_data — peak array when analysis is complete
-{ "type": "waveform_data", "deck": 1, "fileName": "...", "peaks": [...], "peaksPerSec": 10 }
+// waveform_data — peak array, keyed by fileName.
+// The frontend applies it to every deck currently holding that file (so the
+// same track on two decks renders correctly without duplicate broadcasts).
+// Pre-serialized in the waveform worker so the broadcast path does zero CPU work.
+{ "type": "waveform_data", "fileName": "...", "peaks": [...], "peaksPerSec": 200 }
 
-// artwork_data — album art (base64) or null if unavailable
-{ "type": "artwork_data", "deck": 1, "fileName": "...", "data": "<base64>" | null }
+// artwork_data — album art (base64) or null. Keyed by fileName, same fanout.
+{ "type": "artwork_data", "fileName": "...", "data": "<base64>" | null, "mime": "image/jpeg" | null }
+
+// terminal_lines — backend log lines for the in-app terminal panel.
+// Sent only to clients that opted in by sending {type:'terminal_subscribe', enabled:true}.
+// `replace` is sent once per (re)subscribe with the recent ring buffer; subsequent
+// frames use `append` with one or more lines as they're printed.
+{ "type": "terminal_lines", "mode": "replace" | "append",
+  "lines": [{ "ts": 1234567890, "level": "log" | "error", "text": "..." }] }
+```
+
+### Client → server
+
+The client sends a single message type so far:
+
+```jsonc
+// terminal_subscribe — opt this WS in/out of the live log stream
+{ "type": "terminal_subscribe", "enabled": true | false }
 ```
 
 ## Notes

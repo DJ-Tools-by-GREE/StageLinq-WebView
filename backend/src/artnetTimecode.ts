@@ -42,9 +42,25 @@ export class ArtNetTimecodeBroadcaster {
   private worker: Worker | null = null;
   private pollTimer: NodeJS.Timeout | null = null;
   private pollDeck: (() => DeckPollResult) | null = null;
+  // Mirrors the worker's freewheel-active edge. Updated synchronously from the
+  // `freewheelState` IPC, so reads from here are accurate to the same tick.
+  private freewheelActive = false;
+  // Single edge subscriber. Sized to one because the only consumer is the flap
+  // detector in index.ts; if more arrive, swap for a Set.
+  private freewheelChangeCb: ((active: boolean) => void) | null = null;
 
   constructor(opts: ArtNetOptions) {
     this.opts = opts;
+  }
+
+  /** Current freewheel-active flag from the worker. */
+  isFreewheelActive(): boolean {
+    return this.freewheelActive;
+  }
+
+  /** Subscribe to freewheel on/off transitions. Replaces any previous subscription. */
+  onFreewheelChange(cb: (active: boolean) => void): void {
+    this.freewheelChangeCb = cb;
   }
 
   setFreewheel(enableFreewheeling: boolean, freewheelMaxDurationSec: number) {
@@ -174,6 +190,14 @@ export class ArtNetTimecodeBroadcaster {
       case 'tcDisplay':
         logStatus('artnet', m.text);
         setArtnetTcHms(m.hms);
+        break;
+      case 'freewheelState':
+        if (this.freewheelActive !== m.active) {
+          this.freewheelActive = m.active;
+          try { this.freewheelChangeCb?.(m.active); } catch (e: any) {
+            logError('[ArtNet] freewheel change callback threw:', e?.message || e);
+          }
+        }
         break;
       case 'stats':
       case 'ready':

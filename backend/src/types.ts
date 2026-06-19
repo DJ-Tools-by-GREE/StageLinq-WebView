@@ -81,6 +81,11 @@ export interface SnapshotPayload {
   suggestedDeck: DeckNumber | null;
   nextTrack: string | null;
   stagelinqStatus: StageLinqStatus;
+  // True iff the Art-Net worker is currently freewheeling TC (gated on stale ∧
+  // enabled ∧ within max-duration ∧ deck-was-running). Edge-driven from the
+  // worker so it flips on/off the same tick the lighting console sees TC
+  // start/stop being synthetic.
+  freewheelActive: boolean;
   deckNotes: Record<DeckNumber, TrackNote | null>;
   recordingStatus?: RecordingStatus;
   replayStatus?: ReplayStatus;
@@ -112,10 +117,32 @@ export interface ArtworkDataPayload {
 
 export interface WaveformDataPayload {
   type: 'waveform_data';
-  deck: DeckNumber;
+  // Keyed by fileName — clients fan it out to whichever deck(s) currently hold
+  // this file. Lets the worker pre-build one frame per file in cache instead of
+  // restamping it per deck on every broadcast.
   fileName: string;
   peaks: number[];
   peaksPerSec: number;
 }
 
-export type WsPayload = HelloPayload | SnapshotPayload | WaveformStatusPayload | WaveformDataPayload | ArtworkDataPayload;
+export interface TerminalLogLine {
+  ts: number;
+  level: 'log' | 'error';
+  text: string;
+}
+
+// `replace` clears the client buffer and seeds it with this batch (sent on
+// (re)subscribe so the panel shows the recent ring). `append` extends.
+export interface TerminalLinesPayload {
+  type: 'terminal_lines';
+  mode: 'replace' | 'append';
+  lines: TerminalLogLine[];
+}
+
+export type WsPayload =
+  | HelloPayload
+  | SnapshotPayload
+  | WaveformStatusPayload
+  | WaveformDataPayload
+  | ArtworkDataPayload
+  | TerminalLinesPayload;

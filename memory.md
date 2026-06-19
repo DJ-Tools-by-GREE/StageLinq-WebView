@@ -7,6 +7,98 @@ decision/bug-confirmation/direction change (per CLAUDE.md).
 
 ## Architectural decisions
 
+### 2026-06-19 — Waveform/artwork pipeline moved to a worker thread
+
+**What:** ffmpeg invocations (peaks + artwork extraction), `computePeaks` PCM scan, JSON serialization of the peaks array, base64 encoding of the artwork, and waveform/artwork disk-cache I/O **all run in a dedicated worker thread** ([backend/src/waveformWorker.ts](backend/src/waveformWorker.ts)). The main thread is reduced to: StageLinq audio download (must stay on main, FileTransfer service binding lives there) → zero-copy `postMessage` of the audio `ArrayBuffer` into the worker → fan-out of pre-built WS frame strings on the way back. Pattern mirrors [backend/src/artnetWorker.ts](backend/src/artnetWorker.ts).
+
+**Why:** during a track change, the main thread used to block 200 ms–1.3 s on ffmpeg + computePeaks + JSON.stringify(peaks) + base64(artwork) + disk writes. The 30 Hz Art-Net deck-state polling pump (see [backend/src/artnetTimecode.ts:121](backend/src/artnetTimecode.ts#L121)) lives on the main thread; missed pump ticks meant the Art-Net worker freewheeled, then snapped back to a stale-then-fresh source frame on resume — the **drift-snap** at [backend/src/artnetWorker.ts:262](backend/src/artnetWorker.ts#L262) (`drift > 0.15 fps` ≈ 5 ms @ 30 fps) caused visible TC jumps on the lighting console. Cached-track jitter was smaller because it skipped ffmpeg, but the 30–60 ms `JSON.stringify(peaks)` on every broadcast was still enough to drop a couple of pump ticks.
+
+**Cache shape change — pre-serialized WS frames:**
+- New: `peaksFrameCache: Map<string, string>` and `artworkFrameCache: Map<string, string>` hold the **complete `ws.send`-ready** JSON frame strings.
+- Retained: `artworkCache: Map<string, { data: Buffer; mime: string } | null>` for the HTTP `/api/artwork/:deck` route.
+- The old `peaksCache: Map<string, number[]>` is gone — broadcast paths look up the pre-built string and `ws.send` it. Zero CPU on the broadcast path, regardless of cache-hit or post-extraction.
+
+**Boot-time cache load** runs in the worker too. Worker scans `waveform-cache/` and `artwork-cache/`, builds the WS frame strings, and replies with a single `cacheLoaded` IPC message that transfers all artwork bytes back to the main thread (zero-copy). After boot the main thread does no waveform-related disk I/O at all.
+
+**WS wire shape change:** `WaveformDataPayload` no longer carries `deck` ([backend/src/types.ts](backend/src/types.ts), [frontend/src/types.ts](frontend/src/types.ts)). The frame is keyed only by `fileName`; the frontend ([frontend/src/App.tsx](frontend/src/App.tsx) `waveform_data` handler) fans the peaks out to every deck currently holding that file (via `latestDecksRef`). Side-benefit: the same track on two decks now renders correctly without the backend having to broadcast twice. `ArtworkDataPayload` already had no `deck` field, so it was already shape-correct.
+
+**IPC contract:** [backend/src/waveformWorkerMessages.ts](backend/src/waveformWorkerMessages.ts). Audio bytes ride into the worker as a transferred `ArrayBuffer`; artwork bytes ride out the same way. Worker dedups same-fileName concurrent requests via an internal `inFlight` map (same semantics as the previous in-process `inFlight` in waveformService.ts).
+
+**Per-deck cancellation:** `waveformTaskIds` in [backend/src/index.ts](backend/src/index.ts) still gates whether the *broadcast* fires when the worker's result arrives. The worker is not interrupted — its job is short and its result populates the cache regardless, which is strictly fine because the cache key is fileName.
+
+**Replay & playlist gates unchanged:** `replay.shouldSuppressWaveformExtraction(fileName)` and the `waveformAllTracks`/`activePlaylistFiles` gates in `onTrackChanged` still fire before any worker IPC.
+
+**Signal handling:** SIGINT/SIGTERM in [backend/src/index.ts](backend/src/index.ts) call `shutdownWaveformWorker()` (50 ms drain then exit) alongside the existing OSC/sACN cleanup.
+
+**Verification:** during track changes, `[main] event-loop lag` warnings should be rare/absent and `[ArtNet/wk] Late tick` / `hardStalls` should stay at 0 across both cached and uncached track loads. The lighting console should no longer flag TC jumps on track change.
+
+---
+
+### 2026-06-19 — Freewheel threshold decoupled from disconnect threshold
+
+**What:** [backend/src/index.ts](backend/src/index.ts) now derives the `stale`
+flag from a new `FREEWHEEL_STALE_THRESHOLD_MS = 250` constant (in
+[backend/src/constants.ts](backend/src/constants.ts)) instead of reusing
+`DISCONNECT_DETECT_TIMEOUT_S * 1000` (= 2 s). The two thresholds answer
+different questions:
+
+- `FREEWHEEL_STALE_THRESHOLD_MS` (250 ms) — "is the next beat overdue, freewheel
+  now". Sized to be just past steady-state max beat gap (50–200 ms; observed
+  outliers up to ~245 ms in clean sessions).
+- `DISCONNECT_DETECT_TIMEOUT_S` (2 s) — "is the device gone, time to flip the
+  red badge and trigger `bridge.disconnect()` + reconnect loop". Stays at 2 s.
+
+**Why the bug:** at the old 2 s threshold the lighting console saw TC stall
+for up to two seconds during a brief beat dropout, then resume freewheeling
+~1–2 s behind the audio. Tightening the trigger to one missed-beat window
+keeps TC continuously aligned without changing the more expensive reconnect
+machinery's hysteresis.
+
+**Why the worker logic didn't need changes:** existing
+`treatAsPlaying = deckIsStale ? lastTickMs !== null : deckState.play === true`
+already correctly handles all the "don't freewheel" cases —
+
+- **Pause** while connected: `Play=false` arrives in ~10 ms, the next worker
+  tick (≤33 ms later) hits the stopped branch and clears `lastTickMs` BEFORE
+  the 250 ms stale window can flip on, so subsequent stale ticks see
+  `lastTickMs == null` and stay silent.
+- **Track end:** same path as pause.
+- **Watchdog late `play=false` mid-stall** (cable was actually pulled, not a
+  pause): worker is already in the freewheel branch with `lastTickMs` set,
+  ignores the stale watchdog signal — exactly correct.
+
+So only the constant + import in `index.ts` moved; the worker is unchanged.
+
+**Tuning note:** if the field reports rare false-positive freewheel
+engagements on healthy networks (single ~33 ms tick of freewheel timeline
+during a 250–300 ms beat outlier), bump `FREEWHEEL_STALE_THRESHOLD_MS` to
+`400`–`500`. Don't drop it below ~220 ms or it will flap on every clean
+session per the beat-gap log.
+
+---
+
+### 2026-06-18 — Per-user deck layout toggle (2 vs 4 decks)
+
+**What:** Users can pick between the original 4-deck 2×2 grid (default) and a 2-deck side-by-side layout that renders only D1 and D2. Lives in the user-scoped Settings modal, persisted via the existing `users.json` round-trip (new `deckLayout: 2 | 4` field on `UserSettings`). 4 is the default for any user without an explicit choice — all current users keep their existing view.
+
+**Architecture:**
+- `frontend/src/userSettings.ts` adds `DECK_LAYOUTS = [2, 4]`, `DeckLayout` type, `DEFAULT_DECK_LAYOUT = 4`, an `effectiveDeckLayout()` helper, and the `deckLayout?` field on `UserSettings`. Backend is open-ended (`UserSettings = Record<string, unknown>`) so no backend change is needed — the field just appears in `users.json` once a user picks a value.
+- `App.tsx` derives `visibleDecks` (`[1,2]` or `[1,2,3,4]`) and applies a `grid--2` / `grid--4` class so CSS can switch templates. Backend keeps emitting all four deck states; the 2-deck view is purely a render filter on the client. Backend output paths (Art-Net, OSC, sACN) are unaffected — they read from `stateProvider`, not the UI.
+- `styles.css` `.grid--2` overrides to `grid-template-columns: 1fr 1fr; grid-template-rows: 1fr;` (full-height side-by-side); `.grid` (and `.grid--4`) keep the original 2×2.
+
+**Why a render filter, not a backend gate:** the deck-selection sACN channel still needs to accept D3/D4 even when the operator picked the 2-deck UI; lighting console must remain authoritative. Hiding the UI cards is the right level — the user's choice does not lie to the rest of the system.
+
+### 2026-06-18 — In-app terminal panel (live backend log stream)
+
+**What:** Header has a chevron-prompt icon next to the gear; clicking unfolds a panel below the header that mirrors the backend's per-event log lines (lifecycle, playback, errors, …). Only newly printed lines are shown — the static dashboard rows that take over the bottom of the TTY (`logDashboard`) deliberately bypass the tap, since "the static line" is exactly what the user did NOT want to see in the browser.
+
+**Architecture:**
+- `backend/src/logging.ts` — every call to `printLog()` (which already funnels every per-event log) also pushes a stripped (ANSI-removed) entry into a small ring (`TERMINAL_RING_MAX = 500`) and notifies any subscribers. Dashboard rendering happens through `logDashboard()` and is unaffected.
+- `backend/src/index.ts` — per-WS opt-in. Client sends `{type:'terminal_subscribe', enabled:true|false}`. Backend keeps a `Set<ws>` of subscribers; the global tap is attached lazily on the first subscribe and released when the set empties. New subscribers are seeded with the ring as a `terminal_lines` `replace` frame; subsequent lines stream as `append` frames.
+- `frontend/src/TerminalPanel.tsx` + `App.tsx` — opens on toggle, sends `terminal_subscribe`, renders up to 1000 lines with auto-follow scroll. Re-subscribes on WS reconnect if still open.
+
+**Performance posture:** when no client is subscribed, the cost per log line is one Set-size check (always `0`) and one O(1) ring push. The 30 Hz dashboard never enters this path. When subscribed, each line pays one ANSI-strip + one JSON.stringify + one `ws.send` per subscriber — at the natural rate of these logs (sparse, bursts on track change) this is well below the existing 30 Hz snapshot loop's cost. No new timers.
+
 ### 2026-06-18 — Record & Replay (backup-show fallback)
 
 **What:** Operator can record every state change the StageLinq bridge produces during a live show into a JSONL log under `recordings/`, then later replay that log synchronized to a single prerecorded audio file played on a deck. From the lighting console's perspective the replay is byte-identical to the live show — same Art-Net timecode, OSC, WS UI — and the console keeps full live control of `selectedDeck` (sACN CH1) and the suggestion-execute channel (sACN CH3) regardless of what was recorded.
@@ -104,9 +196,13 @@ never overrides the manual sACN CH1 selection.
 **Triggers** (either fires; both require: candidate has the playlist's "next
 track" loaded, no loop active on the candidate, candidate ≠ selected deck):
 - **A** — candidate deck `play === true`.
-- **B** — selected deck `play === false` AND candidate has the next track
-  loaded. ("Stopped" is just `play=false` per Q1 ruling — paused mid-mix
-  triggers it; the operator avoids that mistake live.)
+- **B** — selected deck `play === false` AND `elapsedSec >
+  MIN_TRIGGER_B_ELAPSED_SEC` (default 30 s, in
+  [backend/src/constants.ts](backend/src/constants.ts)) AND candidate has
+  the next track loaded. The elapsed-time gate was added after a tap-play-stop
+  at the very start of a freshly-loaded track was producing a spurious
+  hand-off suggestion — only stops *after meaningful play* (or near the end
+  of the track, naturally) cross the threshold. Trigger A is unaffected.
 
 Common gates: active playlist resolves a non-null `computeNextTrack(...)` for
 the selected deck's current file, and exactly one (or, on a tie, the playing

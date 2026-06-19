@@ -14,6 +14,7 @@ type Event =
   | { t: number; type: 'deck'; n: DeckNumber; state: DeckState }
   | { t: number; type: 'deck'; n: DeckNumber; diff: DeckDiff }
   | { t: number; type: 'selected'; deck: DeckNumber | null }
+  | { t: number; type: 'suggested'; deck: DeckNumber | null; reason: string | null }
   | { t: number; type: 'status'; value: StageLinqStatus }
   | { t: number; type: 'sacn_execute'; deck: DeckNumber | null }
   | { t: number; type: 'footer'; stoppedAt: number; eventCount: number };
@@ -160,6 +161,11 @@ export class Recorder {
   recordSelected(deck: DeckNumber | null) {
     if (!this.active) return;
     this.write({ t: this.tNow(), type: 'selected', deck });
+  }
+
+  recordSuggested(deck: DeckNumber | null, reason: string | null) {
+    if (!this.active) return;
+    this.write({ t: this.tNow(), type: 'suggested', deck, reason });
   }
 
   recordStatus(status: StageLinqStatus) {

@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import type { DeckNumber, DeckState, RecordingStatus, ReplayStatus, StageLinqStatus, TrackNote, WsPayload } from './types.js';
+import type { DeckNumber, DeckState, RecordingStatus, ReplayStatus, StageLinqStatus, TerminalLogLine, TrackNote, WsPayload } from './types.js';
 import type { WaveformState } from './appTypes.js';
 import DeckCard from './DeckCard.js';
 import HeaderBar from './HeaderBar.js';
 import SettingsModal from './SettingsModal.js';
+import TerminalPanel from './TerminalPanel.js';
 import TrackNotePopup from './TrackNotePopup.js';
 import ConfigEditorOverlay from './configEditor/ConfigEditorOverlay.js';
 import {
@@ -12,9 +13,11 @@ import {
   type UsersMap,
   type UserSettings,
   type Role,
+  type DeckLayout,
   effectiveZoom,
   effectiveShowTrackNotes,
   effectiveRole,
+  effectiveDeckLayout,
   fetchAllUsers,
   putUserSettings,
   loadActiveUser,
@@ -35,6 +38,8 @@ import {
 const DECK_NUMBERS: DeckNumber[] = [1, 2, 3, 4];
 
 const SETTINGS_PUT_DEBOUNCE_MS = 250;
+
+const TERMINAL_MAX_LINES = 1000;
 
 function makeBlankDeck(deck: DeckNumber): DeckState {
   return {
@@ -85,6 +90,7 @@ export default function App() {
   const [artworkUrls, setArtworkUrls] = useState<Record<string, string>>({});
   const [connected, setConnected] = useState(false);
   const [stagelinqStatus, setStagelinqStatus] = useState<StageLinqStatus>('no-device');
+  const [freewheelActive, setFreewheelActive] = useState(false);
   const [selectedDeck, setSelectedDeck] = useState<DeckNumber | null>(null);
   const [suggestedDeck, setSuggestedDeck] = useState<DeckNumber | null>(null);
   const [nextTrack, setNextTrack] = useState<string | null>(null);
@@ -93,6 +99,8 @@ export default function App() {
   const [headerVisible, setHeaderVisible] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [configEditorOpen, setConfigEditorOpen] = useState(false);
+  const [terminalOpen, setTerminalOpen] = useState(false);
+  const [terminalLines, setTerminalLines] = useState<TerminalLogLine[]>([]);
 
   // Users + active user. Users map starts as empty per name and is
   // hydrated from /api/users on mount. The active-user pick is per-browser.
@@ -113,6 +121,8 @@ export default function App() {
   const detailZoomSec = effectiveZoom(users[activeUser]);
   const showTrackNotes = effectiveShowTrackNotes(users[activeUser]);
   const role = effectiveRole(users[activeUser]);
+  const deckLayout = effectiveDeckLayout(users[activeUser]);
+  const visibleDecks: DeckNumber[] = deckLayout === 2 ? [1, 2] : DECK_NUMBERS;
   // True iff at least one role-derived field is currently overridden by an
   // explicit user value. Drives the reset-button enabled state in Settings.
   const hasRoleOverrides = ROLE_DERIVED_KEYS.some(
@@ -211,6 +221,10 @@ export default function App() {
   const heartbeatTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastMsgAt = useRef(0);
   const wsRef = useRef<WebSocket | null>(null);
+  // Read inside ws.onopen so a reconnect mid-session re-subscribes without
+  // having to rebuild the `connect` closure (which would tear down the socket).
+  const terminalOpenRef = useRef(false);
+  useEffect(() => { terminalOpenRef.current = terminalOpen; }, [terminalOpen]);
   const prevLoadedRef = useRef<Record<DeckNumber, boolean>>({ 1: false, 2: false, 3: false, 4: false });
   const prevFileNameRef = useRef<Record<DeckNumber, string>>({ 1: '', 2: '', 3: '', 4: '' });
   const elapsedRefs = useRef<Record<DeckNumber, { current: number }>>({
@@ -265,6 +279,10 @@ export default function App() {
           ws.close();
         }
       }, 1000);
+      // Re-subscribe to terminal stream if the panel is open across a reconnect.
+      if (terminalOpenRef.current) {
+        try { ws.send(JSON.stringify({ type: 'terminal_subscribe', enabled: true })); } catch {}
+      }
     };
 
     ws.onmessage = (ev) => {
@@ -285,6 +303,7 @@ export default function App() {
         setSuggestedDeck(msg.suggestedDeck ?? null);
         setNextTrack(msg.nextTrack ?? null);
         setStagelinqStatus(msg.stagelinqStatus);
+        setFreewheelActive(msg.freewheelActive === true);
         setRecordingStatus(msg.recordingStatus ?? null);
         setReplayStatus(msg.replayStatus ?? null);
         const prev = prevLoadedRef.current;
@@ -359,11 +378,20 @@ export default function App() {
           };
         });
       } else if (msg.type === 'waveform_data') {
-        const { deck, peaks, peaksPerSec, fileName } = msg;
-        setWaveforms((prev) => ({
-          ...prev,
-          [deck]: { peaks, peaksPerSec, stage: 'ready', progress: 100, fileName },
-        }));
+        const { peaks, peaksPerSec, fileName } = msg;
+        // Apply to every deck currently holding this file. Same track on two
+        // decks renders correctly without the backend having to fan out.
+        setWaveforms((prev) => {
+          let changed = false;
+          const next = { ...prev };
+          for (const d of DECK_NUMBERS) {
+            if (latestDecksRef.current[d].fileName === fileName) {
+              next[d] = { peaks, peaksPerSec, stage: 'ready', progress: 100, fileName };
+              changed = true;
+            }
+          }
+          return changed ? next : prev;
+        });
       } else if (msg.type === 'artwork_data') {
         const { fileName, data, mime } = msg;
         if (!data || !mime) return;
@@ -373,6 +401,18 @@ export default function App() {
         const url = URL.createObjectURL(blob);
         artworkObjectUrlsRef.current[fileName] = url;
         setArtworkUrls((m) => ({ ...m, [fileName]: url }));
+      } else if (msg.type === 'terminal_lines') {
+        const incoming = msg.lines;
+        if (msg.mode === 'replace') {
+          setTerminalLines(incoming.slice(-TERMINAL_MAX_LINES));
+        } else {
+          setTerminalLines((prev) => {
+            const next = prev.concat(incoming);
+            return next.length > TERMINAL_MAX_LINES
+              ? next.slice(next.length - TERMINAL_MAX_LINES)
+              : next;
+          });
+        }
       }
     };
 
@@ -406,6 +446,20 @@ export default function App() {
     setPopupQueue((q) => q.slice(1));
   }, []);
 
+  const toggleTerminal = useCallback(() => {
+    setTerminalOpen((open) => {
+      const next = !open;
+      const ws = wsRef.current;
+      if (ws && ws.readyState === ws.OPEN) {
+        try { ws.send(JSON.stringify({ type: 'terminal_subscribe', enabled: next })); } catch {}
+      }
+      // Wipe the buffer when closing so the next open starts from a fresh
+      // server-seeded ring rather than a stale snapshot.
+      if (!next) setTerminalLines([]);
+      return next;
+    });
+  }, []);
+
   // When the operator turns popups off, drop everything pending or visible.
   // Mark every currently-loaded file as "seen" so flipping the setting back on
   // mid-track does not retroactively pop a note for a song already playing —
@@ -431,6 +485,7 @@ export default function App() {
         <HeaderBar
           connected={connected}
           stagelinqStatus={stagelinqStatus}
+          freewheelActive={freewheelActive}
           selectedDeck={selectedDeck}
           selectedDeckState={selectedDeck ? decks[selectedDeck] : null}
           suggestedDeck={suggestedDeck}
@@ -441,10 +496,15 @@ export default function App() {
           onChangeUser={setActiveUser}
           recordingStatus={recordingStatus}
           replayStatus={replayStatus}
+          terminalOpen={terminalOpen}
+          onToggleTerminal={toggleTerminal}
         />
       )}
-      <div className="grid">
-        {DECK_NUMBERS.map((d) => (
+      {terminalOpen && (
+        <TerminalPanel lines={terminalLines} onClose={toggleTerminal} />
+      )}
+      <div className={`grid grid--${deckLayout}`}>
+        {visibleDecks.map((d) => (
           <DeckCard
             key={d}
             state={decks[d]}
@@ -478,6 +538,10 @@ export default function App() {
           role={role}
           onChangeRole={(v: Role) =>
             updateUserSettings(activeUser, { role: v })
+          }
+          deckLayout={deckLayout}
+          onChangeDeckLayout={(v: DeckLayout) =>
+            updateUserSettings(activeUser, { deckLayout: v })
           }
           onResetRoleDefaults={() => {
             const patch: Partial<UserSettings> = {};
