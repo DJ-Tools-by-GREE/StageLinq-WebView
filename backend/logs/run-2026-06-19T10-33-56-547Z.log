@@ -21,3 +21,10 @@
 [11:16:04.471] [ERROR] [main] WS broadcast slow: 11ms (clients=2)
 [11:16:21.839] [WARN] [ArtNet/wk] tick stats: 59 ticks/2002ms avg=33.37ms (29.47fps) p50=33.0 p95=36.0 max=37.0 maxBehind=1.9ms hardStalls=0 target=33.33ms
 [11:16:45.009] [ERROR] [main] WS broadcast slow: 7ms (clients=2)
+[11:18:08.535] [ERROR] [Watchdog] No beat for 2.1s — triggering reconnect
+[11:18:21.127] [ERROR] [sACN] PacketOutOfOrder: Packet significantly out of order in universe 20 from light-1467 (82 -> 116)
+[11:18:28.562] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[11:20:48.668] [ERROR] [main] WS broadcast slow: 6ms (clients=2)
+[11:21:30.688] [ERROR] [main] WS broadcast slow: 11ms (clients=2)
+[11:22:27.971] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001ms avg=33.34ms (29.49fps) p50=33.0 p95=35.0 max=36.0 maxBehind=1.4ms hardStalls=0 target=33.33ms
+[11:24:22.005] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001ms avg=33.34ms (29.49fps) p50=33.0 p95=36.0 max=37.0 maxBehind=1.7ms hardStalls=0 target=33.33ms
