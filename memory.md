@@ -178,17 +178,19 @@ A new shim ([backend/src/stateProvider.ts](backend/src/stateProvider.ts)) sits b
 
 ### 2026-06-19 — Record & Replay: crash-recovery resume
 
-**What:** If the backend dies mid-recording (crash, kill -9, power cut), the next start scans `recordings/` for a `.jsonl` without a matching `.meta.json` sidecar (sidecar is only written on clean stop). If exactly one is found, ≤24 h old, and has a valid header, the recorder stages a resume in memory: replays the file to rebuild per-deck `lastEmitted`, but does not open the file or mark `active` yet. Once `stagelinqStatus` flips to `'connected'` (handled in the snapshot-loop status-edge block), the file is reopened in append mode and the recorder writes a `gap` event (`crashedAtWall`, `resumedAtWall`, `gapMs`) followed by fresh keyframes for all four decks, then continues normal recording.
+**What:** If the backend dies mid-recording (crash, kill -9, power cut), the next start picks up where the previous run left off. Once `stagelinqStatus` flips to `'connected'` (handled in the snapshot-loop status-edge block), the recorder reopens the file in append mode and writes a `gap` event (`crashedAtWall`, `resumedAtWall`, `gapMs`) followed by fresh keyframes for all four decks, then continues normal recording.
+
+**Resume gating via lock file (2026-06-19 revision):** the recorder writes `recordings/.active-recording` on `start()` (contents = active `.jsonl` basename) and deletes it on clean `stop()`. On boot, the lock's presence is the *only* signal that triggers resume — stale unfinished `.jsonl` files from older shows that no longer have a lock are intentionally ignored. The previous logic of "find any orphan" was too eager: it would resume `.jsonl`s left behind by *any* prior crash, not just the most recent run. Lock-write is in `start()` after the stream is open; lock-clear is in `stop()` *after* the sidecar is written so a crash between footer-write and lock-clear self-heals (findOrphan rejects locks pointing at sidecar'd files).
 
 **Why deferred until 'connected':** the gap marker should be paired with a real keyframe of current deck state. Resuming into a still-broken bridge (no-device / reconnecting) would write `play=false` blanks into the keyframe slot.
 
-**Skip cases (logged, no resume):** ≥2 orphan files (don't guess which to graft onto), file >24 h old, file has no header line, replay is currently active.
+**Skip cases (lock self-heals):** lock points at missing/empty/sidecar'd file (clear and skip), file >24 h old (clear and skip), file has no header line (clear and skip), malformed lock contents (clear and skip), replay is currently active (skip but keep lock for next try).
 
-**Graceful shutdown:** `SIGINT`/`SIGTERM`/`beforeExit` handlers call `recorder.stop()` first, so the sidecar gets written and no orphan is left for next boot.
+**Graceful shutdown:** `SIGINT`/`SIGTERM`/`beforeExit` handlers call `recorder.stop()` first, so the sidecar gets written and the lock is cleared.
 
-**Operator escape hatch:** `POST /api/record/resume-abort` discards a pending resume so a fresh recording can be started. `POST /api/record/start` refuses with 409 while a resume is pending — the operator must explicitly choose between resume and fresh.
+**Operator escape hatch:** `POST /api/record/resume-abort` discards a pending resume *and clears the lock* so a fresh recording can be started without the same orphan re-appearing. `POST /api/record/start` refuses with 409 while a resume is pending — the operator must explicitly choose between resume and fresh.
 
-**Cannot recover the gap content** — the bridge has no history. The `gap` event is a forensic marker so analysis tools detect the discontinuity. New `gap` event type added to the JSONL schema; replay's parser silently ignores unknown event types so old replay engines don't break.
+**Cannot recover the gap content** — the bridge has no history. The `gap` event is a forensic marker so analysis tools detect the discontinuity. `gap` event type is part of the JSONL schema; replay's parser silently ignores unknown event types so old replay engines don't break.
 
 ### 2026-06-18 — Art-Net: TC silent whenever a deck isn't moving (toggle removed)
 

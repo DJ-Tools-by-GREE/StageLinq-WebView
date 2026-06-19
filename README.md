@@ -77,7 +77,7 @@ The recorder refuses to start if StageLinq is not connected, if a recording is a
 
 ### Crash recovery (auto-resume)
 
-If the backend dies mid-recording (crash, power loss, accidental kill -9), the next start will detect the unfinished `.jsonl` (no matching `.meta.json` sidecar) and stage a resume. Once StageLinq is back online, the recorder reopens the file in append mode and writes:
+If the backend dies mid-recording (crash, power loss, accidental kill -9), the next start will pick up where the previous run left off. Once StageLinq is back online, the recorder reopens the file in append mode and writes:
 
 - one `gap` event with `crashedAtWall`, `resumedAtWall`, and `gapMs`
 - fresh keyframes for all four decks at the resume time
@@ -85,7 +85,9 @@ If the backend dies mid-recording (crash, power loss, accidental kill -9), the n
 
 Anything that happened on the decks during the gap is **not** recoverable — the bridge has no history. The gap event is a forensic marker so analysis tools can detect the discontinuity.
 
-Constraints: only one orphan is auto-resumed (multiple unfinished files → bail and log). Files older than 24 h are skipped. Use `POST /api/record/resume-abort` to discard a stale pending resume before starting a fresh recording. Graceful shutdown (`SIGINT`/`SIGTERM`) writes the sidecar normally and produces no orphan.
+**Resume gating:** auto-resume only fires when the previous run died **with a recording active**. The recorder writes a small `recordings/.active-recording` lock file on `start()` (containing the active `.jsonl` basename) and deletes it on clean `stop()`. On boot, the lock's presence is the *only* signal that triggers resume — stale unfinished `.jsonl` files from older shows that no longer have a lock are intentionally ignored, no log spam.
+
+Constraints: files older than 24 h are skipped (lock cleared). If the lock points at a missing/empty/sidecar'd file, it self-heals and clears. Use `POST /api/record/resume-abort` to discard a pending resume (and clear the lock) before starting a fresh recording. Graceful shutdown (`SIGINT` / `SIGTERM` / `beforeExit`) calls `stop()` first, so the sidecar is written and the lock is cleared.
 
 ### Replay
 

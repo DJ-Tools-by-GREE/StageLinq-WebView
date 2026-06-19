@@ -73,6 +73,12 @@ function isoStamp(ms: number): string {
 // a stale recording from a previous show — surfacing a gap of hours/days is noise.
 const ORPHAN_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
+// Lock file written next to recordings/. Contains the basename of the .jsonl that is
+// currently being written to. Created on start(), deleted on clean stop(). Its presence
+// at boot is the *only* signal that the previous run died with a recording active —
+// stale orphans from older shows have no lock and are intentionally ignored.
+const ACTIVE_LOCK_FILENAME = '.active-recording';
+
 interface OrphanScan {
   filePath: string;
   startedAt: number;
@@ -83,32 +89,59 @@ interface OrphanScan {
 }
 
 /**
- * Find at most one resumable orphan: a *.jsonl with a header line but no .meta.json
- * sidecar (the sidecar is only written on a clean stop). Returns null if none, or if
- * multiple unfinished files exist — auto-resuming the wrong one would silently graft
- * onto a stale recording, so in that case we bail and let the operator pick manually.
+ * Find a resumable orphan via the lock file written by the prior run's start(). Returns
+ * null if no lock exists (clean shutdown or no recording was active when the last run
+ * died). Cleans up the lock on any rejection (sidecar exists, file missing, malformed,
+ * too old) so we don't spin on a bad lock across reboots.
  */
 async function findOrphan(recordingsDir: string): Promise<OrphanScan | null> {
-  let entries: string[];
+  const lockPath = path.join(recordingsDir, ACTIVE_LOCK_FILENAME);
+  let lockBody: string;
   try {
-    entries = await fs.promises.readdir(recordingsDir);
+    lockBody = await fs.promises.readFile(lockPath, 'utf8');
   } catch (e: any) {
-    if (e?.code === 'ENOENT') return null;
+    if (e?.code === 'ENOENT') return null;          // no active-recording lock — nothing to resume
     throw e;
   }
-  const sidecars = new Set(entries.filter(n => n.endsWith('.meta.json')).map(n => n.replace(/\.meta\.json$/, '.jsonl')));
-  const orphanNames = entries.filter(n => n.endsWith('.jsonl') && !sidecars.has(n));
-  if (orphanNames.length === 0) return null;
-  if (orphanNames.length > 1) {
-    logError(`[REC] resume aborted: ${orphanNames.length} orphan recordings found (${orphanNames.join(', ')}). Resolve manually before next start.`);
+  const targetName = lockBody.trim();
+  // Defensive: lock contents should be a bare basename of a .jsonl. Reject anything else.
+  if (!targetName || targetName.includes('/') || !targetName.endsWith('.jsonl')) {
+    logError(`[REC] active-recording lock is malformed (${JSON.stringify(targetName)}) — clearing.`);
+    await fs.promises.rm(lockPath, { force: true });
     return null;
   }
 
-  const filePath = path.join(recordingsDir, orphanNames[0]);
-  const stat = await fs.promises.stat(filePath);
-  if (stat.size === 0) return null;
+  const filePath = path.join(recordingsDir, targetName);
+  const sidecarPath = filePath.replace(/\.jsonl$/, '.meta.json');
+
+  // Sidecar present means the prior run actually stopped cleanly and just failed to
+  // remove the lock — no resume needed; clear the lock and move on.
+  try {
+    await fs.promises.access(sidecarPath);
+    logLifecycle(`[REC] active-recording lock found but sidecar exists for ${targetName} — clearing lock, no resume needed.`);
+    await fs.promises.rm(lockPath, { force: true });
+    return null;
+  } catch { /* sidecar missing — good, this is the resume path */ }
+
+  let stat;
+  try {
+    stat = await fs.promises.stat(filePath);
+  } catch (e: any) {
+    if (e?.code === 'ENOENT') {
+      logError(`[REC] active-recording lock points at missing file ${targetName} — clearing lock.`);
+      await fs.promises.rm(lockPath, { force: true });
+      return null;
+    }
+    throw e;
+  }
+  if (stat.size === 0) {
+    logError(`[REC] active-recording lock points at empty file ${targetName} — clearing lock.`);
+    await fs.promises.rm(lockPath, { force: true });
+    return null;
+  }
   if (Date.now() - stat.mtimeMs > ORPHAN_MAX_AGE_MS) {
-    logLifecycle(`[REC] orphan ${orphanNames[0]} is older than 24h — skipping resume.`);
+    logLifecycle(`[REC] orphan ${targetName} is older than 24h — clearing lock, no resume.`);
+    await fs.promises.rm(lockPath, { force: true });
     return null;
   }
 
@@ -144,7 +177,8 @@ async function findOrphan(recordingsDir: string): Promise<OrphanScan | null> {
     }
   }
   if (!startedAt) {
-    logError(`[REC] orphan ${orphanNames[0]} has no header — skipping.`);
+    logError(`[REC] orphan ${targetName} has no header — clearing lock, no resume.`);
+    await fs.promises.rm(lockPath, { force: true });
     return null;
   }
   return { filePath, startedAt, lastEventT, lastEventWallMs: startedAt + lastEventT, lastEmitted, eventCount };
@@ -232,6 +266,8 @@ export class Recorder {
     if (!this.pendingResume) return;
     logLifecycle(`[REC] pending resume aborted: ${path.basename(this.pendingResume.filePath)}`);
     this.pendingResume = null;
+    // Discard the lock too — otherwise the same orphan would reappear on every restart.
+    void this.clearLock();
   }
 
   /**
@@ -312,6 +348,10 @@ export class Recorder {
       stream.once('open', () => resolve());
       stream.once('error', reject);
     });
+
+    // Lock file: marks this recording as the one to resume if the process dies before
+    // stop() runs. Cleared in stop(); presence at next-boot is what gates resume.
+    await this.writeLock(fileName);
 
     this.active = true;
     this.startedAt = startedAt;
@@ -420,11 +460,34 @@ export class Recorder {
     }
 
     logLifecycle(`[REC] stopped ${meta.file} dur=${(meta.durationMs / 1000).toFixed(1)}s events=${eventCount}`);
+    // Clear the lock AFTER the sidecar exists, so a crash between the two doesn't leave
+    // a sidecar-less .jsonl looking like an orphan. (The opposite ordering would still
+    // self-heal next boot — findOrphan() rejects locks pointing at files with sidecars
+    // — but doing it in this order keeps the on-disk state consistent at all times.)
+    await this.clearLock();
     return { ok: true, file: meta.file, durationMs: meta.durationMs, eventCount };
   }
 
   private tNow(): number {
     return this.startedAt ? Date.now() - this.startedAt : 0;
+  }
+
+  private async writeLock(jsonlBasename: string): Promise<void> {
+    const lockPath = path.join(this.opts.recordingsDir, ACTIVE_LOCK_FILENAME);
+    try {
+      await fs.promises.writeFile(lockPath, jsonlBasename + '\n');
+    } catch (e) {
+      logError('[REC] failed to write active-recording lock:', e);
+    }
+  }
+
+  private async clearLock(): Promise<void> {
+    const lockPath = path.join(this.opts.recordingsDir, ACTIVE_LOCK_FILENAME);
+    try {
+      await fs.promises.rm(lockPath, { force: true });
+    } catch (e) {
+      logError('[REC] failed to clear active-recording lock:', e);
+    }
   }
 
   private write(ev: Event) {
