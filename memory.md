@@ -7,6 +7,20 @@ decision/bug-confirmation/direction change (per CLAUDE.md).
 
 ## Architectural decisions
 
+### 2026-06-19 — Lite mode (backup-instance entry path)
+
+**What:** A separate entry path in [backend/src/index.ts](backend/src/index.ts) — `runLiteMode()` — selected when `config.lite_mode === true` or `LITE_MODE=1`. Builds only the StageLinq bridge, sACN receiver, playlist offset map, and Art-Net worker. **Does not** start Express, WebSocket, waveform service, OSC sender, recorder, or replay engine.
+
+**Why:** to run a backup LTC feed alongside the primary on the same LAN. The protocol-level conflict that config alone cannot fix is StageLinq **file transfers** — both backends pulling waveforms/artwork from the same Denon races on the device's transfer session. Lite mode disables `enableFileTranfer` in [backend/src/stagelinqBridge.ts](backend/src/stagelinqBridge.ts) (gated by a new `liteMode` field on `BridgeOptions`) so only the primary owns those pulls; pub/sub events (`beatMessage`, `nowPlaying`, `stateChanged`) are multi-subscriber-safe. The lite instance also announces as `ActingAsDevice.Resolume` instead of the default `NowPlaying` — distinct token, distinct source string — so the device sees them as separate clients. Confirmed against the upstream library source (extracted from `StageLinq-main.zip`): `StageLinq.options.actingAs` is per-instance settable and `ActingAsDevice` is exported from `@gree44/stagelinq`.
+
+**No shared state:** the operator manually keeps `playlists`, `current_playlist`, and `control_input` in sync between the two `config.json` files. Lite mode supports Ctrl+R reload on its TTY (no HTTP route, since there's no HTTP server). This was an explicit choice over an automatic follower-WS design — the lite instance is a backup, not a downstream consumer; it has to keep working when the primary dies.
+
+**Output collision is still a config problem, not solved by lite mode:** Art-Net `target_ip` must be `127.0.0.1` (or another distinct unicast target) in the lite config — the recommended deployment is a local LTC converter on the same host. Two `255.255.255.255` Art-Net senders on the same LAN would still flap a shared lighting console. OSC is simply off in lite mode (no `OscBpmSender` constructed). sACN receivers don't conflict (multicast, multiple subscribers fine), but if both receive the same selector universe, both compute the same `selectedDeck` — that's the intended mirroring; if the operator wants independent selection they diverge `control_input.universe` or `address` manually.
+
+**Default-off:** `lite_mode` is read with `=== true`; missing key → false. Env override `LITE_MODE=1` for parity with the rest of the config layering.
+
+---
+
 ### 2026-06-19 — Art-Net pump-in-worker (TC immune to main-thread stalls)
 
 **What:** The Art-Net worker now owns the **entire timecode pipeline**, not just the UDP send. It holds the 30 Hz tick timer, the deck-state cache for all 4 decks, the `selectedDeck` pointer, the per-track offset map, and the freewheel-stale derivation. The main thread no longer runs a polling pump — it just **pushes state changes** to the worker as they happen.

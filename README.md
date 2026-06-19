@@ -156,17 +156,43 @@ Inside the session:
 npm run fresh   # npm install + full rebuild + show
 ```
 
+## Lite mode (backup instance)
+
+For a redundant LTC feed on the same LAN, a second instance can run in **lite mode** — same StageLinq subscription, same sACN deck-select, same Art-Net timecode generation, but everything else stripped out:
+
+- **No HTTP server, no WebSocket, no UI.**
+- **No StageLinq file transfers** — no waveform extraction, no artwork. The primary keeps owning these; running both would race on the device's transfer session.
+- **No OSC, no record/replay, no `/sacn-sim`.**
+- Announces itself as **Resolume** (distinct token from the default `NowPlaying`), so the player sees the two instances as separate clients.
+
+Enable with `LITE_MODE=1` or `"lite_mode": true` in `config.json`. Absent flag → false.
+
+The operator is responsible for keeping the lite instance's `config.json` in sync with the primary — at minimum `playlists`, `current_playlist`, and `control_input`. Hot-reload via **Ctrl+R** still works on the lite instance's TTY (no HTTP reload route, since there's no HTTP server).
+
+Recommended `config.json` for the lite instance, alongside a local LTC converter:
+
+```json
+{
+  "lite_mode": true,
+  "timecode": { "target_ip": "127.0.0.1", "target_port": 6454, "fps": 25 },
+  "control_input": { "mode": "sacn", "universe": 20, "address": 1 },
+  "current_playlist": 0,
+  "playlists": [ /* same as primary */ ]
+}
+```
+
+The two backends are then independent: the primary owns waveform/artwork pulls, OSC, and the operator UI; the lite backup keeps generating Art-Net timecode for a local converter even if the primary box dies. They share only StageLinq announce traffic (which is multi-subscriber-safe) and the sACN deck-select multicast (both compute the same selection).
+
 ## Configuration
 
 Settings can be provided as **environment variables** or in an optional **`config.json`** file at the repo root (or in `backend/`). Environment variables take precedence.
 
-Hot-reload: press **Ctrl+R** in the terminal running the backend to reload `config.json` without restarting. For headless / PM2 deployments where there is no TTY, the same reload is exposed in the UI as **Settings → Controls → Reload config from disk** (arm-gated) and over HTTP as `POST /api/config/reload`.
-
-### General
+Hot-reload: press **Ctrl+R** in the terminal running the backend to reload `config.json` without restarting. For headless / PM2 deployments where there is no TTY, the same reload is exposed in the UI as **Settings → Controls → Reload config from disk** (arm-gated) and over HTTP as `POST /api/config/reload`.### General
 
 | Variable | Default | Description |
 |---|---|---|
 | `PORT` | `8090` | HTTP and WebSocket port |
+| `LITE_MODE` | `false` | Run as a backup instance — no UI/WS, no OSC, no waveform/artwork (no StageLinq file transfers), no record/replay. Only does StageLinq subscription + sACN deck-select + Art-Net timecode out. Announces itself as Resolume so it does not collide with a primary instance on the same LAN. See [Lite mode](#lite-mode-backup-instance). |
 
 ### Art-Net timecode
 
@@ -212,6 +238,7 @@ All settings can also be placed in `config.json` at the repo root (or in `backen
 ```json
 {
   "current_playlist": 0,
+  "lite_mode": false,
   "timecode": {
     "fps": 30,
     "target_ips": ["192.168.1.100", "192.168.1.101"],

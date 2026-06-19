@@ -149,6 +149,7 @@ interface ConfigTrack {
 }
 
 interface RootConfig {
+  lite_mode?: boolean;
   current_playlist?: number;
   timecode?: {
     fps?: number;
@@ -426,10 +427,226 @@ function resolveTargetIps(
   return [fallback];
 }
 
+/**
+ * Lite-mode entry: a backup instance that runs alongside the primary.
+ *
+ * Keeps: StageLinq bridge (announce as Resolume, no file transfers), sACN deck
+ * selector, playlist offset map, Art-Net timecode out, freewheel, Ctrl+R reload.
+ *
+ * Skips: HTTP server, WebSocket, frontend, waveform/artwork extraction, OSC,
+ * recorder, replay, user/global settings stores. The operator is responsible
+ * for keeping `config.json` in sync with the primary.
+ */
+async function runLiteMode(initialConfig: RootConfig | null, initialConfigPath: string | null) {
+  let config = initialConfig;
+  let configPath = initialConfigPath;
+
+  // Art-Net settings (env vars override). Lite mode is intended for 127.0.0.1
+  // → local LTC converter, but we don't enforce that — operator owns the config.
+  const artnetEnabled = (process.env.ARTNET_ENABLED ?? 'true').toLowerCase() !== 'false';
+  const artnetTargetIps = resolveTargetIps(
+    process.env.ARTNET_TARGET_IP,
+    config?.timecode?.target_ips,
+    config?.timecode?.target_ip,
+    '127.0.0.1',
+  );
+  const artnetPort = Number(process.env.ARTNET_PORT ?? config?.timecode?.target_port ?? 6454);
+  const artnetDeck = (Number(process.env.ARTNET_DECK ?? 1) as 1 | 2 | 3 | 4);
+  const artnetFps = Number(process.env.ARTNET_FPS ?? config?.timecode?.fps ?? 30);
+  const artnetSendHz = Number(process.env.ARTNET_SEND_HZ ?? artnetFps);
+  const artnetFpsType = 0x03;
+  const artnetLatencyCompMs = Number(process.env.ARTNET_LATENCY_COMP_MS ?? 80);
+  const artnetStreamId = Number(process.env.ARTNET_STREAM_ID ?? config?.timecode?.stream_id ?? 0x00);
+
+  const controlMode = String(process.env.CONTROL_INPUT_MODE ?? config?.control_input?.mode ?? 'sacn').toLowerCase();
+  const sacnUniverse = Number(process.env.SACN_UNIVERSE ?? config?.control_input?.universe ?? 20);
+  const controlAddress = Number(process.env.SACN_ADDRESS ?? config?.control_input?.address ?? 1);
+  const controlChannelIndex = Math.max(0, controlAddress - 1);
+
+  let trackOffsets = buildTrackOffsetMap(config);
+  const initialFw = readFreewheelFromConfig(config);
+
+  // Hot reload via Ctrl+R (TTY only). Reapplies offsets + freewheel; offsets
+  // and current_playlist must be hand-edited to match the primary.
+  const reloadConfig = async () => {
+    try {
+      const next = await loadRootConfig();
+      config = next.config;
+      configPath = next.sourcePath;
+      if (config?.logging) applyLoggingConfig(config.logging);
+      if (config?.display) applyDisplayConfig(config.display);
+      trackOffsets = buildTrackOffsetMap(config);
+      artnet.setTrackOffsets(buildTrackOffsetObject(trackOffsets));
+      const fw = readFreewheelFromConfig(config);
+      artnet.setFreewheel(fw.enable_freewheeling, fw.max_duration_sec);
+      logLifecycle(`${GRN}[CONFIG] (lite) Reloaded. Offset entries: ${trackOffsets.size}${RST}`);
+    } catch (e: any) {
+      logError('[CONFIG] (lite) Reload failed:', e?.message || e);
+    }
+  };
+
+  if (process.stdin.isTTY) {
+    readline.emitKeypressEvents(process.stdin);
+    process.stdin.setRawMode(true);
+    process.stdin.resume();
+    process.stdin.on('keypress', (_str, key) => {
+      if (key?.ctrl && key?.name === 'r') {
+        logLifecycle(`${YEL}[CONFIG] (lite) Ctrl+R detected. Reloading config...${RST}`);
+        void reloadConfig();
+      }
+      if (key?.ctrl && key?.name === 'c') process.emit('SIGINT');
+    });
+    const restoreTty = () => {
+      try { if (process.stdin.isTTY) process.stdin.setRawMode(false); } catch {}
+    };
+    process.once('exit', restoreTty);
+    process.once('SIGINT', restoreTty);
+    process.once('SIGTERM', restoreTty);
+  }
+
+  let reconnecting = false;
+  let bridge!: StageLinqBridge;
+
+  const connectWithRetry = async () => {
+    while (true) {
+      try {
+        logLifecycle('StageLinq (lite): joining network, waiting for devices...');
+        await bridge.connect();
+        logLifecycle(`${GRN}StageLinq (lite): listening for devices.${RST}`);
+        return;
+      } catch (e: any) {
+        logError('StageLinq (lite) connect failed:', e?.message || e);
+        await new Promise((r) => setTimeout(r, RECONNECT_DELAY_MS));
+      }
+    }
+  };
+
+  bridge = new StageLinqBridge({
+    liteMode: true,
+    downloadDbSources: false,
+    onDeviceIp: (ip) => logLifecycle(`[StageLinq] (lite) Device IP detected: ${ip}`),
+    onCommunicationLost: async () => {
+      if (reconnecting) return;
+      reconnecting = true;
+      artnet.setReconnecting(true);
+      logLifecycle(`${RED}[StageLinq] (lite) Communication lost — reconnecting...${RST}`);
+      try { await bridge.disconnect(); } catch {}
+      await connectWithRetry();
+      reconnecting = false;
+      artnet.setReconnecting(false);
+    },
+    // No onTrackChanged: lite mode does no waveform/artwork extraction.
+  });
+
+  const artnet = new ArtNetTimecodeBroadcaster({
+    enabled: artnetEnabled,
+    targetIps: artnetTargetIps,
+    port: artnetPort,
+    fps: artnetFps,
+    sendHz: artnetSendHz,
+    fpsType: artnetFpsType,
+    streamId: artnetStreamId,
+    deck: artnetDeck,
+    latencyCompMs: artnetLatencyCompMs,
+    enableFreewheeling: initialFw.enable_freewheeling,
+    freewheelMaxDurationSec: initialFw.max_duration_sec,
+    freewheelStaleThresholdMs: FREEWHEEL_STALE_THRESHOLD_MS,
+  });
+
+  let selectedDeck: DeckNumber | null = null;
+  const setSelectedDeck = (nextDeck: DeckNumber | null, reason: string) => {
+    if (nextDeck === selectedDeck) return;
+    selectedDeck = nextDeck;
+    artnet.setSelectedDeck(selectedDeck);
+    logLifecycle(`[DECK SELECT] (lite) ${selectedDeck ? `Deck ${selectedDeck}` : 'No deck selected'} (${reason})`);
+  };
+
+  // sACN receiver — same selector logic as the primary path. No sACN sender,
+  // no /sacn-sim UI; lite is receive-only on the control side.
+  if (controlMode === 'sacn') {
+    try {
+      const require = createRequire(import.meta.url);
+      const sacn: any = require('sacn');
+      const Receiver = sacn?.Receiver ?? sacn?.default?.Receiver;
+      if (Receiver) {
+        const sACN = new Receiver({ universes: [sacnUniverse] });
+        sACN.on('packet', (packet: any) => {
+          const payload = coerceDmxPayload(packet);
+          const dmxValue = Number(payload[controlAddress] ?? payload[controlChannelIndex]);
+          if (Number.isFinite(dmxValue)) {
+            const absoluteDmxValue = toAbsoluteDmxValue(dmxValue);
+            const nextDeck = mapDmxToDeck(absoluteDmxValue);
+            setSelectedDeck(nextDeck, `sACN U${sacnUniverse} CH${controlAddress}=${dmxValue} (abs ${absoluteDmxValue})`);
+          }
+        });
+        sACN.on('PacketCorruption', (err: any) => logError('[sACN] PacketCorruption:', err?.message || err));
+        sACN.on('PacketOutOfOrder', (err: any) => logError('[sACN] PacketOutOfOrder:', err?.message || err));
+        sACN.on('error', (err: any) => logError('[sACN] Receiver error:', err?.message || err));
+        const closeAndExit = () => {
+          try { sACN.close(); } catch {}
+          process.exit(0);
+        };
+        process.once('SIGINT', closeAndExit);
+        process.once('SIGTERM', closeAndExit);
+        logLifecycle(`[sACN] (lite) Listening Universe ${sacnUniverse}, Address ${controlAddress} (select)`);
+      } else {
+        logError('[sACN] Receiver export not found. Deck select via sACN is disabled.');
+      }
+    } catch (e: any) {
+      logError('[sACN] (lite) Failed to initialize receiver:', e?.message || e);
+    }
+  } else {
+    setSelectedDeck(artnetDeck, `mode=${controlMode}`);
+    logLifecycle(`[CONTROL] (lite) mode=${controlMode} not implemented, using fixed deck ${selectedDeck}.`);
+  }
+
+  // Initial connect (retries indefinitely).
+  void connectWithRetry();
+
+  await artnet.start();
+  artnet.setTrackOffsets(buildTrackOffsetObject(trackOffsets));
+  artnet.setSelectedDeck(selectedDeck);
+
+  bridge.subscribeDeckState((deck, state) => {
+    artnet.pushDeckState(deck, state);
+  });
+
+  // Seed the worker's deck cache so the first tick has presence.
+  {
+    const seed = bridge.getDecks();
+    for (const d of [1, 2, 3, 4] as DeckNumber[]) {
+      artnet.pushDeckState(d, seed[d]);
+    }
+  }
+
+  logLifecycle(
+    `${GRN}[LITE MODE] running — ArtNet ${artnetTargetIps.join(',')}:${artnetPort} ${artnetFps}fps, ` +
+    `sACN U${sacnUniverse} CH${controlAddress}, freewheel=${initialFw.enable_freewheeling} ` +
+    `max=${initialFw.max_duration_sec}s, offsets=${trackOffsets.size}.${RST}`,
+  );
+}
+
 async function main() {
   let { config, sourcePath: configPath } = await loadRootConfig();
   if (config?.logging) applyLoggingConfig(config.logging);
   if (config?.display) applyDisplayConfig(config.display);
+
+  // Lite mode: backup instance that runs alongside a primary on the same LAN.
+  // Only does what's needed to push Art-Net timecode locally — no waveform/artwork
+  // (no file transfers, so the primary owns those exclusively), no OSC, no
+  // recording/replay, no UI/WS. Operator owns config sync between instances.
+  // Off by default (absent flag → false).
+  const liteMode =
+    process.env.LITE_MODE === '1' ||
+    String(process.env.LITE_MODE ?? '').toLowerCase() === 'true' ||
+    config?.lite_mode === true;
+  if (liteMode) {
+    logLifecycle(`${YEL}[LITE MODE] enabled — no UI/WS, no OSC, no waveform, no recordings, StageLinq announce=Resolume.${RST}`);
+  }
+
+  if (liteMode) {
+    return runLiteMode(config, configPath);
+  }
 
   await initWaveformCache(process.cwd());
 

@@ -68,6 +68,10 @@ export interface BridgeOptions {
   onDeviceIp?: (ip: string) => void;
   onCommunicationLost?: () => void;
   onTrackChanged?: (deck: DeckNumber, fileName: string, rawNetworkPath: string) => void;
+  // Lite mode: announce as a distinct StageLinq client (Resolume token) and
+  // disable file transfers. Used by a backup instance running alongside the
+  // primary so the two don't fight over file-transfer sessions on the player.
+  liteMode?: boolean;
 }
 
 // Listener invoked synchronously from inside touch() on every state mutation. Listeners
@@ -415,10 +419,16 @@ export class StageLinqBridge {
 
   private wire() {
     // Set options (including logger) before the static instance is created via devices access.
+    // In lite mode, announce as Resolume (distinct token from the default NowPlaying client)
+    // and disable file transfers — the primary instance keeps owning waveform/artwork pulls.
+    const ActingAsDevice: any = (pkg as any).ActingAsDevice;
     StageLinq.options = {
       maxRetries: 999,
       downloadDbSources: false,
-      enableFileTranfer: true,
+      enableFileTranfer: this.opts.liteMode ? false : true,
+      ...(this.opts.liteMode && ActingAsDevice?.Resolume
+        ? { actingAs: ActingAsDevice.Resolume }
+        : {}),
       logger: {
         trace: () => {},
         debug: () => {},
