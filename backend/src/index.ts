@@ -12,10 +12,17 @@ import { StageLinqBridge } from './stagelinqBridge.js';
 import type { DeckNumber, SnapshotPayload, StageLinqStatus, TrackNote, WaveformStatusPayload, WsPayload } from './types.js';
 import { ArtNetTimecodeBroadcaster } from './artnetTimecode.js';
 import { OscBpmSender } from './oscBpm.js';
-import { RECONNECT_DELAY_MS, WS_FPS, WAVEFORM_PEAKS_PER_SEC, DISCONNECT_DETECT_TIMEOUT_S, FREEWHEEL_STALE_THRESHOLD_MS, MAIN_EVENT_LOOP_LAG_WARN_MS, WS_BROADCAST_WARN_MS, MIN_TRIGGER_B_ELAPSED_SEC } from './constants.js';
+import { RECONNECT_DELAY_MS, WS_FPS, DISCONNECT_DETECT_TIMEOUT_S, FREEWHEEL_STALE_THRESHOLD_MS, MAIN_EVENT_LOOP_LAG_WARN_MS, WS_BROADCAST_WARN_MS, MIN_TRIGGER_B_ELAPSED_SEC } from './constants.js';
 import { States, StageLinqValue } from "@gree44/stagelinq";
 import { logError, logLifecycle, logWaveform, logUiOut, applyLoggingConfig, applyDisplayConfig, DISPLAY_ENABLED, logDashboard, deckColor, getStatusSlot, DIM, R, GRN, YEL, RED, RST, subscribeTerminalLines, getTerminalRing } from './logging.js';
-import { generateWaveformPeaks, peaksCache, artworkCache, initWaveformCache } from './waveformService.js';
+import {
+  initWaveformCache,
+  requestExtraction,
+  shutdownWaveformWorker,
+  peaksFrameCache,
+  artworkFrameCache,
+  artworkCache,
+} from './waveformService.js';
 import { UserSettingsStore, FIXED_USERS, resolveUsersFilePath } from './userSettings.js';
 import { GlobalSettingsStore, readFreewheelFromConfig, FREEWHEEL_MIN_DURATION_SEC, FREEWHEEL_MAX_DURATION_SEC } from './globalSettings.js';
 import { Recorder, listRecordings } from './recorder.js';
@@ -980,23 +987,29 @@ async function main() {
     }
   }
 
+  // Fan out a pre-serialized WS frame string. The waveform worker builds these
+  // (peaks → JSON, artwork → base64+JSON) so the broadcast paths do zero CPU
+  // work — keeps the Art-Net poll pump on schedule across track changes.
+  function broadcastFrame(raw: string) {
+    for (const ws of clients) {
+      if (ws.readyState === ws.OPEN) {
+        try { ws.send(raw); } catch {}
+      }
+    }
+  }
+
   function broadcastWaveformStatus(deck: DeckNumber, stage: WaveformStatusPayload['stage'], progress: number, fileName: string) {
     broadcastMsg({ type: 'waveform_status', deck, stage, progress, fileName });
   }
 
-  function broadcastWaveformData(deck: DeckNumber, fileName: string, peaks: number[]) {
-    broadcastMsg({ type: 'waveform_data', deck, fileName, peaks, peaksPerSec: WAVEFORM_PEAKS_PER_SEC });
+  function broadcastWaveformFrame(fileName: string) {
+    const raw = peaksFrameCache.get(fileName);
+    if (raw) broadcastFrame(raw);
   }
 
-  function broadcastArtwork(fileName: string) {
-    const entry = artworkCache.get(fileName);
-    if (entry === undefined) return;
-    broadcastMsg({
-      type: 'artwork_data',
-      fileName,
-      data: entry ? entry.data.toString('base64') : null,
-      mime: entry ? entry.mime : null,
-    });
+  function broadcastArtworkFrame(fileName: string) {
+    const raw = artworkFrameCache.get(fileName);
+    if (raw) broadcastFrame(raw);
   }
 
   const connectWithRetry = async () => {
@@ -1038,75 +1051,70 @@ async function main() {
       }
       logLifecycle(`[WAVEFORM] onTrackChanged deck=${deck} file="${fileName}" inPlaylist=${activePlaylistFiles.has(fileName)}`);
       if (!waveformAllTracks && !activePlaylistFiles.has(fileName)) return;
-      if (peaksCache.has(fileName)) {
-        // Defer the broadcast off the current microtask tail so the Art-Net poll pump and
-        // WS snapshot loop can fire in between.
-        setImmediate(() => broadcastWaveformData(deck, fileName, peaksCache.get(fileName)!));
-        if (artworkCache.has(fileName)) {
-          setImmediate(() => broadcastArtwork(fileName));
-          logLifecycle(`[WAVEFORM] track-change deck=${deck} cache-hit (peaks+artwork) total=${Date.now() - t0}ms`);
-          return;
-        }
-        // Peaks are cached but artwork was never persisted — re-download to extract artwork only.
-        const taskId = ++waveformTaskIds[deck];
-        (async () => {
-          try {
-            const tDl = Date.now();
-            const audioBytes = await bridge.downloadFile(rawNetworkPath, () => {});
-            const tFf = Date.now();
-            if (waveformTaskIds[deck] !== taskId) return;
-            await generateWaveformPeaks(audioBytes, fileName, bridge.getDeck(deck).totalSec, () => {}, () => {});
-            const tDone = Date.now();
-            if (waveformTaskIds[deck] !== taskId) return;
-            setImmediate(() => broadcastArtwork(fileName));
-            logLifecycle(`[WAVEFORM] track-change deck=${deck} artwork-only download=${tFf - tDl}ms ffmpeg=${tDone - tFf}ms total=${tDone - t0}ms`);
-          } catch {}
-        })();
+
+      const havePeaksFrame = peaksFrameCache.has(fileName);
+      const haveArtworkFrame = artworkFrameCache.has(fileName);
+
+      if (havePeaksFrame && haveArtworkFrame) {
+        // Pure cache hit — frames are pre-serialized in the worker, broadcast is
+        // just a string lookup + ws.send fanout. Defer past the current microtask
+        // so the Art-Net poll pump can fire in between.
+        setImmediate(() => broadcastWaveformFrame(fileName));
+        setImmediate(() => broadcastArtworkFrame(fileName));
+        logLifecycle(`[WAVEFORM] track-change deck=${deck} cache-hit (peaks+artwork) total=${Date.now() - t0}ms`);
         return;
       }
 
+      // Cache miss for at least one of the two. Download once and ask the
+      // worker to extract whatever's missing — the audio bytes are transferred
+      // (zero-copy) into the worker; main thread does no ffmpeg / JSON work.
       const taskId = ++waveformTaskIds[deck];
-      logWaveform(`[WAVEFORM] Deck ${deck}: queuing "${fileName}"`);
+      logWaveform(`[WAVEFORM] Deck ${deck}: queuing "${fileName}" peaksOnly=${havePeaksFrame ? false : true} (artworkOnly=${havePeaksFrame})`);
 
       (async () => {
         try {
-          broadcastWaveformStatus(deck, 'downloading', 0, fileName);
+          if (!havePeaksFrame) broadcastWaveformStatus(deck, 'downloading', 0, fileName);
           const tDlStart = Date.now();
           const audioBytes = await bridge.downloadFile(rawNetworkPath, (pct) => {
             if (waveformTaskIds[deck] !== taskId) return;
-            broadcastWaveformStatus(deck, 'downloading', pct, fileName);
+            if (!havePeaksFrame) broadcastWaveformStatus(deck, 'downloading', pct, fileName);
           });
           const tDlDone = Date.now();
 
-          if (waveformTaskIds[deck] !== taskId) return;
-          broadcastWaveformStatus(deck, 'generating', 0, fileName);
+          if (waveformTaskIds[deck] !== taskId) {
+            // Stale — but the worker will still finish and populate the cache for
+            // a future load of the same file. Nothing to clean up here.
+            return;
+          }
+          if (!havePeaksFrame) broadcastWaveformStatus(deck, 'generating', 0, fileName);
 
-          const peaks = await generateWaveformPeaks(
-            audioBytes,
+          await requestExtraction(
             fileName,
             bridge.getDeck(deck).totalSec,
-            () => {},
-            (pct) => {
+            audioBytes,
+            havePeaksFrame, // artworkOnly
+            (stage, progress) => {
               if (waveformTaskIds[deck] !== taskId) return;
-              broadcastWaveformStatus(deck, 'generating', pct, fileName);
+              if (stage === 'generating' && !havePeaksFrame) {
+                broadcastWaveformStatus(deck, 'generating', progress, fileName);
+              }
             },
           );
           const tFfDone = Date.now();
 
           if (waveformTaskIds[deck] !== taskId) return;
-          logWaveform(`[WAVEFORM] Deck ${deck}: ready, ${peaks.length} peaks`);
-          // Defer the heavy JSON serialization (peaks array) and base64 (artwork) past the
-          // current microtask, so the WS broadcast tick has a chance to fire first.
-          setImmediate(() => broadcastWaveformData(deck, fileName, peaks));
-          setImmediate(() => broadcastArtwork(fileName));
+          // setImmediate keeps consistency with the cache-hit path — broadcast lands
+          // in the next I/O phase, not this microtask tail.
+          if (!havePeaksFrame) setImmediate(() => broadcastWaveformFrame(fileName));
+          setImmediate(() => broadcastArtworkFrame(fileName));
           logLifecycle(
             `[WAVEFORM] track-change deck=${deck} download=${tDlDone - tDlStart}ms ` +
-            `ffmpeg=${tFfDone - tDlDone}ms total=${tFfDone - t0}ms`
+            `extract=${tFfDone - tDlDone}ms total=${tFfDone - t0}ms`
           );
         } catch (e: any) {
           if (waveformTaskIds[deck] !== taskId) return;
           logError(`[WAVEFORM] Deck ${deck} failed:`, e?.message || e);
-          broadcastWaveformStatus(deck, 'error', 0, fileName);
+          if (!havePeaksFrame) broadcastWaveformStatus(deck, 'error', 0, fileName);
         }
       })();
     },
@@ -1224,12 +1232,16 @@ async function main() {
           oscBpm?.stop();
           try { sACN.close(); } catch {}
           try { sacnSender?.close(); } catch {}
+          // Fire-and-forget — worker_threads are killed with the parent anyway,
+          // but the explicit shutdown lets the worker flush its 50 ms drain.
+          void shutdownWaveformWorker();
           process.exit(0);
         });
         process.once('SIGTERM', () => {
           oscBpm?.stop();
           try { sACN.close(); } catch {}
           try { sacnSender?.close(); } catch {}
+          void shutdownWaveformWorker();
           process.exit(0);
         });
 
@@ -1340,25 +1352,22 @@ async function main() {
     const hello: WsPayload = { type: 'hello', ts: Date.now(), version: '0.1.0', fps: WS_FPS };
     try { ws.send(JSON.stringify(hello)); } catch {}
 
-    // Replay any cached waveforms and artwork for currently loaded decks
+    // Replay any cached waveforms and artwork for currently loaded decks. Both
+    // frames are pre-serialized in the worker, so this loop does no JSON or
+    // base64 work — pure string lookup + ws.send.
     const currentDecks = stateProvider.getDecks();
-    for (const [dStr, deckState] of Object.entries(currentDecks)) {
-      const deck = Number(dStr) as DeckNumber;
+    const sentFiles = new Set<string>();
+    for (const [, deckState] of Object.entries(currentDecks)) {
       const fn = deckState.fileName;
-      if (!fn) continue;
-      if (peaksCache.has(fn)) {
-        const msg: WsPayload = { type: 'waveform_data', deck, fileName: fn, peaks: peaksCache.get(fn)!, peaksPerSec: WAVEFORM_PEAKS_PER_SEC };
-        try { ws.send(JSON.stringify(msg)); } catch {}
+      if (!fn || sentFiles.has(fn)) continue;
+      sentFiles.add(fn);
+      const peaksFrame = peaksFrameCache.get(fn);
+      if (peaksFrame) {
+        try { ws.send(peaksFrame); } catch {}
       }
-      if (artworkCache.has(fn)) {
-        const entry = artworkCache.get(fn)!;
-        const msg: WsPayload = {
-          type: 'artwork_data',
-          fileName: fn,
-          data: entry ? entry.data.toString('base64') : null,
-          mime: entry ? entry.mime : null,
-        };
-        try { ws.send(JSON.stringify(msg)); } catch {}
+      const artworkFrame = artworkFrameCache.get(fn);
+      if (artworkFrame) {
+        try { ws.send(artworkFrame); } catch {}
       }
     }
 

@@ -376,11 +376,20 @@ export default function App() {
           };
         });
       } else if (msg.type === 'waveform_data') {
-        const { deck, peaks, peaksPerSec, fileName } = msg;
-        setWaveforms((prev) => ({
-          ...prev,
-          [deck]: { peaks, peaksPerSec, stage: 'ready', progress: 100, fileName },
-        }));
+        const { peaks, peaksPerSec, fileName } = msg;
+        // Apply to every deck currently holding this file. Same track on two
+        // decks renders correctly without the backend having to fan out.
+        setWaveforms((prev) => {
+          let changed = false;
+          const next = { ...prev };
+          for (const d of DECK_NUMBERS) {
+            if (latestDecksRef.current[d].fileName === fileName) {
+              next[d] = { peaks, peaksPerSec, stage: 'ready', progress: 100, fileName };
+              changed = true;
+            }
+          }
+          return changed ? next : prev;
+        });
       } else if (msg.type === 'artwork_data') {
         const { fileName, data, mime } = msg;
         if (!data || !mime) return;

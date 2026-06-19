@@ -112,7 +112,9 @@ export interface ArtworkDataPayload {
 
 export interface WaveformDataPayload {
   type: 'waveform_data';
-  deck: DeckNumber;
+  // Keyed by fileName — clients fan it out to whichever deck(s) currently hold
+  // this file. Lets the worker pre-build one frame per file in cache instead of
+  // restamping it per deck on every broadcast.
   fileName: string;
   peaks: number[];
   peaksPerSec: number;

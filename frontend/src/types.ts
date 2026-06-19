@@ -100,7 +100,7 @@ export interface ArtworkDataPayload {
 
 export interface WaveformDataPayload {
   type: 'waveform_data';
-  deck: DeckNumber;
+  // Keyed by fileName — apply to whichever deck(s) currently hold this file.
   fileName: string;
   peaks: number[];
   peaksPerSec: number;

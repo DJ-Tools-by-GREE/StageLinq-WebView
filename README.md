@@ -288,6 +288,8 @@ Waveforms and artwork are extracted automatically when a track loads and cached 
 }
 ```
 
+**Runs in a dedicated worker thread.** ffmpeg, peak compute, JSON serialization of the peaks array, base64 encoding of the artwork, and disk-cache I/O all run off the main thread (in [backend/src/waveformWorker.ts](backend/src/waveformWorker.ts)). The main thread only forwards the StageLinq-downloaded audio bytes into the worker (zero-copy `ArrayBuffer` transfer) and fans out the pre-built WS frame strings on the way back. This keeps the Art-Net deck-state polling pump at full 30 Hz cadence across track changes — the lighting console no longer sees TC jumps when a new track is loaded on any deck.
+
 ## API endpoints
 
 | Method | Path | Description |
@@ -333,7 +335,9 @@ StageLinq-WebView/
 │   ├── recorder.ts         # Record-mode JSONL writer (Record & Replay)
 │   ├── replay.ts           # Replay engine (Record & Replay)
 │   ├── stateProvider.ts    # Output-side shim: bridge state vs. replay state
-│   ├── waveformService.ts  # Waveform peak extraction and artwork cache
+│   ├── waveformService.ts  # Main-thread harness for the waveform worker (frame caches + IPC)
+│   ├── waveformWorker.ts   # Waveform worker (ffmpeg + computePeaks + JSON/base64 + disk cache)
+│   ├── waveformWorkerMessages.ts # typed message contract for the waveform worker
 │   ├── camelot.ts          # Key index → Camelot string
 │   ├── constants.ts        # Tunable timing and threshold constants
 │   ├── logging.ts          # Configurable debug logging
@@ -359,14 +363,17 @@ On connect the server sends a hello frame, then snapshot frames at 30 Hz. Additi
 // snapshot (30 Hz)
 { "type": "snapshot", "seq": 42, "ts": 1234567890, "selectedDeck": 1, "suggestedDeck": 2, "nextTrack": "song.mp3", "decks": { "1": DeckState, ... } }
 
-// waveform_status — progress during peak analysis
+// waveform_status — progress during peak analysis (per-deck, has `deck` field)
 { "type": "waveform_status", "deck": 1, "stage": "downloading|analyzing|done|error", "progress": 0.0, "fileName": "..." }
 
-// waveform_data — peak array when analysis is complete
-{ "type": "waveform_data", "deck": 1, "fileName": "...", "peaks": [...], "peaksPerSec": 10 }
+// waveform_data — peak array, keyed by fileName.
+// The frontend applies it to every deck currently holding that file (so the
+// same track on two decks renders correctly without duplicate broadcasts).
+// Pre-serialized in the waveform worker so the broadcast path does zero CPU work.
+{ "type": "waveform_data", "fileName": "...", "peaks": [...], "peaksPerSec": 200 }
 
-// artwork_data — album art (base64) or null if unavailable
-{ "type": "artwork_data", "deck": 1, "fileName": "...", "data": "<base64>" | null }
+// artwork_data — album art (base64) or null. Keyed by fileName, same fanout.
+{ "type": "artwork_data", "fileName": "...", "data": "<base64>" | null, "mime": "image/jpeg" | null }
 
 // terminal_lines — backend log lines for the in-app terminal panel.
 // Sent only to clients that opted in by sending {type:'terminal_subscribe', enabled:true}.

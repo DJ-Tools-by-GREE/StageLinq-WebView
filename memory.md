@@ -7,6 +7,33 @@ decision/bug-confirmation/direction change (per CLAUDE.md).
 
 ## Architectural decisions
 
+### 2026-06-19 — Waveform/artwork pipeline moved to a worker thread
+
+**What:** ffmpeg invocations (peaks + artwork extraction), `computePeaks` PCM scan, JSON serialization of the peaks array, base64 encoding of the artwork, and waveform/artwork disk-cache I/O **all run in a dedicated worker thread** ([backend/src/waveformWorker.ts](backend/src/waveformWorker.ts)). The main thread is reduced to: StageLinq audio download (must stay on main, FileTransfer service binding lives there) → zero-copy `postMessage` of the audio `ArrayBuffer` into the worker → fan-out of pre-built WS frame strings on the way back. Pattern mirrors [backend/src/artnetWorker.ts](backend/src/artnetWorker.ts).
+
+**Why:** during a track change, the main thread used to block 200 ms–1.3 s on ffmpeg + computePeaks + JSON.stringify(peaks) + base64(artwork) + disk writes. The 30 Hz Art-Net deck-state polling pump (see [backend/src/artnetTimecode.ts:121](backend/src/artnetTimecode.ts#L121)) lives on the main thread; missed pump ticks meant the Art-Net worker freewheeled, then snapped back to a stale-then-fresh source frame on resume — the **drift-snap** at [backend/src/artnetWorker.ts:262](backend/src/artnetWorker.ts#L262) (`drift > 0.15 fps` ≈ 5 ms @ 30 fps) caused visible TC jumps on the lighting console. Cached-track jitter was smaller because it skipped ffmpeg, but the 30–60 ms `JSON.stringify(peaks)` on every broadcast was still enough to drop a couple of pump ticks.
+
+**Cache shape change — pre-serialized WS frames:**
+- New: `peaksFrameCache: Map<string, string>` and `artworkFrameCache: Map<string, string>` hold the **complete `ws.send`-ready** JSON frame strings.
+- Retained: `artworkCache: Map<string, { data: Buffer; mime: string } | null>` for the HTTP `/api/artwork/:deck` route.
+- The old `peaksCache: Map<string, number[]>` is gone — broadcast paths look up the pre-built string and `ws.send` it. Zero CPU on the broadcast path, regardless of cache-hit or post-extraction.
+
+**Boot-time cache load** runs in the worker too. Worker scans `waveform-cache/` and `artwork-cache/`, builds the WS frame strings, and replies with a single `cacheLoaded` IPC message that transfers all artwork bytes back to the main thread (zero-copy). After boot the main thread does no waveform-related disk I/O at all.
+
+**WS wire shape change:** `WaveformDataPayload` no longer carries `deck` ([backend/src/types.ts](backend/src/types.ts), [frontend/src/types.ts](frontend/src/types.ts)). The frame is keyed only by `fileName`; the frontend ([frontend/src/App.tsx](frontend/src/App.tsx) `waveform_data` handler) fans the peaks out to every deck currently holding that file (via `latestDecksRef`). Side-benefit: the same track on two decks now renders correctly without the backend having to broadcast twice. `ArtworkDataPayload` already had no `deck` field, so it was already shape-correct.
+
+**IPC contract:** [backend/src/waveformWorkerMessages.ts](backend/src/waveformWorkerMessages.ts). Audio bytes ride into the worker as a transferred `ArrayBuffer`; artwork bytes ride out the same way. Worker dedups same-fileName concurrent requests via an internal `inFlight` map (same semantics as the previous in-process `inFlight` in waveformService.ts).
+
+**Per-deck cancellation:** `waveformTaskIds` in [backend/src/index.ts](backend/src/index.ts) still gates whether the *broadcast* fires when the worker's result arrives. The worker is not interrupted — its job is short and its result populates the cache regardless, which is strictly fine because the cache key is fileName.
+
+**Replay & playlist gates unchanged:** `replay.shouldSuppressWaveformExtraction(fileName)` and the `waveformAllTracks`/`activePlaylistFiles` gates in `onTrackChanged` still fire before any worker IPC.
+
+**Signal handling:** SIGINT/SIGTERM in [backend/src/index.ts](backend/src/index.ts) call `shutdownWaveformWorker()` (50 ms drain then exit) alongside the existing OSC/sACN cleanup.
+
+**Verification:** during track changes, `[main] event-loop lag` warnings should be rare/absent and `[ArtNet/wk] Late tick` / `hardStalls` should stay at 0 across both cached and uncached track loads. The lighting console should no longer flag TC jumps on track change.
+
+---
+
 ### 2026-06-19 — Freewheel threshold decoupled from disconnect threshold
 
 **What:** [backend/src/index.ts](backend/src/index.ts) now derives the `stale`
