@@ -1,0 +1,23 @@
+--- session start 2026-06-19T10:33:56.547Z ---
+[10:33:56.546] [WARN] [ArtNet/wk] tick stats: 58 ticks/2001ms avg=33.31ms (28.99fps) p50=33.0 p95=36.0 max=40.0 maxBehind=7.3ms hardStalls=0 target=33.33ms
+[10:34:56.723] [ERROR] [main] WS broadcast slow: 17ms (clients=1)
+[10:37:18.622] [WARN] [ArtNet/wk] tick stats: 59 ticks/2005ms avg=33.32ms (29.43fps) p50=33.0 p95=35.0 max=37.0 maxBehind=1.8ms hardStalls=0 target=33.33ms
+[10:37:59.834] [ERROR] [main] WS broadcast slow: 6ms (clients=1)
+[10:38:52.471] [ERROR] [main] WS broadcast slow: 8ms (clients=1)
+[10:39:11.888] [ERROR] [main] WS broadcast slow: 7ms (clients=1)
+[10:40:32.912] [ERROR] [WAVEFORM] Failed to write artwork file: ENAMETOOLONG: name too long, open '/Users/janmuller/Git Repos/StageLinq-WebView/backend/artwork-cache/446176696420477565747461202d204f6e65204c6f76652028436c75622056657273696f6e29202d203031202d205768656e204c6f76652054616b6573204f7665722028666561742e204b656c6c7920526f776c616e642920284f726967696e616c20457874656e64656429202853686f7274204564697420457874656e646564204f7574726f292e666c6163.jpg'
+[10:42:51.454] [ERROR] [main] WS broadcast slow: 12ms (clients=2)
+[10:43:22.996] [ERROR] [main] WS broadcast slow: 9ms (clients=2)
+[10:46:28.982] [ERROR] [main] WS broadcast slow: 7ms (clients=1)
+[10:50:45.325] [ERROR] [main] WS broadcast slow: 9ms (clients=1)
+[10:51:09.994] [ERROR] [main] WS broadcast slow: 7ms (clients=1)
+[10:55:11.149] [ERROR] [main] WS broadcast slow: 8ms (clients=1)
+[10:55:53.376] [ERROR] [main] WS broadcast slow: 7ms (clients=1)
+[10:59:21.276] [WARN] [ArtNet/wk] tick stats: 59 ticks/2003ms avg=33.34ms (29.46fps) p50=33.0 p95=36.0 max=36.0 maxBehind=2.7ms hardStalls=0 target=33.33ms
+[11:03:17.354] [ERROR] [main] WS broadcast slow: 6ms (clients=1)
+[11:05:01.127] [ERROR] [main] WS broadcast slow: 6ms (clients=1)
+[11:09:44.709] [WARN] [ArtNet/wk] Late tick: 55.0ms (target 33.3ms, behind 22.9ms)
+[11:13:52.396] [ERROR] [main] WS broadcast slow: 7ms (clients=1)
+[11:16:04.471] [ERROR] [main] WS broadcast slow: 11ms (clients=2)
+[11:16:21.839] [WARN] [ArtNet/wk] tick stats: 59 ticks/2002ms avg=33.37ms (29.47fps) p50=33.0 p95=36.0 max=37.0 maxBehind=1.9ms hardStalls=0 target=33.33ms
+[11:16:45.009] [ERROR] [main] WS broadcast slow: 7ms (clients=2)
