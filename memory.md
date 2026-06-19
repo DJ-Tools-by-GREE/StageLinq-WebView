@@ -128,7 +128,7 @@ So only the constant + import in `index.ts` moved; the worker is unchanged.
 engagements on healthy networks (single ~33 ms tick of freewheel timeline
 during a 250–300 ms beat outlier), bump `FREEWHEEL_STALE_THRESHOLD_MS` to
 `400`–`500`. Don't drop it below ~220 ms or it will flap on every clean
-session per the beat-gap log.
+session (steady-state inter-beat intervals are 50–200 ms).
 
 ---
 
