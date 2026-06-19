@@ -17,6 +17,10 @@ type Event =
   | { t: number; type: 'suggested'; deck: DeckNumber | null; reason: string | null }
   | { t: number; type: 'status'; value: StageLinqStatus }
   | { t: number; type: 'sacn_execute'; deck: DeckNumber | null }
+  // Crash/restart marker. `t` is when the resume happens (real wall clock since startedAt);
+  // `lastEventT` is the relative timestamp of the last event before the crash, so a gap
+  // duration can be computed without parsing the whole prefix.
+  | { t: number; type: 'gap'; lastEventT: number; gapMs: number; crashedAtWall: number; resumedAtWall: number }
   | { t: number; type: 'footer'; stoppedAt: number; eventCount: number };
 
 export interface RecorderOptions {
@@ -65,6 +69,87 @@ function isoStamp(ms: number): string {
   return new Date(ms).toISOString().replace(/[:.]/g, '-').replace(/-(\d{3})-Z$/, 'Z');
 }
 
+// Maximum age of an orphan file we'll auto-resume. Anything older is almost certainly
+// a stale recording from a previous show — surfacing a gap of hours/days is noise.
+const ORPHAN_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+interface OrphanScan {
+  filePath: string;
+  startedAt: number;
+  lastEventT: number;          // relative ms (largest `t` seen)
+  lastEventWallMs: number;     // startedAt + lastEventT
+  lastEmitted: Record<DeckNumber, DeckState | null>;
+  eventCount: number;
+}
+
+/**
+ * Find at most one resumable orphan: a *.jsonl with a header line but no .meta.json
+ * sidecar (the sidecar is only written on a clean stop). Returns null if none, or if
+ * multiple unfinished files exist — auto-resuming the wrong one would silently graft
+ * onto a stale recording, so in that case we bail and let the operator pick manually.
+ */
+async function findOrphan(recordingsDir: string): Promise<OrphanScan | null> {
+  let entries: string[];
+  try {
+    entries = await fs.promises.readdir(recordingsDir);
+  } catch (e: any) {
+    if (e?.code === 'ENOENT') return null;
+    throw e;
+  }
+  const sidecars = new Set(entries.filter(n => n.endsWith('.meta.json')).map(n => n.replace(/\.meta\.json$/, '.jsonl')));
+  const orphanNames = entries.filter(n => n.endsWith('.jsonl') && !sidecars.has(n));
+  if (orphanNames.length === 0) return null;
+  if (orphanNames.length > 1) {
+    logError(`[REC] resume aborted: ${orphanNames.length} orphan recordings found (${orphanNames.join(', ')}). Resolve manually before next start.`);
+    return null;
+  }
+
+  const filePath = path.join(recordingsDir, orphanNames[0]);
+  const stat = await fs.promises.stat(filePath);
+  if (stat.size === 0) return null;
+  if (Date.now() - stat.mtimeMs > ORPHAN_MAX_AGE_MS) {
+    logLifecycle(`[REC] orphan ${orphanNames[0]} is older than 24h — skipping resume.`);
+    return null;
+  }
+
+  // Replay every line into a working state to rebuild `lastEmitted` for diff continuity.
+  const raw = await fs.promises.readFile(filePath, 'utf8');
+  const lines = raw.split('\n');
+  let startedAt = 0;
+  let lastEventT = 0;
+  let eventCount = 0;
+  const lastEmitted: Record<DeckNumber, DeckState | null> = { 1: null, 2: null, 3: null, 4: null };
+
+  for (const line of lines) {
+    const s = line.trim();
+    if (!s) continue;
+    let ev: any;
+    try { ev = JSON.parse(s); } catch { continue; }
+    if (!ev || typeof ev !== 'object') continue;
+    eventCount++;
+    if (ev.type === 'header') { startedAt = Number(ev.startedAt ?? 0); continue; }
+    const t = Number(ev.t ?? 0);
+    if (t > lastEventT) lastEventT = t;
+    if (ev.type === 'deck' && ev.n != null) {
+      const n = Number(ev.n) as DeckNumber;
+      if (![1, 2, 3, 4].includes(n)) continue;
+      if (ev.state) {
+        lastEmitted[n] = { ...ev.state };
+      } else if (ev.diff && lastEmitted[n]) {
+        for (const k of Object.keys(ev.diff)) (lastEmitted[n] as any)[k] = ev.diff[k];
+      } else if (ev.diff) {
+        // Diff arrived before any keyframe — defensive; shouldn't happen with our writer.
+        lastEmitted[n] = { deck: n, ...(ev.diff as any) } as DeckState;
+      }
+    }
+  }
+  if (!startedAt) {
+    logError(`[REC] orphan ${orphanNames[0]} has no header — skipping.`);
+    return null;
+  }
+  return { filePath, startedAt, lastEventT, lastEventWallMs: startedAt + lastEventT, lastEmitted, eventCount };
+}
+
 export class Recorder {
   private opts: RecorderOptions;
   private active = false;
@@ -75,6 +160,19 @@ export class Recorder {
   private lastEmitted: Record<DeckNumber, DeckState | null> = { 1: null, 2: null, 3: null, 4: null };
   private unsubBridge: (() => void) | null = null;
 
+  // Resume staging: set by prepareResumeFromOrphan(), consumed by finalizeResume() once
+  // StageLinq is back. Until finalized, `active` stays false so no diffs are written
+  // and no consumer thinks recording is live yet.
+  private pendingResume: {
+    filePath: string;
+    startedAt: number;
+    lastEventT: number;
+    lastEventWallMs: number;
+    lastEmitted: Record<DeckNumber, DeckState | null>;
+    eventCount: number;
+    crashedAtWall: number;
+  } | null = null;
+
   constructor(opts: RecorderOptions) {
     this.opts = opts;
   }
@@ -82,17 +180,122 @@ export class Recorder {
   getStatus(): RecordingStatus {
     return {
       active: this.active,
-      file: this.filePath ? path.basename(this.filePath) : null,
-      startedAt: this.startedAt,
+      file: this.filePath ? path.basename(this.filePath) : (this.pendingResume ? path.basename(this.pendingResume.filePath) : null),
+      startedAt: this.startedAt ?? this.pendingResume?.startedAt ?? null,
       eventCount: this.eventCount,
     };
   }
 
   isActive(): boolean { return this.active; }
 
+  hasPendingResume(): boolean { return this.pendingResume !== null; }
+
+  /**
+   * Look for a single unfinished recording from a prior session. Returns true if a resume
+   * was staged — caller should then poll status and call finalizeResume() once StageLinq
+   * is connected. Idempotent: repeated calls without finalize are no-ops.
+   */
+  async prepareResumeFromOrphan(): Promise<boolean> {
+    if (this.active || this.pendingResume) return false;
+    let scan: OrphanScan | null;
+    try {
+      scan = await findOrphan(this.opts.recordingsDir);
+    } catch (e) {
+      logError('[REC] orphan scan failed:', e);
+      return false;
+    }
+    if (!scan) return false;
+
+    // Best-effort estimate of when we crashed: the wall-clock timestamp of the last
+    // event written before death. Not exact (could be up to one buffer-flush behind),
+    // but tight enough — usually within a few hundred ms.
+    const crashedAtWall = scan.lastEventWallMs;
+    this.pendingResume = {
+      filePath: scan.filePath,
+      startedAt: scan.startedAt,
+      lastEventT: scan.lastEventT,
+      lastEventWallMs: scan.lastEventWallMs,
+      lastEmitted: scan.lastEmitted,
+      eventCount: scan.eventCount,
+      crashedAtWall,
+    };
+    logLifecycle(`[REC] orphan detected: ${path.basename(scan.filePath)} (${scan.eventCount} events, ` +
+      `last @ +${(scan.lastEventT / 1000).toFixed(1)}s). Resume pending StageLinq reconnection.`);
+    return true;
+  }
+
+  /**
+   * Drop a pending resume without writing anything. Used by /api/record/start to clear
+   * a stale resume so the operator can begin a fresh recording instead.
+   */
+  abortPendingResume() {
+    if (!this.pendingResume) return;
+    logLifecycle(`[REC] pending resume aborted: ${path.basename(this.pendingResume.filePath)}`);
+    this.pendingResume = null;
+  }
+
+  /**
+   * Complete a resume: open the file in append mode, write a gap marker, fresh keyframes,
+   * and hook up the bridge subscriber. Caller should invoke this when status flips to
+   * 'connected' (or after a short grace period if it stays connected on boot).
+   */
+  async finalizeResume(): Promise<{ ok: true; gapMs: number } | { ok: false; error: string }> {
+    if (this.active) return { ok: false, error: 'already recording' };
+    if (this.opts.isReplayActive()) return { ok: false, error: 'replay is active' };
+    const pending = this.pendingResume;
+    if (!pending) return { ok: false, error: 'no pending resume' };
+
+    const status = this.opts.getStatus();
+    if (status !== 'connected') return { ok: false, error: `StageLinq not connected (status=${status})` };
+
+    const stream = fs.createWriteStream(pending.filePath, { flags: 'a' });
+    await new Promise<void>((resolve, reject) => {
+      stream.once('open', () => resolve());
+      stream.once('error', reject);
+    });
+
+    const resumedAtWall = Date.now();
+    const tNow = resumedAtWall - pending.startedAt;
+    const gapMs = resumedAtWall - pending.crashedAtWall;
+
+    this.active = true;
+    this.startedAt = pending.startedAt;
+    this.filePath = pending.filePath;
+    this.stream = stream;
+    this.eventCount = pending.eventCount;
+    this.lastEmitted = pending.lastEmitted;
+    this.pendingResume = null;
+
+    // Marker so analysis tools can detect the discontinuity in the timeline.
+    this.write({
+      t: tNow,
+      type: 'gap',
+      lastEventT: pending.lastEventT,
+      gapMs,
+      crashedAtWall: pending.crashedAtWall,
+      resumedAtWall,
+    });
+
+    // Fresh keyframes for all four decks at resume time. The bridge has no history of
+    // what happened during the gap, so the recovered state is whatever the deck reports
+    // *now* — it's the operator's job to know the gap exists when analyzing the log.
+    const decks = this.opts.bridge.getDecks();
+    for (const d of DECKS) {
+      this.write({ t: tNow, type: 'deck', n: d, state: decks[d] });
+      this.lastEmitted[d] = { ...decks[d] };
+    }
+    this.write({ t: tNow, type: 'status', value: status });
+
+    this.unsubBridge = this.opts.bridge.subscribeDeckState((deck, state) => this.onDeckChange(deck, state));
+
+    logLifecycle(`[REC] resumed ${path.basename(pending.filePath)} after ${(gapMs / 1000).toFixed(1)}s gap`);
+    return { ok: true, gapMs };
+  }
+
   async start(name?: string): Promise<{ ok: true; file: string; startedAt: number } | { ok: false; error: string; code: number }> {
     if (this.active) return { ok: false, error: 'recording already in progress', code: 409 };
     if (this.opts.isReplayActive()) return { ok: false, error: 'cannot record during replay', code: 409 };
+    if (this.pendingResume) return { ok: false, error: 'a previous recording is pending resume; call /api/record/resume-abort to discard it first', code: 409 };
     const status = this.opts.getStatus();
     if (status !== 'connected') return { ok: false, error: `StageLinq not connected (status=${status})`, code: 409 };
 
@@ -136,26 +339,28 @@ export class Recorder {
     this.write({ t: 0, type: 'status', value: status });
 
     // Subscribe to per-deck mutations at full bridge cadence.
-    this.unsubBridge = this.opts.bridge.subscribeDeckState((deck, state) => {
-      if (!this.active) return;
-      const prev = this.lastEmitted[deck];
-      // On track change, emit a fresh keyframe instead of a diff so replay can resync.
-      const fileChanged = !prev || prev.fileName !== state.fileName;
-      if (fileChanged) {
-        this.write({ t: this.tNow(), type: 'deck', n: deck, state });
-        this.lastEmitted[deck] = { ...state };
-        return;
-      }
-      const diff = buildDiff(prev, state);
-      if (diff) {
-        this.write({ t: this.tNow(), type: 'deck', n: deck, diff });
-        // Update lastEmitted by patching only the diff fields so we don't churn references.
-        for (const k of Object.keys(diff)) (this.lastEmitted[deck] as any)[k] = (state as any)[k];
-      }
-    });
+    this.unsubBridge = this.opts.bridge.subscribeDeckState((deck, state) => this.onDeckChange(deck, state));
 
     logLifecycle(`[REC] started ${path.basename(filePath)}`);
     return { ok: true, file: path.basename(filePath), startedAt };
+  }
+
+  private onDeckChange(deck: DeckNumber, state: DeckState) {
+    if (!this.active) return;
+    const prev = this.lastEmitted[deck];
+    // On track change, emit a fresh keyframe instead of a diff so replay can resync.
+    const fileChanged = !prev || prev.fileName !== state.fileName;
+    if (fileChanged) {
+      this.write({ t: this.tNow(), type: 'deck', n: deck, state });
+      this.lastEmitted[deck] = { ...state };
+      return;
+    }
+    const diff = buildDiff(prev, state);
+    if (diff) {
+      this.write({ t: this.tNow(), type: 'deck', n: deck, diff });
+      // Update lastEmitted by patching only the diff fields so we don't churn references.
+      for (const k of Object.keys(diff)) (this.lastEmitted[deck] as any)[k] = (state as any)[k];
+    }
   }
 
   recordSelected(deck: DeckNumber | null) {

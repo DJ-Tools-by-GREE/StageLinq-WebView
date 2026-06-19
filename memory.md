@@ -144,6 +144,20 @@ A new shim ([backend/src/stateProvider.ts](backend/src/stateProvider.ts)) sits b
 
 **Invariant:** all output paths read from `stateProvider`, never `bridge` directly. The waveform extraction code path is the only exception (it asks the real bridge for `totalSec` of the deck currently being downloaded — fine, since mapped audio files are gated out before that path runs).
 
+### 2026-06-19 — Record & Replay: crash-recovery resume
+
+**What:** If the backend dies mid-recording (crash, kill -9, power cut), the next start scans `recordings/` for a `.jsonl` without a matching `.meta.json` sidecar (sidecar is only written on clean stop). If exactly one is found, ≤24 h old, and has a valid header, the recorder stages a resume in memory: replays the file to rebuild per-deck `lastEmitted`, but does not open the file or mark `active` yet. Once `stagelinqStatus` flips to `'connected'` (handled in the snapshot-loop status-edge block), the file is reopened in append mode and the recorder writes a `gap` event (`crashedAtWall`, `resumedAtWall`, `gapMs`) followed by fresh keyframes for all four decks, then continues normal recording.
+
+**Why deferred until 'connected':** the gap marker should be paired with a real keyframe of current deck state. Resuming into a still-broken bridge (no-device / reconnecting) would write `play=false` blanks into the keyframe slot.
+
+**Skip cases (logged, no resume):** ≥2 orphan files (don't guess which to graft onto), file >24 h old, file has no header line, replay is currently active.
+
+**Graceful shutdown:** `SIGINT`/`SIGTERM`/`beforeExit` handlers call `recorder.stop()` first, so the sidecar gets written and no orphan is left for next boot.
+
+**Operator escape hatch:** `POST /api/record/resume-abort` discards a pending resume so a fresh recording can be started. `POST /api/record/start` refuses with 409 while a resume is pending — the operator must explicitly choose between resume and fresh.
+
+**Cannot recover the gap content** — the bridge has no history. The `gap` event is a forensic marker so analysis tools detect the discontinuity. New `gap` event type added to the JSONL schema; replay's parser silently ignores unknown event types so old replay engines don't break.
+
 ### 2026-06-18 — Art-Net: TC silent whenever a deck isn't moving (toggle removed)
 
 **What:** Removed the `sendWhenStopped` toggle and its supporting plumbing
