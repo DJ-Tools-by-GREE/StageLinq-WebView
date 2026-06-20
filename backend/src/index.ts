@@ -39,7 +39,15 @@ function isIgnorableStageLinqError(err: unknown): boolean {
   const text = String(msg);
   return (
     text.includes('No broadcast targets have been found') ||
-    text.includes("File Transfer Unhandled message id '6'")
+    text.includes("File Transfer Unhandled message id '6'") ||
+    // Other StageLinq clients on the LAN (e.g. the primary instance, announcing
+    // as 'nowplaying') trigger connect attempts to their announce-only port 0.
+    // The library exhausts maxRetries and throws as an unhandled rejection. We
+    // can't filter those discovery messages at the library boundary, but we
+    // can keep the process alive — real Denon hardware is dialed via a separate
+    // discovery message that succeeds.
+    /Could not connect to .*:0:/.test(text) ||
+    text.includes('EADDRNOTAVAIL')
   );
 }
 

@@ -11,7 +11,8 @@
     "build": "npm run -w frontend build && npm run -w backend build",
     "start": "npm run -w backend start",
     "show": "node scripts/show.mjs",
-    "fresh": "npm install && npm run build && node scripts/show.mjs"
+    "fresh": "npm install && npm run build && node scripts/show.mjs",
+    "lite": "npm run -w backend build && LITE_MODE=1 npm start"
   },
   "dependencies": {
     "@gree44/stagelinq": "^3.0.9",

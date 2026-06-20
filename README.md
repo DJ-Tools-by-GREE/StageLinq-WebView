@@ -167,6 +167,8 @@ For a redundant LTC feed on the same LAN, a second instance can run in **lite mo
 
 Enable with `LITE_MODE=1` or `"lite_mode": true` in `config.json`. Absent flag → false.
 
+To launch the lite backup directly: `npm run lite` — builds the backend only (skips the frontend bundle, since lite mode doesn't serve it) and starts with `LITE_MODE=1` in the environment, overriding the config flag if it's missing or false. Plain `npm start` also works as long as `lite_mode: true` is in `config.json`.
+
 The operator is responsible for keeping the lite instance's `config.json` in sync with the primary — at minimum `playlists`, `current_playlist`, and `control_input`. Hot-reload via **Ctrl+R** still works on the lite instance's TTY (no HTTP reload route, since there's no HTTP server).
 
 Recommended `config.json` for the lite instance, alongside a local LTC converter:

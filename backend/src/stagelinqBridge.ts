@@ -440,6 +440,34 @@ export class StageLinqBridge {
     const devices = StageLinq.devices;
     this.stageLinqDevices = devices;
 
+    // Filter out announce-only StageLinq peers (port: 0) BEFORE the library
+    // tries to dial them. The upstream library only ignores a hard-coded set of
+    // software names (Resolume, SoundSwitch, OfflineAnalyzer, JM08, SSS0); a
+    // primary instance announcing as 'nowplaying' isn't on that list, so the
+    // library would dial port 0 and burn maxRetries seconds on EADDRNOTAVAIL.
+    // The serial connect-loop blocks the main thread enough to starve the beat
+    // watchdog (2s threshold), which then triggers a reconnect, which makes
+    // the *other* instance see us reannounce and dial *us* — a feedback loop.
+    // Wrapping handleDevice with a port-0 short-circuit cuts the loop at the
+    // source.
+    if (devices && typeof devices.handleDevice === 'function') {
+      const origHandleDevice = devices.handleDevice.bind(devices);
+      const seenPeerIds = new Set<string>();
+      devices.handleDevice = async (info: any) => {
+        if (info && Number(info.port) === 0) {
+          const id = `${info.address}:${info.source}/${info.software?.name}`;
+          if (!seenPeerIds.has(id)) {
+            seenPeerIds.add(id);
+            logLifecycle(
+              `[StageLinq] Ignoring announce-only peer ${id} (port 0 — not a Denon device)`,
+            );
+          }
+          return;
+        }
+        return origHandleDevice(info);
+      };
+    }
+
     // Different versions use different lifecycle event names; listen to both.
     devices.on?.("ready", (info: any) => {
       const name = info?.software?.name || "";

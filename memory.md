@@ -19,6 +19,10 @@ decision/bug-confirmation/direction change (per CLAUDE.md).
 
 **Default-off:** `lite_mode` is read with `=== true`; missing key → false. Env override `LITE_MODE=1` for parity with the rest of the config layering.
 
+**Port-0 peer filter (added the same day after live LAN test):** when both instances ran together, the lite saw the primary's announce (`port: 0`, `software.name: 'nowplaying'`) and tried to dial it as if it were a Denon player. The upstream library's hardcoded ignore list only knows `Resolume`/`SoundSwitch`/`OfflineAnalyzer`/`JM08`/`SSS0` — `nowplaying` isn't on it. The connect attempts EADDRNOTAVAIL'd in a tight loop that **starved the JS event loop enough to break the 2 s `DISCONNECT_DETECT_TIMEOUT_S` beat watchdog**, which triggered a reconnect, which made the primary see us reannounce → primary tried to dial *us* (now announcing as Resolume, which the upstream filter does ignore — but only in one direction). End result was both instances looping disconnect/reconnect against each other.
+
+The fix monkey-patches `StageLinq.devices.handleDevice` in [backend/src/stagelinqBridge.ts](backend/src/stagelinqBridge.ts) to short-circuit announces with `port === 0` before the library's `connectToDevice` ever runs. Logged once per peer ID. Real Denon hardware always advertises a real TCP port, so this is safe in both lite and primary modes — both binaries get the patch. After the fix, `maxRetries` is back to 999 in both modes (the lite-only `5` was dropped; with port-0 announces filtered, real Denon reconnects after a network blip still need the full retry budget). The `'Could not connect to .*:0:'` and `EADDRNOTAVAIL` patterns in `isIgnorableStageLinqError` ([backend/src/index.ts](backend/src/index.ts)) stay as defense-in-depth.
+
 ---
 
 ### 2026-06-19 — Art-Net pump-in-worker (TC immune to main-thread stalls)

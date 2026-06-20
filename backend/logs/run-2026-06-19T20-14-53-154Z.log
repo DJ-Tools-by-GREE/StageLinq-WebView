@@ -1,0 +1,6 @@
+--- session start 2026-06-19T20:14:53.162Z ---
+[20:14:52.865] [WARN] [ArtNet/wk] Late tick: 66.0ms (target 33.3ms, behind 38.7ms)
+[20:14:53.181] [WARN] [ArtNet/wk] Hard stall: behind by 239.3ms (>3 intervals); resyncing deadline.
+[20:14:53.181] [WARN] [ArtNet/wk] Hard stall: behind by 103.7ms (>3 intervals); resyncing deadline.
+[20:14:53.181] [WARN] [ArtNet/wk] tick stats: 48 ticks/2006ms avg=40.58ms (23.93fps) p50=33.0 p95=66.0 max=234.0 maxBehind=239.3ms hardStalls=2 target=33.33ms
+[20:15:09.166] [WARN] [ArtNet/wk] tick stats: 59 ticks/2002ms avg=33.36ms (29.47fps) p50=33.0 p95=35.0 max=35.0 maxBehind=1.7ms hardStalls=0 target=33.33ms

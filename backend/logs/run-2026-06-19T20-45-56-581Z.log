@@ -1,0 +1,13 @@
+--- session start 2026-06-19T20:45:56.582Z ---
+[20:45:56.578] [ERROR] [StageLinq] Non-fatal library error. Continuing: Could not connect to 2.118.187.61:0:[np2/nowplaying]
+[20:45:56.755] [WARN] [ArtNet/wk] Late tick: 66.0ms (target 33.3ms, behind 34.0ms)
+[20:45:56.787] [ERROR] [StageLinq] Non-fatal library error. Continuing: Could not connect to 192.168.178.48:0:[np2/nowplaying]
+[20:45:58.027] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001ms avg=33.34ms (29.49fps) p50=33.0 p95=44.0 max=66.0 maxBehind=34.0ms hardStalls=0 target=33.33ms
+[20:46:04.990] [ERROR] [Watchdog] No beat for 2.5s — triggering reconnect
+[20:46:05.587] [ERROR] [StageLinq] Non-fatal library error. Continuing: Could not connect to 2.118.187.61:0:[np2/nowplaying]
+[20:46:05.699] [ERROR] [StageLinq] Non-fatal library error. Continuing: Could not connect to 192.168.178.48:0:[np2/nowplaying]
+[20:46:14.008] [ERROR] [Watchdog] No beat for 2.4s — triggering reconnect
+[20:46:14.595] [ERROR] [StageLinq] Non-fatal library error. Continuing: Could not connect to 2.118.187.61:0:[np2/nowplaying]
+[20:46:14.619] [ERROR] [StageLinq] Non-fatal library error. Continuing: Could not connect to 192.168.178.48:0:[np2/nowplaying]
+[20:46:23.026] [ERROR] [Watchdog] No beat for 2.5s — triggering reconnect
+[20:46:23.613] [ERROR] [StageLinq] Non-fatal library error. Continuing: Could not connect to 2.118.187.61:0:[np2/nowplaying]
