@@ -111,6 +111,7 @@ export async function fetchAllUsers(signal?: AbortSignal): Promise<UsersMap> {
 export async function putUserSettings(name: UserName, settings: UserSettings): Promise<UserSettings> {
   const res = await fetch(`/api/users/${encodeURIComponent(name)}/settings`, {
     method: 'PUT',
+    keepalive: true,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(settings),
   });

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CsvSong } from '../editorTypes.js';
 import { DEFAULT_OFFSET_INCREMENT, DEFAULT_OFFSET_START } from '../defaults.js';
 import { parseCSV } from '../utils/csv.js';
@@ -17,22 +17,33 @@ export function CsvImportModal({ lastOffsetSec, onImport, onClose }: Props) {
   );
   const [increment, setIncrement] = useState(DEFAULT_OFFSET_INCREMENT);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [fileName, setFileName] = useState('');
+  const readGeneration = useRef(0);
+  useEffect(() => () => { readGeneration.current += 1; }, []);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => {
-      try {
-        const parsed = parseCSV(ev.target?.result as string);
-        setSongs(parsed);
-        setError('');
-      } catch {
-        setError('Failed to parse CSV. Make sure it is a valid Engine DJ export.');
+    const generation = ++readGeneration.current;
+    setFileName(file.name);
+    setSongs([]);
+    setError('');
+    setLoading(true);
+    try {
+      const text = await file.text();
+      if (generation !== readGeneration.current) return;
+      const parsed = parseCSV(text);
+      setSongs(parsed);
+      if (parsed.length === 0) setError('No tracks found. Choose an Engine DJ CSV export.');
+    } catch (error: unknown) {
+      if (generation === readGeneration.current) {
+        setError(error instanceof Error ? error.message : 'Failed to read CSV. Choose a valid Engine DJ export.');
       }
-    };
-    reader.readAsText(file);
+    } finally {
+      if (generation === readGeneration.current) setLoading(false);
+    }
   };
 
   return (
@@ -58,7 +69,7 @@ export function CsvImportModal({ lastOffsetSec, onImport, onClose }: Props) {
                 Choose CSV…
               </button>
               <span className="file-name-hint">
-                {fileRef.current?.files?.[0]?.name ?? 'No file chosen'}
+                {fileName || 'No file chosen'}
               </span>
             </label>
 
@@ -120,7 +131,7 @@ export function CsvImportModal({ lastOffsetSec, onImport, onClose }: Props) {
           <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
           <button
             className="btn btn-primary"
-            disabled={songs.length === 0}
+            disabled={loading || songs.length === 0}
             onClick={() => onImport(songs, startOffset, increment)}
           >
             Import {songs.length > 0 ? `${songs.length} songs` : ''}

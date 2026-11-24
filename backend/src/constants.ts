@@ -56,6 +56,7 @@ export const WS_FPS = 30;
 
 /** Milliseconds to wait for the Art-Net UDP socket to bind before giving up. */
 export const ARTNET_BIND_TIMEOUT_MS = 5000;
+export const ARTNET_WORKER_READY_TIMEOUT_MS = 10_000;
 
 /** Milliseconds to wait before recreating the Art-Net socket after a fatal network error. */
 export const ARTNET_SOCKET_RECOVERY_DELAY_MS = 5000;
@@ -64,8 +65,8 @@ export const ARTNET_SOCKET_RECOVERY_DELAY_MS = 5000;
 export const ARTNET_SOCKET_RECOVERY_COOLDOWN_MS = 12000;
 
 /**
- * Fraction of one frame (at the configured FPS) that the internal timeline can drift from the
- * source position before it is snapped back. E.g. 0.15 = 1/7th of a frame at 30 fps (~5 ms).
+ * Seconds of source-position drift allowed before reconciliation snaps the timeline.
+ * The historical name is retained; 0.15 means 150 ms (4.5 frames at 30 fps).
  */
 export const ARTNET_DRIFT_THRESHOLD_RATIO = 0.15;
 
@@ -115,3 +116,16 @@ export const ARTNET_HARD_STALL_INTERVALS = 3;
  * play=false on all decks (Art-Net worker's freewheel handles the rest).
  */
 export const REPLAY_FREEWHEEL_DETECT_MS = 250;
+
+/** Minimum interval between terminal dashboard redraws. */
+export const DASHBOARD_THROTTLE_MS = 100;
+
+/** Maximum unrelated socket-buffer backlog before starting a new send. */
+export const WS_MAX_BUFFERED_BYTES = 8 * 1024 * 1024;
+
+/** Upper bound for orderly process shutdown before a forced exit. */
+export const SHUTDOWN_TIMEOUT_MS = 10_000;
+
+export const WS_MAX_QUEUED_BYTES = 128 * 1024 * 1024;
+export const WS_MAX_QUEUED_FRAMES = 128;
+export const WS_SEND_TIMEOUT_MS = 30_000;

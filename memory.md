@@ -702,3 +702,27 @@ The runtime backend does not yet read `hotcue-cache/` — the script builds the 
 ## In-progress / blockers
 
 (none)
+
+
+### 2026-11-24 — Detailed audit and confirmed corrections in progress
+
+Initial upstream alignment / CurrentKey integration committed and pushed as StageLinq b708e0d and WebView 78b7bd0. Three parallel agents reviewed frontend, bridge/output, and media/recording; root reviewed server/configuration/logging/tooling.
+
+User decisions: replay uses offsets saved in the recording; recording and armed/loading replay are mutually exclusive; fix freshness and position inputs to the existing freewheel mode now, preserving controls and last reliable position through reconnect, with simulation validation. Do not invent new freewheel behavior or send live output during tests.
+
+Confirmed defects include restart sequence rejection, long-waveform render crash, replay attaching deadlock/backward seek, overlapping recorder lifecycle operations, destructive config recovery, uncaught file logger errors, and sACN zero values being dropped by the percentage object. Implementation replaces private StageLinq singleton edits with public StageLinqInstance, custom network path parsing with parseNetworkPath, JSON comment regex with jsonc-parser, and sACN coercion with Packet.payloadAsBuffer. Settings writes must reject errors, preserve previous runtime state until disk success, and serialize all config writers. Pending detailed report will record fixes, retained custom behavior, remaining suggestions, evidence and coverage.
+
+
+### 2026-11-24 — Audit implementation complete
+
+Detailed findings and proposed follow-ups are committed under docs/review-2026-11-24/ (frontend, media/recording, bridge/output, server/tooling, and final peer review). The implementation uses public StageLinq instances/path parsing, Chris's metadata parser, Papa Parse, jsonc-parser, sACN raw buffers, Node stream completion/temp-directory APIs, and a shared live/offline TimecodeTimeline.
+
+SourceTiming records real per-deck position/transport provenance; metadata and repeated snapshots are not heartbeats. Explicit pause/unload stops output; missing positions use existing freewheel controls; zero duration stops at stale onset. Live/replay transitions atomically replace worker states, timing and offsets. User-approved editor behavior: deleting a track/mashup preserves all other offsets/frames; deleting the active playlist sets -1.
+
+Peer review fixed healthy large-waveform reconnect loops (serialized bounded queues), settings PUT/reload stale-cache races (serialized read/application), and stale replay worker data after disarm (atomic source switch). Recording shutdown waits for queued lifecycle work and footer/sidecar completion. Existing malformed settings/config files are preserved and errors reach HTTP callers.
+
+Remaining material findings include multi-device deck mapping (needs actual topology), basename cache collisions and unbounded media resources, recording backpressure/monotonic timestamps/log schema provenance, fuller config validation, waveform child-process shutdown, OSC deselection policy, upstream FileTransfer cleanup and short-track/QuickLoop unit assumptions. Pitched backup interpolation is not fully corrected; retain the documented unpitched backup workflow. Worker isolation mitigates main-thread stalls but does not guarantee lossless UDP or OS scheduling; FileTransfer and BeatInfo have separate service sockets while sharing main-thread work.
+
+Compatible dependency updates reduced npm audit findings; unresolved WebView nodes are qs (production moderate) and Vite/esbuild (development). Root qs overrides did not alter this workspace resolution and were removed; do not treat them as a fix. The sibling library's separate dependency tree still needs its own file-type 16 migration.
+
+Final audit validation: clean WebView npm ci, full sibling/frontend/backend build with frontend typecheck, all 100 WebView tests (zero failures/skips), and git diff --check passed. Tests include real loopback HTTP settings/reload errors and SIGTERM recording flush, large waveform queue drainage, actual compiled public StageLinq APIs, metadata artwork without ffmpeg, streamed PCM, shared-timeline simulations, and editor/settings regressions. Earlier unchanged library runtime passed 265 tests. No live hardware/browser-GPU/network recovery or publication validation is claimed.

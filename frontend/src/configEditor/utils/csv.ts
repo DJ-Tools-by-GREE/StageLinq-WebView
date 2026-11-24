@@ -1,42 +1,33 @@
+import Papa from 'papaparse';
 import type { CsvSong } from '../editorTypes.js';
-
-function parseCSVLine(line: string): string[] {
-  const fields: string[] = [];
-  let current = '';
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (ch === '"') {
-      if (inQuotes && line[i + 1] === '"') {
-        current += '"';
-        i++;
-      } else {
-        inQuotes = !inQuotes;
-      }
-    } else if (ch === ',' && !inQuotes) {
-      fields.push(current);
-      current = '';
-    } else {
-      current += ch;
-    }
-  }
-  fields.push(current);
-  return fields;
-}
 
 function basename(filePath: string): string {
   return filePath.replace(/\\/g, '/').split('/').pop() ?? filePath;
 }
 
 export function parseCSV(text: string): CsvSong[] {
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-  // Skip the header row
-  return lines.slice(1).map(line => {
-    const fields = parseCSVLine(line);
-    return {
-      title: fields[1] ?? '',
-      artist: fields[2] ?? '',
-      fileName: basename(fields[11] ?? ''),
-    };
-  }).filter(row => row.fileName.length > 0);
+  const parsed = Papa.parse<string[]>(text, { skipEmptyLines: 'greedy' });
+  if (parsed.errors.length > 0) {
+    const error = parsed.errors[0];
+    throw new Error('CSV record ' + ((error.row ?? 0) + 1) + ': ' + error.message);
+  }
+  if (parsed.data.length === 0) throw new Error('CSV is empty.');
+  const headers = parsed.data[0].map(value => value.trim().toLowerCase().replace(/[\s_-]+/g, ''));
+  const column = (name: string, aliases: string[]) => {
+    const matches = headers.flatMap((value, index) => aliases.includes(value) ? [index] : []);
+    if (matches.length !== 1) throw new Error('CSV requires exactly one ' + name + ' column.');
+    return matches[0];
+  };
+  const title = column('Title', ['title', 'tracktitle']);
+  const artist = column('Artist', ['artist']);
+  const file = column('File name', ['filename', 'filepath', 'file', 'path']);
+  return parsed.data.slice(1).map((fields, index) => {
+    const record = index + 2;
+    if (fields.length !== headers.length) {
+      throw new Error('CSV record ' + record + ' has ' + fields.length + ' columns; expected ' + headers.length + '.');
+    }
+    const fileName = basename(fields[file]);
+    if (!fileName.trim()) throw new Error('CSV record ' + record + ' has no file name.');
+    return { title: fields[title], artist: fields[artist], fileName };
+  });
 }

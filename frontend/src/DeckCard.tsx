@@ -1,9 +1,9 @@
-import { useRef, useState, useLayoutEffect } from 'react';
+import { memo, useRef, useState, useLayoutEffect } from 'react';
 import type { DeckState } from './types.js';
 import type { WaveformState } from './appTypes.js';
 import WaveformDisplay from './WaveformDisplay.js';
 
-function MarqueeText({ text, className = '' }: { text: string; className?: string }) {
+const MarqueeText = memo(function MarqueeText({ text, className = '' }: { text: string; className?: string }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLSpanElement>(null);
   const [dist, setDist] = useState(0);
@@ -33,7 +33,7 @@ function MarqueeText({ text, className = '' }: { text: string; className?: strin
       </span>
     </div>
   );
-}
+});
 
 function formatMMSS(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds <= 0) return '00:00';

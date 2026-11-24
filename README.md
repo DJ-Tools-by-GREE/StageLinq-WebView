@@ -2,6 +2,8 @@
 
 Real-time DJ deck visualizer for Denon Prime 4+ (Engine DJ / StageLinq). Displays all 4 decks in a browser, broadcasts Art-Net SMPTE timecode, and accepts DMX/sACN control input — all from a single Node.js server.
 
+Detailed audit, implemented fixes, remaining recommendations and validation: [2026-11-24 review](docs/review-2026-11-24/README.md).
+
 ## Features
 
 **Web UI**
@@ -9,7 +11,7 @@ Real-time DJ deck visualizer for Denon Prime 4+ (Engine DJ / StageLinq). Display
 - Per deck: title, artist, album artwork, elapsed/total/remaining time, key (Camelot notation), current BPM, derived track BPM, relative pitch %, channel fader, scrollable waveform with playhead
 - Header bar showing selected deck, live BPM, and the next-track name from the active playlist
 - Live connection status badge (LIVE / OFFLINE)
-- Overlay button to toggle timecode transmission while playback is stopped
+- Freewheel controls for temporary source-data dropouts; explicit playback pauses stop timecode output
 - **User switcher** (header dropdown) — `Default User`, `Jan`, `Dennis`. Each user has their own UI settings (waveform zoom, role, track-note popups, deck layout, …), stored server-side in `users.json` and applied on the fly when switched. The active-user pick is per-browser (`localStorage`). Each user carries a fixed-vocabulary `role` (`Viewer` / `DJ` / `Lighting & Tech`); the role can be picked from the Settings modal but new roles require a code change. Users with role `DJ` get track-note popups on by default; everyone else gets them off — an explicit toggle in Settings always overrides the role-derived default.
 - Settings popup (gear icon in the header) — adjusts the visible time-window of the detail waveform (4–30 s, default 10 s), toggles the **deck layout** between the full 4-deck 2×2 grid (default) and a 2-deck side-by-side view (D1 & D2 only), and other per-user preferences for the active user; persisted to the server via `PUT /api/users/:name/settings`. Also hosts an **Open config editor…** button that launches a full-screen overlay for editing the on-disk `config.json` (playlists, timecode targets, OSC, sACN, logging, freewheel, …). The editor saves over `PUT /api/config`; saves are **write-only** — press `Ctrl+R` in the backend terminal, click **Settings → Controls → Reload config**, or `POST /api/config/reload` to apply.
 - **Live terminal panel** (chevron-prompt icon in the header) — unfolds an overlay below the header that mirrors the backend's per-event log lines as they're printed. Subscribed only while the panel is open: backend pushes nothing over the wire when no client is watching, and the static dashboard rows are excluded by design (only newly printed lines stream). Seeded on open with the recent ring buffer (~500 lines).
@@ -20,11 +22,11 @@ Real-time DJ deck visualizer for Denon Prime 4+ (Engine DJ / StageLinq). Display
 - Configurable FPS, target IP/port, deck selection, and latency compensation
 - Drift detection and re-sync; suppresses frames before 00:00:00:00 and after track end
 - Per-track offset mapping via `config.json` for alignment with external systems
-- **Runs in a dedicated Node worker thread** that owns the entire timecode pipeline — the dgram socket, the 30 Hz self-correcting tick, the per-deck state cache, the selected-deck pointer, the per-track offsets, and the freewheel-stale derivation. The main thread only **pushes** state changes (bridge mutations, sACN deck flips, config reloads). Even multi-second main-thread stalls (huge StageLinq downloads, ffmpeg storms, GC pauses) cannot drop a tick — the worker freewheels cleanly across the gap and rebases when state pushes resume.
+- **Runs in a dedicated Node worker thread** that owns the entire timecode pipeline — the dgram socket, the 30 Hz self-correcting tick, the per-deck state cache, the selected-deck pointer, the per-track offsets, and the freewheel-stale derivation. The main thread only **pushes** state changes (bridge mutations, sACN deck flips, config reloads). During main-thread stalls, the worker can continue from the selected deck’s last reliable sample within the configured freewheel limit. Position timestamps are captured from BeatInfo; metadata and other decks cannot refresh that clock. OS scheduling and hardware still affect actual packet delivery.
 
 **sACN / DMX control input** (optional)
 - Receives a single DMX channel over sACN to select which deck's timecode is broadcast
-- DMX thresholds: 0–49 → off, 50–100 → deck 1, 101–151 → deck 2, 152–202 → deck 3, 203–255 → deck 4
+- DMX thresholds: 0–50 → off, 51–101 → deck 1, 102–152 → deck 2, 153–203 → deck 3, 204–255 → deck 4
 
 **OSC BPM output** (optional)
 - Sends BPM to an OSC-compatible device when a deck is active via sACN
@@ -32,9 +34,7 @@ Real-time DJ deck visualizer for Denon Prime 4+ (Engine DJ / StageLinq). Display
 
 ## Record & Replay (backup show)
 
-Use this when the lighting console is timecoded against a fixed playlist and you need a guaranteed-identical backup show that can be triggered when StageLinq glitches mid-set. The backend records every state change the bridge produces during a live show (full event rate, no throttling), then replays that log later — synchronized to a single prerecorded audio file you play on a deck — so the lighting console sees the exact same Art-Net timecode, OSC BPM, and WebSocket UI as if the set were live.
-
-The lighting console keeps full control of `selectedDeck` (sACN CH1) during replay: live sACN drives selection regardless of what was recorded. From the console's perspective, replay is indistinguishable from a live show.
+Record bridge state during a live show, then replay it against a prerecorded audio file played on a deck. Replay uses the timecode offsets saved in the recording, even if today's playlist differs. Live sACN still selects the output deck. Output fidelity depends on the recording, audio alignment and available telemetry; legacy logs lack raw heartbeat/transport provenance.
 
 ### Recording
 
@@ -43,7 +43,7 @@ The lighting console keeps full control of `selectedDeck` (sACN CH1) during repl
 3. Mix the show as usual.
 4. Click **REC** again to stop. The recorder writes `recordings/<iso>.jsonl` plus a `<iso>.meta.json` sidecar.
 
-The recorder refuses to start if StageLinq is not connected, if a recording is already running, or if replay is currently active.
+The recorder refuses to start if StageLinq is not connected, if a recording is already running, or if replay is loading, armed or active. Arming replay is also blocked while recording starts, runs, stops or awaits recovery.
 
 ### Crash recovery (auto-resume)
 
@@ -57,7 +57,7 @@ Anything that happened on the decks during the gap is **not** recoverable — th
 
 **Resume gating:** auto-resume only fires when the previous run died **with a recording active**. The recorder writes a small `recordings/.active-recording` lock file on `start()` (containing the active `.jsonl` basename) and deletes it on clean `stop()`. On boot, the lock's presence is the *only* signal that triggers resume — stale unfinished `.jsonl` files from older shows that no longer have a lock are intentionally ignored, no log spam.
 
-Constraints: files older than 24 h are skipped (lock cleared). If the lock points at a missing/empty/sidecar'd file, it self-heals and clears. Use `POST /api/record/resume-abort` to discard a pending resume (and clear the lock) before starting a fresh recording. Graceful shutdown (`SIGINT` / `SIGTERM` / `beforeExit`) calls `stop()` first, so the sidecar is written and the lock is cleared.
+Constraints: files older than 24 h are skipped (lock cleared). If the lock points at a missing/empty/sidecar'd file, it self-heals and clears. Use `POST /api/record/resume-abort` to discard a pending resume (and clear the lock) before starting a fresh recording. Graceful shutdown (SIGINT/SIGTERM) waits for pending recording operations and flushes the footer and sidecar before exit. A failed write returns an error and retains recovery state. A torn final JSONL line is repaired before resuming.
 
 ### Replay
 
@@ -73,15 +73,15 @@ The audio playback deck's own state is hidden from outputs while replay is activ
 
 Replay uses the audio deck's `elapsedSec` as the master timeline (sample-accurate, set by the deck's beatMessage stream). This means:
 
-- **Pausing the audio deck** freezes replay within ~250 ms and the Art-Net worker's existing freewheel takes over (configurable via `freewheel.enable_freewheeling` and `freewheel.max_duration_sec`).
+- **Pausing the audio deck** deliberately stops replay timecode output. **Missing fresh audio-deck data** engages the existing freewheel controls after the stale threshold; repeated UI snapshots do not count as fresh source data.
 - **Scrubbing** the audio deck rewinds replay to the corresponding log position.
 - **Pitching** the audio deck speeds up or slows down replay accordingly. Don't pitch the backup audio during a real fallback — the recorded `currentBpm` we emit will not match the pitched playback rate.
-- **End of log**: when the audio plays past the recorded show's duration, replay holds all decks `play=false` and the badge changes to `REPLAY END`. The lighting console sees a clean stop.
+- **End of log**: when the audio plays past the recorded show's duration, replay holds all decks `play=false` and the badge changes to `REPLAY END`. Seeking back inside the log resumes replay.
 - **Loading a different (non-mapped) audio file** detaches replay back to `ARMED`.
 
 ### Storage
 
-Logs and sidecars live in `recordings/` at the repo root (gitignored). One JSONL line per event, full bridge cadence, with deck-state diffs between keyframes. Header line records the playlist offset map at recording time. A multi-hour show is typically a few hundred KB to low single-digit MB.
+Logs and sidecars live in `recordings/` at the repo root. Historical recording/log files are currently tracked; the ignore rules are commented out. One JSONL line per event, full bridge cadence, with deck-state diffs between keyframes. Header line records the playlist offset map at recording time. Size depends on event cadence and metadata; inspect disk usage before long recordings.
 
 ## Prerequisites
 
@@ -118,8 +118,8 @@ npm run -w frontend dev
 ## Production
 
 ```bash
-npm run --prefix ../StageLinq build
-npm run build   # builds frontend then backend
+npm run build   # rebuilds sibling StageLinq, typechecks/builds frontend, builds backend
+npm test        # deterministic regressions; hardware access is stubbed
 npm start       # runs built backend, which also serves the frontend
 ```
 
@@ -182,7 +182,7 @@ Hot-reload: press **Ctrl+R** in the terminal running the backend to reload `conf
 | `ARTNET_TARGET_IP` | `255.255.255.255` | Destination IP(s) — single IP or comma-separated list (e.g. `192.168.1.10,192.168.1.11`) for multi-host fan-out |
 | `ARTNET_PORT` | `6454` | Destination UDP port |
 | `ARTNET_DECK` | `1` | Deck to broadcast (overridden by sACN input) |
-| `ARTNET_FPS` | `30` | Timecode frame rate — valid values: `24`, `25`, `29.97`, `30` |
+| `ARTNET_FPS` | `30` | Timecode frame rate: `24`, `25` or `30`. 29.97 drop-frame is not implemented and is rejected |
 | `ARTNET_SEND_HZ` | *(same as `ARTNET_FPS`)* | UDP send rate in Hz (override to send faster than FPS tick rate) |
 | `ARTNET_LATENCY_COMP_MS` | `80` | Latency compensation in milliseconds |
 
@@ -285,7 +285,7 @@ Waveforms and artwork are extracted automatically when a track loads and cached 
 }
 ```
 
-**Runs in a dedicated worker thread.** ffmpeg, peak compute, JSON serialization of the peaks array, base64 encoding of the artwork, and disk-cache I/O all run off the main thread (in [backend/src/waveformWorker.ts](backend/src/waveformWorker.ts)). The main thread only forwards the StageLinq-downloaded audio bytes into the worker (zero-copy `ArrayBuffer` transfer) and fans out the pre-built WS frame strings on the way back. The Art-Net worker is fully decoupled — even if main *does* stall while extracting waveforms, the pump-in-worker design (see Architecture Overview) means TC keeps streaming without a missed tick.
+**Runs in a dedicated worker thread.** ffmpeg, peak compute, JSON serialization of the peaks array, base64 encoding of the artwork, and disk-cache I/O all run off the main thread (in [backend/src/waveformWorker.ts](backend/src/waveformWorker.ts)). The main thread only forwards the StageLinq-downloaded audio bytes into the worker (zero-copy `ArrayBuffer` transfer) and fans out the pre-built WS frame strings on the way back. Artwork first uses Chris’s metadata-connect parser, with ffmpeg fallback. PCM is reduced to peaks incrementally in the worker. The independent Art-Net worker can freewheel while main is stalled, subject to its configured limits and OS scheduling.
 
 ### Hot cue cache
 
@@ -393,7 +393,7 @@ The runtime backend does not yet load `hotcue-cache/` at boot — the script pop
 
 Standalone, read-only addon that takes a Record & Replay `.jsonl` and produces a graph of the timecode every deck *would* emit if it were continuously sACN-selected. Useful for post-show review (where did the TC stall, drift-snap, freewheel?), playlist-offset sanity checks (do the per-track offsets line up where expected?), and pre-show dry runs.
 
-The TC simulator is a **faithful port of the live Art-Net worker's tick loop** ([backend/src/artnetWorker.ts](backend/src/artnetWorker.ts)): same drift-snap (15% of one frame), same 80 ms latency comp, same freewheel-on-stall, same `speedState` handling, same clamp to track length. The only thing missing is the UDP send.
+The simulator and live worker share [TimecodeTimeline](backend/src/timecodeTimeline.ts), eliminating the separate copied clock algorithm. It uses the same pitch, source extrapolation, drift correction, freewheel controls and duration clamp, without UDP. Old recordings infer position/transport updates from deck events; they cannot recreate missing repeated BeatInfo samples or distinguish every watchdog update, so simulation is diagnostic rather than proof of hardware timing.
 
 Run from the repo root:
 
@@ -443,7 +443,7 @@ The simulation treats every deck as if it were *the* selected deck for the whole
 | `GET` | `/api/config` | Read the on-disk `config.json` for the in-app config editor. Returns `{ config, sourcePath }` (parsed JSON, JS-style comments stripped). |
 | `PUT` | `/api/config` | Atomically write the full `config.json` (tmp+rename). Body is the new top-level config object. **Write-only**: the runtime is NOT hot-reloaded by this — press `Ctrl+R` in the backend terminal, click **Settings → Controls → Reload config**, or `POST /api/config/reload` to apply. |
 | `POST` | `/api/config/reload` | Hot-reload `config.json` mid-show — same code path as `Ctrl+R` on the backend TTY. Re-applies playlist offsets, track notes, freewheel, logging, and display settings. Returns `409 { error: "reload already in progress" }` if a reload is currently running. Backs the **Settings → Controls → Reload config** button. |
-| `POST` | `/api/record/start` | Start recording the live show to `recordings/<iso>.jsonl`. Optional body `{ "name": "..." }` is appended to the filename. Refuses with `409` if already recording, replay is active, or StageLinq is not connected. |
+| `POST` | `/api/record/start` | Start recording the live show to `recordings/<iso>.jsonl`. Optional body `{ "name": "..." }` is appended to the filename. Refuses with `409` if already recording, replay is loading/armed/active, or StageLinq is not connected. |
 | `POST` | `/api/record/stop` | Stop the active recording, flush, and write the `.meta.json` sidecar. Returns `{ ok, file, durationMs, eventCount }` or `409` if not recording. |
 | `GET` | `/api/record/status` | Current recorder state. |
 | `POST` | `/api/record/resume-abort` | Discard a pending crash-recovery resume so a fresh recording can be started. `409` if no resume is pending. |
@@ -547,7 +547,7 @@ The backend has a built-in watchdog that monitors the StageLinq connection and a
 
 **Global disconnect detection:** if no `beatMessage` arrives from *any* deck for `DISCONNECT_DETECT_TIMEOUT_S` (default 10 s), the bridge disconnects and retries with `RECONNECT_DELAY_MS` (default 3 s) between attempts. This handles cable pulls, power-cycles, and device sleep without requiring a process restart.
 
-**Art-Net freewheel during a stall:** while StageLinq is unreachable (`reconnecting`, or no fresh beats within `DISCONNECT_DETECT_TIMEOUT_S`), the Art-Net worker holds the last-good `DeckState` and keeps advancing its internal timeline at the last-known speed instead of freezing the timecode at the last source frame. The lighting console keeps seeing a smoothly advancing TC across the gap; the drift snap is skipped while stale and re-engages as soon as beats resume. The web UI surfaces this with a big red `STAGELINQ DISCONNECTED` / `STAGELINQ RECONNECTING` / `WS DISCONNECTED` badge in the centre of the header bar — the small left-side status dot keeps its existing semantics and renders alongside.
+**Art-Net freewheel during a stall:** the worker uses the selected deck's timestamped BeatInfo position. After FREEWHEEL_STALE_THRESHOLD_MS (250 ms), or during reconnect, it advances from the last reliable state within the configured limit. Metadata, another deck, or queued old samples cannot refresh it. Incomplete reconnect snapshots cannot reset the timeline to zero. Drift correction compares newly received positions extrapolated to the current tick; explicit pauses stop output, and real seeks/loops rebase to their new positions. The independent 2-second disconnect watchdog controls the reconnect/status path.
 
 The freewheel has two operator knobs, persisted in `config.json` under `freewheel` and editable live in the in-app **Settings → Global Settings / Controls** sections (no restart needed):
 
@@ -564,7 +564,7 @@ All three values — plus `WS_FPS`, `ARTNET_BIND_TIMEOUT_MS`, `ARTNET_DRIFT_THRE
 
 To make timecode-cadence problems observable, the backend logs:
 
-- **`[ArtNet/wk] tick stats`** — emitted every 10 s by the Art-Net worker. Shows tick count, average interval, p50, p95, max interval, max "behind" (how late the worker self-corrected from), and any hard stalls. A healthy line at 30 fps reads roughly `avg=33.33ms (30.00fps) p95<35 max<40 maxBehind<5 hardStalls=0`.
+- **`[ArtNet/wk] tick stats`** — emitted every 2 s by the Art-Net worker. Shows tick count, average interval, p50, p95, max interval, max "behind" (how late the worker self-corrected from), and any hard stalls. A healthy line at 30 fps reads roughly `avg=33.33ms (30.00fps) p95<35 max<40 maxBehind<5 hardStalls=0`.
 - **`[ArtNet/wk] Late tick`** — single late tick warning, rate-limited to 1/s.
 - **`[main] event-loop lag Xms`** — main-thread event-loop lag warning. The Art-Net worker is unaffected by main-thread stalls; this log just tells you where to look when the WS UI feels sluggish (typical cause: ffmpeg-done callback or a large JSON serialization).
 - **`[WAVEFORM] track-change deck=N download=Xms ffmpeg=Yms total=Zms`** — per-track-change timing breakdown. Useful to see whether download or PCM extraction is the bottleneck.
@@ -575,3 +575,13 @@ Tunable thresholds for the diagnostics live alongside the existing tunables in [
 ## License
 
 MIT — Jan Müller (2026)
+
+
+## Configuration and display corrections (2026-11-24)
+
+- Saving config accepts JSON comments, preserves quoted comment-like text and serializes to ordinary JSON. Malformed config is rejected without replacing live mappings or overwriting the file. Failed settings writes return an error and do not update the live freewheel value.
+- Deleting a track or mashup preserves all remaining timecode offsets and frame offsets. Deleting the active playlist leaves no active playlist; deleting another preserves the current selection.
+- CSV import uses Papa Parse, maps Engine DJ column headers and reports malformed records instead of silently dropping quoted multiline fields.
+- User settings wait for initial loading; requests are serialized/coalesced and failures are shown. Freewheel duration changes coalesce while enable/disable remains responsive.
+- A backend restart starts a new WebSocket sequence immediately. Long waveforms use bounded pixel columns rather than one draw per sample. WebSocket sends serialize and coalesce queued snapshots. Queue limits and stalled-send deadlines disconnect overloaded clients; large waveform messages can drain on healthy sockets.
+- The package supplies BeatInfo, TrackLength, CurrentKey and public instance/path APIs. WebView retains its sample conversion, key normalization, device download queue, cue extraction and output-specific logic where upstream has no equivalent contract.

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import type { AppConfig } from './editorTypes.js';
 import { DEFAULT_CONFIG } from './defaults.js';
 import { loadConfig, saveConfig } from './restApi.js';
@@ -20,7 +20,7 @@ interface Props {
  *
  * Esc / outer-backdrop click prompts to discard if dirty.
  */
-export default function ConfigEditorOverlay({ onClose }: Props) {
+function ConfigEditorOverlay({ onClose }: Props) {
   const [config, setConfig] = useState<AppConfig>(DEFAULT_CONFIG);
   const [sourcePath, setSourcePath] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
@@ -29,6 +29,9 @@ export default function ConfigEditorOverlay({ onClose }: Props) {
   const [saveError, setSaveError] = useState('');
   const [legacyNoteBanner, setLegacyNoteBanner] = useState(false);
   const [savedBanner, setSavedBanner] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const saveInFlight = useRef(false);
+  const revision = useRef(0);
 
   // Load on mount.
   useEffect(() => {
@@ -67,21 +70,31 @@ export default function ConfigEditorOverlay({ onClose }: Props) {
   };
 
   const updateConfig = (next: AppConfig) => {
+    revision.current += 1;
     setConfig(next);
     setDirty(true);
     setSavedBanner(false);
   };
 
   const handleSave = async () => {
+    if (saveInFlight.current) return;
+    saveInFlight.current = true;
+    setSaving(true);
+    const savedRevision = revision.current;
     setSaveError('');
     setSavedBanner(false);
     try {
       await saveConfig(config);
-      setDirty(false);
-      setLegacyNoteBanner(false);
-      setSavedBanner(true);
+      if (revision.current === savedRevision) {
+        setDirty(false);
+        setLegacyNoteBanner(false);
+        setSavedBanner(true);
+      }
     } catch (e) {
       setSaveError(`Save failed: ${(e as Error).message}`);
+    } finally {
+      saveInFlight.current = false;
+      setSaving(false);
     }
   };
 
@@ -108,9 +121,9 @@ export default function ConfigEditorOverlay({ onClose }: Props) {
             <button
               className="btn btn-primary"
               onClick={handleSave}
-              disabled={!loaded || !dirty || !!loadError}
+              disabled={!loaded || !dirty || !!loadError || saving}
             >
-              Save
+              {saving ? 'Saving…' : 'Save'}
             </button>
             <button className="btn btn-secondary" onClick={tryClose}>
               Close
@@ -159,3 +172,5 @@ export default function ConfigEditorOverlay({ onClose }: Props) {
     </div>
   );
 }
+
+export default memo(ConfigEditorOverlay);

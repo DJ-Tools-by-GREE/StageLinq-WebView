@@ -26,10 +26,13 @@ interface PendingJob {
 }
 
 let worker: Worker | null = null;
+let starting: Promise<void> | null = null;
+let ready = false;
 let nextJobId = 1;
 const pending = new Map<number, PendingJob>();
 
 export async function initWaveformCache(cacheDir: string): Promise<void> {
+  if (starting) return starting;
   if (worker) return;
 
   // tsx propagates its loader to worker_threads automatically (tsx 4.x), so we
@@ -40,6 +43,7 @@ export async function initWaveformCache(cacheDir: string): Promise<void> {
 
   const w = new Worker(workerUrl);
   worker = w;
+  ready = false;
 
   w.on('error', (err) => {
     logError('[WAVEFORM] Worker error:', err?.message || err);
@@ -48,10 +52,15 @@ export async function initWaveformCache(cacheDir: string): Promise<void> {
     if (code !== 0) {
       logError(`[WAVEFORM] Worker exited with code ${code}`);
     }
-    worker = null;
+    if (worker === w) {
+      worker = null;
+      ready = false;
+      for (const job of pending.values()) job.reject(new Error('waveform worker exited before completing extraction'));
+      pending.clear();
+    }
   });
 
-  await new Promise<void>((resolve, reject) => {
+  const initialization = new Promise<void>((resolve, reject) => {
     const onMessage = (m: WaveformWorkerToMain) => {
       switch (m.type) {
         case 'cacheLoaded':
@@ -60,13 +69,18 @@ export async function initWaveformCache(cacheDir: string): Promise<void> {
         case 'ready':
           w.off('message', onMessage);
           w.off('error', onError);
+          w.off('exit', onExit);
           // After ready: install the steady-state message router. Any 'log' or
           // 'cacheLoaded' messages that arrived before ready are already handled.
           w.on('message', handleWorkerMessage);
+          ready = true;
           resolve();
           break;
         case 'log':
           routeLog(m.level, m.msg);
+          break;
+        case 'initError':
+          onError(new Error(m.msg));
           break;
         // 'progress', 'result', 'error' are not expected before ready, ignore.
       }
@@ -74,17 +88,30 @@ export async function initWaveformCache(cacheDir: string): Promise<void> {
     const onError = (err: Error) => {
       w.off('message', onMessage);
       w.off('error', onError);
+      w.off('exit', onExit);
       reject(err);
     };
+    const onExit = (code: number) => onError(new Error('waveform worker exited during initialization (code ' + code + ')'));
     w.on('message', onMessage);
     w.on('error', onError);
-    post({ type: 'init', cacheDir });
+    w.on('exit', onExit);
+    try { post({ type: 'init', cacheDir }); } catch (e) { onError(e as Error); }
   });
+  starting = initialization;
+  try {
+    await initialization;
+  } catch (error) {
+    await w.terminate();
+    throw error;
+  } finally {
+    if (starting === initialization) starting = null;
+  }
 }
 
 function ingestCacheLoaded(entries: CachedWaveformEntry[]): void {
   for (const e of entries) {
     if (e.peaksFrame) peaksFrameCache.set(e.fileName, e.peaksFrame);
+    if (e.artworkFrame === null) continue;
     artworkFrameCache.set(e.fileName, e.artworkFrame);
     if (e.artworkBytes && e.artworkMime) {
       artworkCache.set(e.fileName, {
@@ -132,6 +159,7 @@ function handleWorkerMessage(m: WaveformWorkerToMain): void {
     }
     case 'ready':
     case 'cacheLoaded':
+    case 'initError':
       // Only valid before steady-state; ignored here.
       break;
   }
@@ -144,13 +172,9 @@ function routeLog(level: 'info' | 'warn' | 'error', msg: string): void {
 }
 
 function post(msg: MainToWaveformWorker, transfer?: Transferable[]): void {
-  if (!worker) return;
-  try {
-    if (transfer && transfer.length > 0) worker.postMessage(msg, transfer as any);
-    else worker.postMessage(msg);
-  } catch (e: any) {
-    logError('[WAVEFORM] postMessage failed:', e?.message || e);
-  }
+  if (!worker) throw new Error('waveform worker not initialized');
+  if (transfer && transfer.length > 0) worker.postMessage(msg, transfer as any);
+  else worker.postMessage(msg);
 }
 
 /**
@@ -169,12 +193,13 @@ export function requestExtraction(
   artworkOnly: boolean,
   onProgress?: (stage: 'downloading' | 'generating', progress: number) => void,
 ): Promise<{ peaksFrame: string | null; artworkFrame: string }> {
-  if (!worker) {
+  if (!worker || !ready) {
     return Promise.reject(new Error('waveform worker not initialized'));
   }
   const jobId = nextJobId++;
   return new Promise((resolve, reject) => {
     pending.set(jobId, { resolve, reject, onProgress });
+    try {
     post(
       {
         type: 'extract',
@@ -189,6 +214,10 @@ export function requestExtraction(
       // Zero-copy transfer of the underlying ArrayBuffer.
       [audioBytes.buffer as ArrayBuffer],
     );
+    } catch (error) {
+      pending.delete(jobId);
+      reject(error);
+    }
   });
 }
 

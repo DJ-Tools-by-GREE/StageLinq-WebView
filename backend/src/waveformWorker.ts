@@ -4,6 +4,8 @@ import fs from 'node:fs/promises';
 import crypto from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
+import { createBufferReader, extractMetadata } from 'metadata-connect';
+import { fileTypeFromBuffer } from 'file-type';
 import {
   WAVEFORM_FFMPEG_SAMPLE_RATE,
   WAVEFORM_SAMPLES_PER_PEAK,
@@ -73,7 +75,7 @@ class WaveformWorker {
   private artworkCacheDir = '';
   // Dedup concurrent same-fileName extraction jobs (the main thread can re-enter
   // onTrackChanged for the same file before the previous job finishes).
-  private inFlight = new Map<string, Promise<void>>();
+  private inFlight = new Map<string, Promise<{ peaks: number[] | null; art: { data: Buffer; mime: string } | null }>>();
 
   async init(cacheDir: string): Promise<void> {
     this.waveformCacheDir = path.join(cacheDir, 'waveform-cache');
@@ -148,7 +150,7 @@ class WaveformWorker {
       const peaksFrame = peaks ? buildPeaksFrame(fileName, peaks) : null;
       const hasArtworkEntry = artworkByFile.has(fileName);
       const art = hasArtworkEntry ? artworkByFile.get(fileName)! : null;
-      const artworkFrame = buildArtworkFrame(fileName, art);
+      const artworkFrame = hasArtworkEntry ? buildArtworkFrame(fileName, art) : null;
       // Copy bytes into a fresh ArrayBuffer so we can transfer ownership without
       // touching the original Buffer.from-readFile allocation.
       let artworkBytes: ArrayBuffer | null = null;
@@ -172,103 +174,53 @@ class WaveformWorker {
     );
   }
 
-  async runJob(
-    jobId: number,
-    fileName: string,
-    totalSec: number,
-    audio: Uint8Array,
-    artworkOnly: boolean,
-  ): Promise<void> {
-    // Same-file dedup: a second extract for the same fileName waits on the first
-    // and then immediately returns — the original job will have populated the
-    // disk caches and replied to the main thread.
-    const existing = this.inFlight.get(fileName);
-    if (existing) {
-      try { await existing; } catch {}
-      // Disk caches are now populated by the prior job. Re-emit a result for
-      // this jobId by reading from disk (cheap; the main thread will not have
-      // dispatched a broadcast yet because it was waiting on this jobId).
-      try {
-        const peaks = artworkOnly ? null : await this.readPeaksFromDisk(fileName);
-        const art = await this.readArtworkFromDisk(fileName);
-        const peaksFrame = peaks ? buildPeaksFrame(fileName, peaks) : null;
-        const artworkFrame = buildArtworkFrame(fileName, art);
-        const { artworkBytes, artworkMime } = artToTransfer(art);
-        send(
-          {
-            type: 'result',
-            jobId,
-            fileName,
-            peaksFrame,
-            artworkFrame,
-            artworkBytes,
-            artworkMime,
-            peaksLen: peaks?.length ?? 0,
-          },
-          artworkBytes ? [artworkBytes] : undefined,
-        );
-      } catch (e: any) {
-        send({ type: 'error', jobId, fileName, msg: e?.message || String(e) });
-      }
-      return;
+  async runJob(jobId: number, fileName: string, totalSec: number, audio: Uint8Array, artworkOnly: boolean): Promise<void> {
+    let promise = this.inFlight.get(fileName);
+    if (!promise) {
+      promise = this.extract(fileName, totalSec, audio, artworkOnly, jobId);
+      this.inFlight.set(fileName, promise);
     }
-
-    const promise = (async () => {
-      const hash = crypto.createHash('md5')
-        .update(Buffer.from(audio.buffer, audio.byteOffset, audio.byteLength))
-        .digest('hex')
-        .slice(0, 8);
-      const ext = path.extname(fileName) || '.audio';
-      const tempPath = path.join(os.tmpdir(), `slwv-${hash}${ext}`);
-
-      try {
-        await fs.writeFile(tempPath, Buffer.from(audio.buffer, audio.byteOffset, audio.byteLength));
-
-        // Run peaks extraction (skipped on artwork-only) and artwork extraction in
-        // parallel — same intent as the original Promise.all in waveformService.ts.
-        const peaksPromise: Promise<number[] | null> = artworkOnly
-          ? Promise.resolve(null)
-          : extractPeaksViaFfmpeg(tempPath, totalSec, (pct) => {
-              send({ type: 'progress', jobId, stage: 'generating', progress: pct });
-            });
-        const artworkPromise = extractArtwork(tempPath);
-
-        const [peaks, art] = await Promise.all([peaksPromise, artworkPromise]);
-
-        // Persist to disk caches before replying so a crash mid-result still
-        // leaves the cache populated for next boot.
-        if (peaks) await this.writeWaveformFile(fileName, peaks);
-        await this.writeArtworkFile(fileName, art);
-
-        const peaksFrame = peaks ? buildPeaksFrame(fileName, peaks) : null;
-        const artworkFrame = buildArtworkFrame(fileName, art);
-        const { artworkBytes, artworkMime } = artToTransfer(art);
-
-        send(
-          {
-            type: 'result',
-            jobId,
-            fileName,
-            peaksFrame,
-            artworkFrame,
-            artworkBytes,
-            artworkMime,
-            peaksLen: peaks?.length ?? 0,
-          },
-          artworkBytes ? [artworkBytes] : undefined,
-        );
-      } finally {
-        await fs.unlink(tempPath).catch(() => {});
-      }
-    })();
-
-    this.inFlight.set(fileName, promise);
     try {
-      await promise;
+      const result = await promise;
+      if (!artworkOnly && result.peaks === null) {
+        if (this.inFlight.get(fileName) === promise) this.inFlight.delete(fileName);
+        await this.runJob(jobId, fileName, totalSec, audio, false);
+        return;
+      }
+      const peaks = artworkOnly ? null : result.peaks;
+      const { artworkBytes, artworkMime } = artToTransfer(result.art);
+      send({
+        type: 'result', jobId, fileName,
+        peaksFrame: peaks ? buildPeaksFrame(fileName, peaks) : null,
+        artworkFrame: buildArtworkFrame(fileName, result.art),
+        artworkBytes, artworkMime, peaksLen: peaks?.length ?? 0,
+      }, artworkBytes ? [artworkBytes] : undefined);
     } catch (e: any) {
       send({ type: 'error', jobId, fileName, msg: e?.message || String(e) });
     } finally {
-      this.inFlight.delete(fileName);
+      if (this.inFlight.get(fileName) === promise) this.inFlight.delete(fileName);
+    }
+  }
+
+  private async extract(fileName: string, totalSec: number, audio: Uint8Array, artworkOnly: boolean, jobId: number) {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'slwv-'));
+    const tempPath = path.join(tempDir, 'input' + (path.extname(fileName) || '.audio'));
+    try {
+      await fs.writeFile(tempPath, audio);
+      const peaksPromise = artworkOnly ? Promise.resolve(null) : extractPeaksViaFfmpeg(tempPath, totalSec, (progress) => {
+        send({ type: 'progress', jobId, stage: 'generating', progress });
+      });
+      const artworkPromise = extractArtwork(tempPath, audio, path.extname(fileName).slice(1));
+      const [peaksResult, artResult] = await Promise.allSettled([peaksPromise, artworkPromise]);
+      if (peaksResult.status === 'rejected') throw peaksResult.reason;
+      if (artResult.status === 'rejected') throw artResult.reason;
+      const peaks = peaksResult.value;
+      const art = artResult.value;
+      if (peaks) await this.writeWaveformFile(fileName, peaks);
+      await this.writeArtworkFile(fileName, art);
+      return { peaks, art };
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
     }
   }
 
@@ -302,40 +254,7 @@ class WaveformWorker {
     }
   }
 
-  private async readPeaksFromDisk(fileName: string): Promise<number[] | null> {
-    if (!this.waveformCacheDir) return null;
-    try {
-      const raw = await fs.readFile(
-        path.join(this.waveformCacheDir, `${waveformStem(fileName)}.json`),
-        'utf8',
-      );
-      const { peaks } = JSON.parse(raw) as { key: string; peaks: number[] };
-      return Array.isArray(peaks) ? peaks : null;
-    } catch {
-      return null;
-    }
-  }
 
-  private async readArtworkFromDisk(
-    fileName: string,
-  ): Promise<{ data: Buffer; mime: string } | null> {
-    if (!this.artworkCacheDir) return null;
-    const stem = artworkStem(fileName);
-    for (const [mime, ext] of Object.entries(MIME_TO_EXT)) {
-      try {
-        const data = await fs.readFile(path.join(this.artworkCacheDir, `${stem}${ext}`));
-        return { data, mime };
-      } catch {
-        // try next ext
-      }
-    }
-    try {
-      await fs.access(path.join(this.artworkCacheDir, `${stem}.none`));
-      return null;
-    } catch {
-      return null;
-    }
-  }
 }
 
 function artToTransfer(art: { data: Buffer; mime: string } | null): {
@@ -350,8 +269,14 @@ function artToTransfer(art: { data: Buffer; mime: string } | null): {
   return { artworkBytes: ab, artworkMime: art.mime };
 }
 
-function extractArtwork(inputPath: string): Promise<{ data: Buffer; mime: string } | null> {
-  return new Promise((resolve) => {
+async function extractArtwork(inputPath: string, audio: Uint8Array, extension: string): Promise<{ data: Buffer; mime: string } | null> {
+  const bytes = Buffer.from(audio.buffer, audio.byteOffset, audio.byteLength);
+  const metadata = await extractMetadata(createBufferReader(bytes, extension));
+  if (metadata?.artwork && metadata.artworkMimeType) {
+    return { data: metadata.artwork, mime: metadata.artworkMimeType };
+  }
+  // Preserve support for containers and tags the metadata parser does not cover.
+  return new Promise((resolve, reject) => {
     const proc = spawn('ffmpeg', [
       '-i', inputPath,
       '-an',
@@ -364,18 +289,19 @@ function extractArtwork(inputPath: string): Promise<{ data: Buffer; mime: string
     const chunks: Buffer[] = [];
     proc.stdout.on('data', (chunk: Buffer) => chunks.push(chunk));
     proc.stderr.on('data', () => {});
-    proc.on('error', () => resolve(null));
-    proc.on('close', () => {
+    proc.on('error', reject);
+    proc.on('close', async () => {
       const data = Buffer.concat(chunks);
       if (data.length < 4) {
         resolve(null);
         return;
       }
-      let mime = 'image/jpeg';
-      if (data[0] === 0x89 && data[1] === 0x50) mime = 'image/png';
-      else if (data[0] === 0x47 && data[1] === 0x49) mime = 'image/gif';
-      else if (data[0] === 0x57 && data[1] === 0x45) mime = 'image/webp';
-      resolve({ data, mime });
+      try {
+        const type = await fileTypeFromBuffer(data);
+        resolve(type && MIME_TO_EXT[type.mime] ? { data, mime: type.mime } : null);
+      } catch (error) {
+        reject(error);
+      }
     });
   });
 }
@@ -395,17 +321,38 @@ function extractPeaksViaFfmpeg(
       'pipe:1',
     ]);
 
-    const chunks: Buffer[] = [];
+    const peaks: number[] = [];
+    let lowByte: number | null = null;
+    let sampleCount = 0;
+    let peak = 0;
+    let lastProgress = -1;
+    const addSample = (unsigned: number) => {
+      const sample = unsigned >= 0x8000 ? unsigned - 0x10000 : unsigned;
+      peak = Math.max(peak, Math.abs(sample));
+      if (++sampleCount === WAVEFORM_SAMPLES_PER_PEAK) {
+        peaks.push(Math.min(1, peak / 32767));
+        sampleCount = 0;
+        peak = 0;
+      }
+    };
     const expectedBytes = totalSec > 0
       ? Math.ceil(totalSec * WAVEFORM_FFMPEG_SAMPLE_RATE * 2)
       : 0;
     let receivedBytes = 0;
 
     proc.stdout.on('data', (chunk: Buffer) => {
-      chunks.push(chunk);
+      let offset = 0;
+      if (lowByte !== null && chunk.length) {
+        addSample(lowByte | (chunk[0] << 8));
+        offset = 1;
+        lowByte = null;
+      }
+      for (; offset + 1 < chunk.length; offset += 2) addSample(chunk.readUInt16LE(offset));
+      if (offset < chunk.length) lowByte = chunk[offset];
       receivedBytes += chunk.length;
       if (expectedBytes > 0) {
-        onProgress(Math.min(99, Math.round((receivedBytes / expectedBytes) * 100)));
+        const progress = Math.min(99, Math.round((receivedBytes / expectedBytes) * 100));
+        if (progress !== lastProgress) { lastProgress = progress; onProgress(progress); }
       }
     });
 
@@ -421,26 +368,10 @@ function extractPeaksViaFfmpeg(
         return;
       }
       onProgress(100);
-      const pcm = Buffer.concat(chunks);
-      resolve(computePeaks(pcm));
+      if (sampleCount) peaks.push(Math.min(1, peak / 32767));
+      resolve(peaks);
     });
   });
-}
-
-function computePeaks(pcm: Buffer): number[] {
-  const peaks: number[] = [];
-  const step = WAVEFORM_SAMPLES_PER_PEAK * 2;
-
-  for (let i = 0; i + 1 < pcm.length; i += step) {
-    let max = 0;
-    for (let j = i; j < i + step && j + 1 < pcm.length; j += 2) {
-      const sample = Math.abs(pcm.readInt16LE(j));
-      if (sample > max) max = sample;
-    }
-    peaks.push(max / 32767);
-  }
-
-  return peaks;
 }
 
 const worker = new WaveformWorker();
@@ -456,6 +387,7 @@ port.on('message', (raw: MainToWaveformWorker) => {
           send({ type: 'ready' });
         })
         .catch((e) => {
+          send({ type: 'initError', msg: e?.message || String(e) });
           logError(`[WAVEFORM] init failed: ${e?.message || e}`);
         });
       break;

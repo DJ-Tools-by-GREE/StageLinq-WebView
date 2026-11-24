@@ -1,7 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { finished } from 'node:stream/promises';
 import type { DeckNumber, DeckState, RecordingStatus, StageLinqStatus } from './types.js';
 import { logError, logLifecycle } from './logging.js';
+import { writeJsonFile } from './jsonFile.js';
 import type { StageLinqBridge } from './stagelinqBridge.js';
 
 // JSONL log format. Every line is one event with a `t` (ms since recording start) and a `type`.
@@ -31,6 +33,7 @@ export interface RecorderOptions {
   isReplayActive: () => boolean;
   // Live status, polled at start() to refuse if disconnected.
   getStatus: () => StageLinqStatus;
+  getSelectedDeck?: () => DeckNumber | null;
 }
 
 const DECKS: DeckNumber[] = [1, 2, 3, 4];
@@ -84,6 +87,8 @@ interface OrphanScan {
   lastEventWallMs: number;     // startedAt + lastEventT
   lastEmitted: Record<DeckNumber, DeckState | null>;
   eventCount: number;
+  truncateTo: number | null;
+  needsNewline: boolean;
 }
 
 /**
@@ -179,7 +184,18 @@ async function findOrphan(recordingsDir: string): Promise<OrphanScan | null> {
     await fs.promises.rm(lockPath, { force: true });
     return null;
   }
-  return { filePath, startedAt, lastEventT, lastEventWallMs: startedAt + lastEventT, lastEmitted, eventCount };
+  let truncateTo: number | null = null;
+  let needsNewline = false;
+  if (!raw.endsWith('\n')) {
+    const tailStart = raw.lastIndexOf('\n') + 1;
+    try {
+      JSON.parse(raw.slice(tailStart));
+      needsNewline = true;
+    } catch {
+      truncateTo = Buffer.byteLength(raw.slice(0, tailStart));
+    }
+  }
+  return { filePath, startedAt, lastEventT, lastEventWallMs: startedAt + lastEventT, lastEmitted, eventCount, truncateTo, needsNewline };
 }
 
 export class Recorder {
@@ -191,6 +207,9 @@ export class Recorder {
   private eventCount = 0;
   private lastEmitted: Record<DeckNumber, DeckState | null> = { 1: null, 2: null, 3: null, 4: null };
   private unsubBridge: (() => void) | null = null;
+  private operation: Promise<unknown> = Promise.resolve();
+  private pendingOperations = 0;
+  private streamError: Error | null = null;
 
   // Resume staging: set by prepareResumeFromOrphan(), consumed by finalizeResume() once
   // StageLinq is back. Until finalized, `active` stays false so no diffs are written
@@ -203,10 +222,29 @@ export class Recorder {
     lastEmitted: Record<DeckNumber, DeckState | null>;
     eventCount: number;
     crashedAtWall: number;
+    truncateTo: number | null;
+    needsNewline: boolean;
   } | null = null;
 
   constructor(opts: RecorderOptions) {
     this.opts = opts;
+  }
+
+  private serialize<T>(action: () => Promise<T>): Promise<T> {
+    this.pendingOperations++;
+    const result = this.operation.then(action).finally(() => { this.pendingOperations--; });
+    this.operation = result.catch(() => {});
+    return result;
+  }
+
+  isBusy(): boolean {
+    return this.active || this.stream !== null || this.pendingResume !== null || this.pendingOperations > 0;
+  }
+
+  shutdown(): Promise<void> {
+    return this.serialize(async () => {
+      if (this.active || this.stream) await this.stopNow();
+    });
   }
 
   getStatus(): RecordingStatus {
@@ -227,7 +265,11 @@ export class Recorder {
    * was staged — caller should then poll status and call finalizeResume() once StageLinq
    * is connected. Idempotent: repeated calls without finalize are no-ops.
    */
-  async prepareResumeFromOrphan(): Promise<boolean> {
+  prepareResumeFromOrphan(): Promise<boolean> {
+    return this.serialize(() => this.prepareResumeNow());
+  }
+
+  private async prepareResumeNow(): Promise<boolean> {
     if (this.active || this.pendingResume) return false;
     let scan: OrphanScan | null;
     try {
@@ -250,6 +292,8 @@ export class Recorder {
       lastEmitted: scan.lastEmitted,
       eventCount: scan.eventCount,
       crashedAtWall,
+      truncateTo: scan.truncateTo,
+      needsNewline: scan.needsNewline,
     };
     logLifecycle(`[REC] orphan detected: ${path.basename(scan.filePath)} (${scan.eventCount} events, ` +
       `last @ +${(scan.lastEventT / 1000).toFixed(1)}s). Resume pending StageLinq reconnection.`);
@@ -260,12 +304,16 @@ export class Recorder {
    * Drop a pending resume without writing anything. Used by /api/record/start to clear
    * a stale resume so the operator can begin a fresh recording instead.
    */
-  abortPendingResume() {
+  abortPendingResume(): Promise<void> {
+    return this.serialize(() => this.abortPendingResumeNow());
+  }
+
+  private async abortPendingResumeNow(): Promise<void> {
     if (!this.pendingResume) return;
     logLifecycle(`[REC] pending resume aborted: ${path.basename(this.pendingResume.filePath)}`);
-    this.pendingResume = null;
     // Discard the lock too — otherwise the same orphan would reappear on every restart.
-    void this.clearLock();
+    await this.clearLock();
+    this.pendingResume = null;
   }
 
   /**
@@ -273,7 +321,11 @@ export class Recorder {
    * and hook up the bridge subscriber. Caller should invoke this when status flips to
    * 'connected' (or after a short grace period if it stays connected on boot).
    */
-  async finalizeResume(): Promise<{ ok: true; gapMs: number } | { ok: false; error: string }> {
+  finalizeResume(): Promise<{ ok: true; gapMs: number } | { ok: false; error: string }> {
+    return this.serialize(() => this.finalizeResumeNow());
+  }
+
+  private async finalizeResumeNow(): Promise<{ ok: true; gapMs: number } | { ok: false; error: string }> {
     if (this.active) return { ok: false, error: 'already recording' };
     if (this.opts.isReplayActive()) return { ok: false, error: 'replay is active' };
     const pending = this.pendingResume;
@@ -282,11 +334,9 @@ export class Recorder {
     const status = this.opts.getStatus();
     if (status !== 'connected') return { ok: false, error: `StageLinq not connected (status=${status})` };
 
-    const stream = fs.createWriteStream(pending.filePath, { flags: 'a' });
-    await new Promise<void>((resolve, reject) => {
-      stream.once('open', () => resolve());
-      stream.once('error', reject);
-    });
+    if (pending.truncateTo !== null) await fs.promises.truncate(pending.filePath, pending.truncateTo);
+    if (pending.needsNewline) await fs.promises.appendFile(pending.filePath, '\n');
+    const stream = await this.openStream(pending.filePath, 'a');
 
     const resumedAtWall = Date.now();
     const tNow = resumedAtWall - pending.startedAt;
@@ -319,6 +369,7 @@ export class Recorder {
       this.lastEmitted[d] = { ...decks[d] };
     }
     this.write({ t: tNow, type: 'status', value: status });
+    this.write({ t: tNow, type: 'selected', deck: this.opts.getSelectedDeck?.() ?? null });
 
     this.unsubBridge = this.opts.bridge.subscribeDeckState((deck, state) => this.onDeckChange(deck, state));
 
@@ -326,8 +377,13 @@ export class Recorder {
     return { ok: true, gapMs };
   }
 
-  async start(name?: string): Promise<{ ok: true; file: string; startedAt: number } | { ok: false; error: string; code: number }> {
+  start(name?: string): Promise<{ ok: true; file: string; startedAt: number } | { ok: false; error: string; code: number }> {
+    return this.serialize(() => this.startNow(name));
+  }
+
+  private async startNow(name?: string): Promise<{ ok: true; file: string; startedAt: number } | { ok: false; error: string; code: number }> {
     if (this.active) return { ok: false, error: 'recording already in progress', code: 409 };
+    if (this.stream) throw this.streamError ?? new Error('previous recording has not finished closing');
     if (this.opts.isReplayActive()) return { ok: false, error: 'cannot record during replay', code: 409 };
     if (this.pendingResume) return { ok: false, error: 'a previous recording is pending resume; call /api/record/resume-abort to discard it first', code: 409 };
     const status = this.opts.getStatus();
@@ -341,15 +397,16 @@ export class Recorder {
     const fileName = safeName ? `${stamp}--${safeName}.jsonl` : `${stamp}.jsonl`;
     const filePath = path.join(this.opts.recordingsDir, fileName);
 
-    const stream = fs.createWriteStream(filePath, { flags: 'wx' });
-    await new Promise<void>((resolve, reject) => {
-      stream.once('open', () => resolve());
-      stream.once('error', reject);
-    });
+    const stream = await this.openStream(filePath, 'wx');
 
     // Lock file: marks this recording as the one to resume if the process dies before
     // stop() runs. Cleared in stop(); presence at next-boot is what gates resume.
-    await this.writeLock(fileName);
+    try {
+      await this.writeLock(fileName);
+    } catch (error) {
+      stream.destroy();
+      throw error;
+    }
 
     this.active = true;
     this.startedAt = startedAt;
@@ -375,6 +432,7 @@ export class Recorder {
     }
     // Initial status snapshot.
     this.write({ t: 0, type: 'status', value: status });
+    this.write({ t: 0, type: 'selected', deck: this.opts.getSelectedDeck?.() ?? null });
 
     // Subscribe to per-deck mutations at full bridge cadence.
     this.unsubBridge = this.opts.bridge.subscribeDeckState((deck, state) => this.onDeckChange(deck, state));
@@ -411,8 +469,12 @@ export class Recorder {
     this.write({ t: this.tNow(), type: 'status', value: status });
   }
 
-  async stop(): Promise<{ ok: true; file: string; durationMs: number; eventCount: number } | { ok: false; error: string; code: number }> {
-    if (!this.active) return { ok: false, error: 'not recording', code: 409 };
+  stop(): Promise<{ ok: true; file: string; durationMs: number; eventCount: number } | { ok: false; error: string; code: number }> {
+    return this.serialize(() => this.stopNow());
+  }
+
+  private async stopNow(): Promise<{ ok: true; file: string; durationMs: number; eventCount: number } | { ok: false; error: string; code: number }> {
+    if (!this.active && !this.stream) return { ok: false, error: 'not recording', code: 409 };
 
     const stoppedAt = Date.now();
     const t = this.tNow();
@@ -428,9 +490,15 @@ export class Recorder {
     const startedAt = this.startedAt!;
     const eventCount = this.eventCount;
     this.active = false;
-    this.stream = null;
-
-    await new Promise<void>((resolve) => stream.end(resolve));
+    try {
+      if (this.streamError) throw this.streamError;
+      const flushed = finished(stream, { cleanup: true });
+      stream.end();
+      await flushed;
+      if (this.streamError) throw this.streamError;
+    } finally {
+      this.stream = null;
+    }
 
     // Sidecar metadata for UI listing.
     const meta = {
@@ -441,11 +509,7 @@ export class Recorder {
       eventCount,
     };
     const metaPath = filePath.replace(/\.jsonl$/, '.meta.json');
-    try {
-      await fs.promises.writeFile(metaPath, JSON.stringify(meta, null, 2));
-    } catch (e) {
-      logError('[REC] failed to write meta sidecar:', e);
-    }
+    await writeJsonFile(metaPath, meta);
 
     logLifecycle(`[REC] stopped ${meta.file} dur=${(meta.durationMs / 1000).toFixed(1)}s events=${eventCount}`);
     // Clear the lock AFTER the sidecar exists, so a crash between the two doesn't leave
@@ -462,29 +526,44 @@ export class Recorder {
 
   private async writeLock(jsonlBasename: string): Promise<void> {
     const lockPath = path.join(this.opts.recordingsDir, ACTIVE_LOCK_FILENAME);
-    try {
-      await fs.promises.writeFile(lockPath, jsonlBasename + '\n');
-    } catch (e) {
-      logError('[REC] failed to write active-recording lock:', e);
-    }
+    await fs.promises.writeFile(lockPath, jsonlBasename + '\n');
   }
 
   private async clearLock(): Promise<void> {
     const lockPath = path.join(this.opts.recordingsDir, ACTIVE_LOCK_FILENAME);
-    try {
-      await fs.promises.rm(lockPath, { force: true });
-    } catch (e) {
-      logError('[REC] failed to clear active-recording lock:', e);
-    }
+    await fs.promises.rm(lockPath, { force: true });
+  }
+
+  private async openStream(filePath: string, flags: 'wx' | 'a'): Promise<fs.WriteStream> {
+    this.streamError = null;
+    const stream = fs.createWriteStream(filePath, { flags });
+    stream.on('error', (error) => {
+      if (this.stream === stream) this.failRecording(error);
+    });
+    await new Promise<void>((resolve, reject) => {
+      const onOpen = () => { stream.off('error', onError); resolve(); };
+      const onError = (error: Error) => { stream.off('open', onOpen); reject(error); };
+      stream.once('open', onOpen);
+      stream.once('error', onError);
+    });
+    return stream;
+  }
+
+  private failRecording(error: unknown): void {
+    this.streamError = error instanceof Error ? error : new Error(String(error));
+    this.active = false;
+    this.unsubBridge?.();
+    this.unsubBridge = null;
+    logError('[REC] recording failed; incomplete log retained for recovery:', this.streamError);
   }
 
   private write(ev: Event) {
-    if (!this.stream) return;
+    if (!this.stream || this.streamError) return;
     try {
       this.stream.write(JSON.stringify(ev) + '\n');
       this.eventCount++;
     } catch (e) {
-      logError('[REC] write failed:', e);
+      this.failRecording(e);
     }
   }
 }

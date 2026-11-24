@@ -59,8 +59,7 @@ function migrateConfig(raw: any): { config: AppConfig; legacyNoteFieldFound: boo
     content: Array.isArray(pl?.content)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ? pl.content.map((entry: any) => {
-          if (!entry?.note) return entry;
-          const note = { ...entry.note };
+          const note = { description: '', ...(entry?.note ?? {}) };
           if ('show_secs_before_transition_starts' in note) {
             legacyNoteFieldFound = true;
             delete note.show_secs_before_transition_starts;
@@ -68,9 +67,9 @@ function migrateConfig(raw: any): { config: AppConfig; legacyNoteFieldFound: boo
           if (typeof note.show_secs_after_load !== 'number') {
             note.show_secs_after_load = 0;
           }
-          return { ...entry, note };
+          return { song_index: '', offset_sec: 0, offset_frame: 0, ...entry, note };
         })
-      : pl?.content,
+      : [],
   }));
 
   const recordings = Array.isArray(src.recordings)

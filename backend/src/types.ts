@@ -1,5 +1,12 @@
 export type DeckNumber = 1 | 2 | 3 | 4;
 
+export interface SourceTiming {
+  positionAtMs: number | null;
+  positionRevision: number;
+  transportRevision: number;
+  trackId: string;
+}
+
 export interface HotCue {
   index: number; // 1–8
   sec: number;

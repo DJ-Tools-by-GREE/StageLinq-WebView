@@ -32,6 +32,7 @@ export async function putFreewheelSettings(
 ): Promise<FreewheelSettings> {
   const r = await fetch('/api/global-settings/freewheel', {
     method: 'PUT',
+    keepalive: true,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(patch),
   });

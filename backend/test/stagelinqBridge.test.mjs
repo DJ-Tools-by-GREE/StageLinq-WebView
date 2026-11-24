@@ -3,29 +3,27 @@ import { execFileSync } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { StageLinq } from '@gree44/stagelinq';
 import { Player } from '@gree44/stagelinq/dist/devices/Player.js';
 import { keyNameToCamelot } from '../dist/camelot.js';
 import { applyLoggingConfig } from '../dist/logging.js';
 import { StageLinqBridge } from '../dist/stagelinqBridge.js';
 
-applyLoggingConfig({ lifecycle: false, playback: false, discover: false });
+applyLoggingConfig({ lifecycle: false, playback: false, discover: false, errors: false });
 
 function setupBridge(t) {
   const bridge = new StageLinqBridge();
   t.after(() => {
-    StageLinq.devices.disconnectAll();
-    StageLinq.reset();
+    bridge.stageLinqDevices.disconnectAll();
   });
 
   const raw = (tail, value, deck = 1) => {
     const json = typeof value === 'string' ? { string: value } : { value };
-    StageLinq.devices.emit('message', {}, {
+    bridge.stageLinqDevices.emit('message', {}, {
       id: 0,
       message: { name: `/Engine/Deck${deck}/${tail}`, json: { type: 1, ...json } },
     });
   };
-  const beat = () => StageLinq.devices.emit('beatMessage', {}, {
+  const beat = () => bridge.stageLinqDevices.emit('beatMessage', {}, {
     clock: 1n, deckCount: 4,
     decks: [1, 2, 3, 4].map(() => ({ beat: 1, totalBeats: 100, bpm: 120, samples: 48000 })),
   });
@@ -88,7 +86,7 @@ test('CurrentKey wins over an earlier numeric index and stays stable across beat
 });
 
 test('a later numeric index keeps the named key and named updates apply on every deck', (t) => {
-  const { raw, beat, key } = setupBridge(t);
+  const { bridge, raw, beat, key } = setupBridge(t);
   for (const deck of [1, 2, 3, 4]) {
     raw('Track/CurrentKey', 'Am', deck);
     raw('Track/CurrentKeyIndex', 23, deck);
@@ -100,7 +98,7 @@ test('a later numeric index keeps the named key and named updates apply on every
 });
 
 test('invalid named updates restore the numeric fallback and remain safe after a beat', (t) => {
-  const { raw, beat, key } = setupBridge(t);
+  const { bridge, raw, beat, key } = setupBridge(t);
   raw('Track/CurrentKeyIndex', 23);
   for (const invalid of ['', ' ', 'unknown', '0A', '13B', null, 7, {}]) {
     raw('Track/CurrentKey', 'Am');
@@ -112,7 +110,7 @@ test('invalid named updates restore the numeric fallback and remain safe after a
 });
 
 test('invalid named values without a numeric index display the unknown marker', (t) => {
-  const { raw, beat, key } = setupBridge(t);
+  const { bridge, raw, beat, key } = setupBridge(t);
   raw('Track/CurrentKey', 'Am');
   raw('Track/CurrentKey', 'unknown');
   beat();
@@ -120,7 +118,7 @@ test('invalid named values without a numeric index display the unknown marker', 
 });
 
 test('legacy key paths, TrackData, nowPlaying and named stateChanged use the same conversion', (t) => {
-  const { raw, beat, key } = setupBridge(t);
+  const { bridge, raw, beat, key } = setupBridge(t);
   for (const tail of ['CurrentKey', 'Track/Key', 'Key', 'Track/Camelot', 'Camelot']) {
     raw(tail, 'B♭ minor');
     beat();
@@ -137,13 +135,13 @@ test('legacy key paths, TrackData, nowPlaying and named stateChanged use the sam
   beat();
   assert.equal(key(), '9B');
 
-  StageLinq.devices.emit('nowPlaying', { layer: 'A', keyIndex: 0, key: 'F♯m' });
+  bridge.stageLinqDevices.emit('nowPlaying', { layer: 'A', keyIndex: 0, key: 'F♯m' });
   beat();
   assert.equal(key(), '11A');
-  StageLinq.devices.emit('stateChanged', { name: '/Engine/Deck1/Track/CurrentKey', value: 'Cm' });
+  bridge.stageLinqDevices.emit('stateChanged', { name: '/Engine/Deck1/Track/CurrentKey', value: 'Cm' });
   beat();
   assert.equal(key(), '5A');
-  StageLinq.devices.emit('stateChanged', { name: '/Engine/Deck1/Track/CurrentKeyIndex', value: 23 });
+  bridge.stageLinqDevices.emit('stateChanged', { name: '/Engine/Deck1/Track/CurrentKeyIndex', value: 23 });
   assert.equal(key(), '5A');
 });
 
@@ -169,7 +167,7 @@ test('track changes clear both key sources before publishing the replacement tra
 });
 
 test('TrackData selects the first valid alias and clears the preference when all supplied aliases are invalid', (t) => {
-  const { raw, beat, key } = setupBridge(t);
+  const { bridge, raw, beat, key } = setupBridge(t);
   for (const data of [
     { camelot: null, key: 'Am' },
     { currentKey: null, camelot: '8A' },
@@ -195,7 +193,7 @@ test('basename metadata preserves the full network identity before a same-name r
   const secondPath = 'net://device/source/second/track.mp3';
   raw('Track/TrackNetworkPath', firstPath);
   raw('Track/CurrentKey', 'Am');
-  StageLinq.devices.emit('nowPlaying', { layer: 'A', fileName: 'track.mp3' });
+  bridge.stageLinqDevices.emit('nowPlaying', { layer: 'A', fileName: 'track.mp3' });
   assert.equal(bridge.getRawNetworkPath(1), firstPath);
   assert.equal(key(), '8A');
   raw('Track/TrackNetworkPath', secondPath);
@@ -205,14 +203,14 @@ test('basename metadata preserves the full network identity before a same-name r
 });
 
 test('the real Player status restores key-before-path updates and rejects status for the previous track', (t) => {
-  const { beat, key } = setupBridge(t);
+  const { bridge, beat, key } = setupBridge(t);
   const stateMap = new EventEmitter();
-  stateMap.on('message', (data) => StageLinq.devices.emit('message', {}, data));
+  stateMap.on('message', (data) => bridge.stageLinqDevices.emit('message', {}, data));
   const player = new Player({ stateMap, address: '192.0.2.1', port: 0, deviceId: 'device' });
   const statuses = [];
   player.on('stateChanged', (status) => {
     statuses.push(status);
-    StageLinq.devices.emit('stateChanged', status);
+    bridge.stageLinqDevices.emit('stateChanged', status);
   });
   t.after(() => clearTimeout(player.queue.A.timeout));
   const emit = (tail, json) => stateMap.emit('message', {
@@ -238,14 +236,14 @@ test('the real Player status restores key-before-path updates and rejects status
   beat();
   assert.equal(key(), '7A');
 
-  StageLinq.devices.emit('stateChanged', statuses[0]);
-  StageLinq.devices.emit('nowPlaying', statuses[0]);
+  bridge.stageLinqDevices.emit('stateChanged', statuses[0]);
+  bridge.stageLinqDevices.emit('nowPlaying', statuses[0]);
   beat();
   assert.equal(key(), '7A');
 });
 
 test('a new network track with the same basename clears the previous key', (t) => {
-  const { raw, beat, key } = setupBridge(t);
+  const { bridge, raw, beat, key } = setupBridge(t);
   raw('Track/TrackNetworkPath', 'net://device/source/first/track.mp3');
   raw('Track/CurrentKey', 'Am');
   raw('Track/TrackNetworkPath', 'net://device/source/second/track.mp3');
@@ -254,17 +252,17 @@ test('a new network track with the same basename clears the previous key', (t) =
 });
 
 test('repeat paths and basename metadata retain the key for the same track', (t) => {
-  const { raw, beat, key } = setupBridge(t);
+  const { bridge, raw, beat, key } = setupBridge(t);
   raw('Track/TrackNetworkPath', 'net://device/source/track.mp3');
   raw('Track/CurrentKey', 'Am');
   raw('Track/TrackNetworkPath', 'net://device/source/track.mp3');
-  StageLinq.devices.emit('nowPlaying', { layer: 'A', fileName: 'track.mp3' });
+  bridge.stageLinqDevices.emit('nowPlaying', { layer: 'A', fileName: 'track.mp3' });
   beat();
   assert.equal(key(), '8A');
 });
 
 test('an initial path arriving after key metadata preserves that key', (t) => {
-  const { raw, beat, key } = setupBridge(t);
+  const { bridge, raw, beat, key } = setupBridge(t);
   raw('Track/CurrentKey', 'Am');
   raw('Track/TrackNetworkPath', 'net://device/source/track.mp3');
   beat();
@@ -286,11 +284,11 @@ test('SongLoaded=false clears keys before reloading the same path', (t) => {
   assert.equal(key(), '--');
 });
 
-test('disconnect clears cached named keys before rewiring the singleton', async (t) => {
+test('disconnect clears cached named keys before creating a fresh instance', async (t) => {
   const { bridge, raw, beat, key } = setupBridge(t);
   raw('Track/CurrentKeyIndex', 0);
   raw('Track/CurrentKey', 'Am');
-  StageLinq.devices.disconnectAll();
+  bridge.stageLinqDevices.disconnectAll();
   await bridge.disconnect();
   beat();
   assert.equal(key(), '--');
@@ -302,12 +300,11 @@ test('KEY_MAP remains the numeric fallback and a named key takes precedence', ()
   const projectRoot = fileURLToPath(new URL('../../', import.meta.url));
   const script = `
     import assert from 'node:assert/strict';
-    import { StageLinq } from '@gree44/stagelinq';
-    import { StageLinqBridge } from './backend/dist/stagelinqBridge.js';
+        import { StageLinqBridge } from './backend/dist/stagelinqBridge.js';
     import { applyLoggingConfig } from './backend/dist/logging.js';
-    applyLoggingConfig({ lifecycle: false, playback: false, discover: false });
+    applyLoggingConfig({ lifecycle: false, playback: false, discover: false, errors: false });
     const bridge = new StageLinqBridge();
-    const emit = (name, json) => StageLinq.devices.emit('message', {}, {
+    const emit = (name, json) => bridge.stageLinqDevices.emit('message', {}, {
       message: { name: '/Engine/Deck1/Track/' + name, json },
     });
     try {
@@ -318,12 +315,173 @@ test('KEY_MAP remains the numeric fallback and a named key takes precedence', ()
       emit('CurrentKey', { string: '' });
       assert.equal(bridge.getDeck(1).keyCamelot, '12B');
     } finally {
-      StageLinq.devices.disconnectAll();
-      StageLinq.reset();
-    }
+      bridge.stageLinqDevices.disconnectAll();
+      }
   `;
   execFileSync(process.execPath, ['--input-type=module', '-e', script], {
     cwd: projectRoot,
     env: { ...process.env, KEY_MAP: Array(24).fill('12B').join(',') },
   });
+});
+
+test('a same-basename replacement notifies listeners and clears loops before publishing', (t) => {
+  const { bridge, raw } = setupBridge(t);
+  const tracks = [];
+  bridge.opts.onTrackChanged = (...args) => tracks.push(args);
+  raw('Track/TrackNetworkPath', 'net://device/source/a/track.mp3');
+  raw('Track/LoopEnableState', true);
+  const published = [];
+  bridge.subscribeDeckState((_deck, state) => published.push(state));
+  raw('Track/TrackNetworkPath', 'net://device/source/b/track.mp3');
+  assert.equal(tracks.length, 2);
+  assert.equal(tracks[1][2], 'net://device/source/b/track.mp3');
+  assert.ok(published.every((state) => state.loopActive === false));
+  raw('Track/TrackNetworkPath', 'net://device/source/b/track.mp3');
+  bridge.stageLinqDevices.emit('nowPlaying', { layer: 'A', fileName: 'track.mp3' });
+  assert.equal(tracks.length, 2);
+});
+
+test('artist metadata does not change loaded state or erase a named key', (t) => {
+  const { bridge, raw, key } = setupBridge(t);
+  raw('Track/SongLoaded', true);
+  raw('Track/SongName', 'Track without artist tags');
+  raw('Track/CurrentKey', 'Am');
+  raw('Track/ArtistName', '');
+  assert.equal(bridge.getDeck(1).trackLoaded, true);
+  assert.equal(key(), '8A');
+  bridge.stageLinqDevices.emit('nowPlaying', { layer: 'A', artist: '' });
+  bridge.stageLinqDevices.emit('stateChanged', { name: '/Engine/Deck1/Track/ArtistName', value: '' });
+  assert.equal(bridge.getDeck(1).trackLoaded, true);
+  assert.equal(key(), '8A');
+  raw('Track/SongLoaded', false);
+  raw('Track/ArtistName', 'Late artist');
+  assert.equal(bridge.getDeck(1).trackLoaded, false);
+});
+
+test('sample-derived duration and loops are recalculated when a new sample rate arrives', (t) => {
+  const { bridge, raw } = setupBridge(t);
+  raw('Track/SampleRate', 44100);
+  raw('Track/TrackNetworkPath', 'net://device/source/new.mp3');
+  raw('Track/TrackLength', 480000);
+  raw('Track/CurrentLoopInPosition', 48000);
+  raw('Track/CurrentLoopOutPosition', 96000);
+  raw('Track/SampleRate', 48000);
+  assert.equal(bridge.getDeck(1).totalSec, 10);
+  assert.equal(bridge.getDeck(1).loopInSec, 1);
+  assert.equal(bridge.getDeck(1).loopOutSec, 2);
+  raw('Track/TrackLength', 120);
+  raw('Track/SampleRate', 44100);
+  assert.equal(bridge.getDeck(1).totalSec, 120);
+});
+
+test('disconnect resets transport caches and isolates events from the previous public instance', async (t) => {
+  const { bridge, raw, beat } = setupBridge(t);
+  raw('Track/SampleRate', 48000);
+  raw('CurrentBPM', 120);
+  raw('SpeedState', 10);
+  raw('Track/TrackLength', 480000);
+  const oldInstance = bridge.stageLinq;
+  const oldDevices = bridge.stageLinqDevices;
+  await bridge.disconnect();
+  assert.notEqual(bridge.stageLinq, oldInstance);
+  assert.equal(oldDevices.listenerCount('message'), 0);
+  assert.equal(oldDevices.deviceWatchTimeout, null);
+  beat();
+  assert.equal(bridge.getDeck(1).elapsedSec, 0);
+  assert.equal(bridge.getDeck(1).speedState, 0);
+  assert.equal(bridge.getDeck(1).trackBpm, 0);
+  raw('Track/SampleRate', 44100);
+  assert.equal(bridge.getDeck(1).totalSec, 0);
+  raw('SpeedState', 0);
+  assert.equal(bridge.getDeck(1).trackBpm, 120);
+});
+
+test('disconnect creates a usable public instance even when logout rejects', async (t) => {
+  const { bridge, raw, key } = setupBridge(t);
+  const oldInstance = bridge.stageLinq;
+  oldInstance.disconnect = async () => { throw new Error('Synthetic logout failure'); };
+  await bridge.disconnect();
+  assert.notEqual(bridge.stageLinq, oldInstance);
+  raw('Track/CurrentKey', 'Am');
+  assert.equal(key(), '8A');
+});
+
+test('a BeatInfo event publishes one complete snapshot per deck', (t) => {
+  const { bridge, raw, beat } = setupBridge(t);
+  for (const deck of [1, 2, 3, 4]) raw('Track/SampleRate', 48000, deck);
+  const changes = [];
+  bridge.subscribeDeckState((deck, state) => changes.push([deck, state]));
+  beat();
+  assert.equal(changes.length, 4);
+  assert.ok(changes.every(([, state]) => state.elapsedSec === 1 && state.currentBpm === 120));
+});
+
+test('downloads use the upstream path parser and retain per-device serialization', async (t) => {
+  const { bridge } = setupBridge(t);
+  const ft = new EventEmitter();
+  let active = 0;
+  const paths = [];
+  ft.getFile = async (file) => {
+    assert.equal(active++, 0);
+    paths.push(file);
+    await new Promise((resolve) => setTimeout(resolve, 1));
+    active--;
+    return Uint8Array.of(paths.length);
+  };
+  bridge.stageLinqDevices.getFileTransferService = () => ft;
+  const prefix = 'net://12345678-1234-1234-1234-123456789abc/USB 1/Engine Library/Music/';
+  const results = await Promise.all([
+    bridge.downloadFile(prefix + 'a.mp3', () => {}),
+    bridge.downloadFile(prefix + 'b.mp3', () => {}),
+  ]);
+  assert.deepEqual(paths, ['/USB 1/Engine Library/Music/a.mp3', '/USB 1/Engine Library/Music/b.mp3']);
+  assert.deepEqual(results.map((r) => [...r]), [[1], [2]]);
+  assert.equal(ft.listenerCount('fileTransferProgress'), 0);
+  await assert.rejects(bridge.downloadFile('net:invalid/path/file.mp3', () => {}), /Invalid net path/);
+});
+
+test('source timing advances only for BeatInfo positions and explicit transport updates', async (t) => {
+  const { bridge, raw, beat } = setupBridge(t);
+  assert.equal(bridge.getDeckTiming(1).positionAtMs, null);
+  beat();
+  assert.equal(bridge.getDeckTiming(1).positionAtMs, null);
+  raw('Track/TrackNetworkPath', 'net://device/source/first.mp3');
+  raw('Track/SampleRate', 48000);
+  beat();
+  const first = bridge.getDeckTiming(1);
+  assert.ok(first.positionAtMs > 0);
+  assert.equal(first.trackId, 'net://device/source/first.mp3');
+  raw('Track/ArtistName', 'Metadata');
+  raw('SpeedState', 5);
+  assert.deepEqual(bridge.getDeckTiming(1), first);
+  raw('Track/TrackNetworkPath', 'net://device/source/second.mp3');
+  assert.equal(bridge.getDeckTiming(1).trackId, first.trackId);
+  raw('Play', false);
+  assert.equal(bridge.getDeckTiming(1).transportRevision, first.transportRevision + 1);
+  assert.equal(bridge.getDeckTiming(1).positionRevision, first.positionRevision);
+  beat();
+  const second = bridge.getDeckTiming(1);
+  assert.equal(second.trackId, 'net://device/source/second.mp3');
+  assert.ok(second.positionRevision > first.positionRevision);
+  assert.equal(bridge.getDeckTiming(2).positionAtMs, null);
+  await bridge.disconnect();
+  assert.equal(bridge.getDeckTiming(1).positionAtMs, null);
+  assert.ok(bridge.getDeckTiming(1).positionRevision > second.positionRevision);
+});
+
+test('explicit unload stops transport, but empty or delayed title tags cannot override SongLoaded', (t) => {
+  const { bridge, raw, key } = setupBridge(t);
+  raw('Track/SongLoaded', true);
+  raw('Play', true);
+  raw('Track/CurrentKey', 'Am');
+  raw('Track/SongName', '');
+  assert.equal(bridge.getDeck(1).play, true);
+  assert.equal(bridge.getDeck(1).trackLoaded, true);
+  assert.equal(key(), '8A');
+  const previousRevision = bridge.getDeckTiming(1).transportRevision;
+  raw('Track/SongLoaded', false);
+  assert.equal(bridge.getDeck(1).play, false);
+  assert.ok(bridge.getDeckTiming(1).transportRevision > previousRevision);
+  raw('Track/SongName', 'Delayed old title');
+  assert.equal(bridge.getDeck(1).trackLoaded, false);
 });

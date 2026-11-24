@@ -1,5 +1,6 @@
-import type { DeckNumber, DeckState } from "./types.js";
+import type { DeckNumber, DeckState, SourceTiming } from "./types.js";
 import path from "node:path";
+import { monotonicNowMs } from "./timecodeTimeline.js";
 import { keyIndexToCamelot, keyNameToCamelot } from "./camelot.js";
 import { logBpmDebug, logDiscover, logDiscoverSpeed, logError, logLifecycle, logPlayback, logWaveform, logCues, GRN, YEL, RST } from "./logging.js";
 import { BEAT_WATCHDOG_TIMEOUT_S, DISCONNECT_DETECT_TIMEOUT_S, CONNECT_BEAT_GRACE_S, ELAPSED_THROTTLE_S } from "./constants.js";
@@ -38,11 +39,7 @@ function recordBeatGap(gapMs: number) {
   }
 }
 
-import * as pkg from "@gree44/stagelinq";
-
-
-// Resolve StageLinq export shape (some versions export default, some export { StageLinq }).
-const StageLinq: any = (pkg as any).StageLinq ?? (pkg as any).default ?? pkg;
+import { StageLinqInstance, parseNetworkPath } from "@gree44/stagelinq";
 
 const DECKS: DeckNumber[] = [1, 2, 3, 4];
 const DECK_BY_LAYER: Record<string, DeckNumber> = { A: 1, B: 2, C: 3, D: 4 };
@@ -73,7 +70,7 @@ export interface BridgeOptions {
 
 // Listener invoked synchronously from inside touch() on every state mutation. Listeners
 // MUST NOT throw and MUST NOT block — writes go through buffered streams downstream.
-export type DeckStateListener = (deck: DeckNumber, state: DeckState) => void;
+export type DeckStateListener = (deck: DeckNumber, state: DeckState, timing: SourceTiming) => void;
 
 export class StageLinqBridge {
   private opts: BridgeOptions;
@@ -109,6 +106,7 @@ export class StageLinqBridge {
   // Raw CurrentBPM sourced strictly from /Engine/DeckX/CurrentBPM updates.
   private currentBpmRaw: Record<DeckNumber, number | null> = { 1: null, 2: null, 3: null, 4: null };
   private speedStateRaw: Record<DeckNumber, number | string | boolean | null> = { 1: null, 2: null, 3: null, 4: null };
+  private explicitTrackLoaded: Record<DeckNumber, boolean | null> = { 1: null, 2: null, 3: null, 4: null };
   private currentKeyCamelot: Record<DeckNumber, string | null> = { 1: null, 2: null, 3: null, 4: null };
 
   // Avoid repeated [DISCOVER] speed logs when values haven't changed.
@@ -119,13 +117,12 @@ export class StageLinqBridge {
     4: null,
   };
 
-  // TrackLength is sometimes published in *samples* (not seconds).
-  // If we see a "too large" number, we keep it here until we have SampleRate.
-  private pendingTrackLengthSamples: Record<DeckNumber, number | null> = { 1: null, 2: null, 3: null, 4: null };
+  // Retain raw sample values so later SampleRate changes can correct early conversions.
+  private trackLengthSamples: Record<DeckNumber, number | null> = { 1: null, 2: null, 3: null, 4: null };
 
   // Loop positions arrive in samples before SampleRate is known — defer conversion.
-  private pendingLoopInSamples: Record<DeckNumber, number | null> = { 1: null, 2: null, 3: null, 4: null };
-  private pendingLoopOutSamples: Record<DeckNumber, number | null> = { 1: null, 2: null, 3: null, 4: null };
+  private loopInSamples: Record<DeckNumber, number | null> = { 1: null, 2: null, 3: null, 4: null };
+  private loopOutSamples: Record<DeckNumber, number | null> = { 1: null, 2: null, 3: null, 4: null };
 
   // Throttle elapsedSec updates (we don't need frame-accurate like timecode)
   private lastElapsedEmitSec: Record<DeckNumber, number> = { 1: -1, 2: -1, 3: -1, 4: -1 };
@@ -134,12 +131,17 @@ export class StageLinqBridge {
   private lastBeatAtMs: Record<DeckNumber, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
   private lastAnyBeatAtMs = 0;
   private realBeatReceivedSinceConnect = false;
+  private positionAtMs: Record<DeckNumber, number | null> = { 1: null, 2: null, 3: null, 4: null };
+  private positionTrackId: Record<DeckNumber, string> = { 1: '', 2: '', 3: '', 4: '' };
+  private positionRevision: Record<DeckNumber, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
+  private transportRevision: Record<DeckNumber, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
   private watchdogInterval: NodeJS.Timeout | null = null;
 
   // Captured full net:// paths (before basename stripping) and change-tracking for onTrackChanged.
   private rawNetworkPaths: Record<DeckNumber, string> = { 1: '', 2: '', 3: '', 4: '' };
-  private lastTriggeredFileNames: Record<DeckNumber, string> = { 1: '', 2: '', 3: '', 4: '' };
+  private lastTriggeredTrackPaths: Record<DeckNumber, string> = { 1: '', 2: '', 3: '', 4: '' };
 
+  private stageLinq!: StageLinqInstance;
   private stageLinqDevices: any = null;
   // Serialize downloads per device: FileTransfer has a single shared buffer and cannot handle concurrent getFile() calls.
   private downloadQueues = new Map<string, Promise<void>>();
@@ -187,7 +189,7 @@ export class StageLinqBridge {
     if (this.deckListeners.size > 0) {
       const snapshot = { ...this.decks[deck] };
       for (const fn of this.deckListeners) {
-        try { fn(deck, snapshot); } catch (e) { logError('[Bridge] deck listener threw:', e); }
+        try { fn(deck, snapshot, this.getDeckTiming(deck)); } catch (e) { logError('[Bridge] deck listener threw:', e); }
       }
     }
   }
@@ -218,20 +220,23 @@ export class StageLinqBridge {
     const fn = this.decks[deck].fileName;
     const netPath = this.rawNetworkPaths[deck];
     if (!fn || !netPath) return;
-    if (fn !== this.lastTriggeredFileNames[deck]) {
-      this.lastTriggeredFileNames[deck] = fn;
+    if (netPath !== this.lastTriggeredTrackPaths[deck]) {
+      this.lastTriggeredTrackPaths[deck] = netPath;
       this.decks[deck].hotCues = [];
       this.decks[deck].loopActive = false;
       this.decks[deck].loopInSec = null;
       this.decks[deck].loopOutSec = null;
       this.decks[deck].savedLoops = [];
-      this.pendingLoopInSamples[deck] = null;
-      this.pendingLoopOutSamples[deck] = null;
+      this.loopInSamples[deck] = null;
+      this.loopOutSamples[deck] = null;
       this.opts.onTrackChanged?.(deck, fn, netPath);
     }
   }
   private unloadDeck(deck: DeckNumber) {
+    this.explicitTrackLoaded[deck] = false;
     this.decks[deck].trackLoaded = false;
+    this.decks[deck].play = false;
+    this.transportRevision[deck]++;
     this.clearKey(deck);
   }
 
@@ -350,8 +355,8 @@ export class StageLinqBridge {
         obj.fileName || obj.filename || obj.filePath || obj.filepath ||
         obj.fullPath || obj.path || obj.uri || obj.songIndex || obj.song_index || '');
       ds.fileName = fileNameFromTrackData;
-      this.touch(deck);
       this.maybeFireTrackChanged(deck);
+      this.touch(deck);
     }
 
     // --- duration ---
@@ -367,6 +372,7 @@ export class StageLinqBridge {
       (typeof obj.lengthMs === "number" ? obj.lengthMs : undefined);
 
     if (typeof durMs === "number" && durMs > 0) {
+      this.trackLengthSamples[deck] = null;
       ds.totalSec = durMs / 1000;
       this.touch(deck);
       if (!this.seen.total) {
@@ -374,6 +380,7 @@ export class StageLinqBridge {
         logDiscover(deck, "[DISCOVER] totalSec from TrackData (ms):", deck, ds.totalSec);
       }
     } else if (typeof durSec === "number" && durSec > 0) {
+      this.trackLengthSamples[deck] = null;
       ds.totalSec = durSec;
       this.touch(deck);
       if (!this.seen.total) {
@@ -422,8 +429,7 @@ export class StageLinqBridge {
   }
 
   private wire() {
-    // Set options (including logger) before the static instance is created via devices access.
-    StageLinq.options = {
+    const instance = new StageLinqInstance({
       maxRetries: 999,
       downloadDbSources: false,
       enableFileTranfer: true,
@@ -434,8 +440,10 @@ export class StageLinqBridge {
         warn:  (msg: string, ...args: unknown[]) => logLifecycle('[StageLinq]', msg, ...args),
         error: (msg: string, ...args: unknown[]) => logError('[StageLinq]', msg, ...args),
       },
-    };
-    const devices = StageLinq.devices;
+    });
+    instance.on('error', (error: unknown) => logError('[StageLinq] Instance error:', error));
+    this.stageLinq = instance;
+    const devices: any = instance.devices;
     this.stageLinqDevices = devices;
 
     // Different versions use different lifecycle event names; listen to both.
@@ -516,8 +524,8 @@ export class StageLinqBridge {
       if (/(?:Track\/)?(?:FileName|Filename|FilePath|Path)$/i.test(tail) && typeof rawValue === "string" && rawValue.trim()) {
         this.captureNetPath(deck, rawValue);
         ds.fileName = toFileName(rawValue);
-        this.touch(deck);
         this.maybeFireTrackChanged(deck);
+        this.touch(deck);
       }
 
       // ---- Explicit track-loaded flag (if emitted by device) ----
@@ -527,6 +535,7 @@ export class StageLinqBridge {
           if (!loaded) {
             this.unloadDeck(deck);
           } else {
+            this.explicitTrackLoaded[deck] = true;
             ds.trackLoaded = true;
           }
           this.touch(deck);
@@ -564,10 +573,9 @@ export class StageLinqBridge {
           this.sampleRateHz[deck] = rawValue;
 
           // If TrackLength arrived earlier in samples, convert now.
-          const pendingSamples = this.pendingTrackLengthSamples[deck];
+          const pendingSamples = this.trackLengthSamples[deck];
           if (Number.isFinite(pendingSamples) && (pendingSamples as number) > 0) {
             ds.totalSec = (pendingSamples as number) / rawValue;
-            this.pendingTrackLengthSamples[deck] = null;
             this.touch(deck);
             if (!this.seen.total) {
               this.seen.total = true;
@@ -586,17 +594,15 @@ export class StageLinqBridge {
           }
 
           // If loop positions arrived before SampleRate, convert now.
-          const pendingIn = this.pendingLoopInSamples[deck];
+          const pendingIn = this.loopInSamples[deck];
           if (typeof pendingIn === "number") {
             ds.loopInSec = pendingIn / rawValue;
-            this.pendingLoopInSamples[deck] = null;
             this.touch(deck);
             logDiscover(deck, "[DISCOVER] LoopIn resolved from pending samples:", pendingIn, "sr=", rawValue, "->", ds.loopInSec.toFixed(3) + "s");
           }
-          const pendingOut = this.pendingLoopOutSamples[deck];
+          const pendingOut = this.loopOutSamples[deck];
           if (typeof pendingOut === "number") {
             ds.loopOutSec = pendingOut / rawValue;
-            this.pendingLoopOutSamples[deck] = null;
             this.touch(deck);
             logDiscover(deck, "[DISCOVER] LoopOut resolved from pending samples:", pendingOut, "sr=", rawValue, "->", ds.loopOutSec.toFixed(3) + "s");
           }
@@ -616,14 +622,13 @@ export class StageLinqBridge {
         const looksLikeSamples = !isMs && rawValue > 100000;
 
         if (looksLikeSamples) {
+          this.trackLengthSamples[deck] = rawValue;
           const sr = this.sampleRateHz[deck];
           if (typeof sr === "number" && Number.isFinite(sr) && sr > 0) {
             ds.totalSec = Math.max(0, rawValue / sr);
-          } else {
-            // We'll convert once SampleRate arrives.
-            this.pendingTrackLengthSamples[deck] = rawValue;
           }
         } else {
+          this.trackLengthSamples[deck] = null;
           ds.totalSec = Math.max(0, isMs ? rawValue / 1000 : rawValue);
         }
         this.touch(deck);
@@ -690,18 +695,15 @@ export class StageLinqBridge {
       // ---- Track title / artist (keep your exact matches, plus fallback patterns) ----
       if ((/SongName$/i.test(tail) || /Title$/i.test(tail)) && typeof rawValue === "string" && rawValue.trim()) {
         ds.title = rawValue;
-        ds.trackLoaded = true;
+        ds.trackLoaded = this.explicitTrackLoaded[deck] ?? true;
         this.touch(deck);
       } else if ((/SongName$/i.test(tail) || /Title$/i.test(tail)) && typeof rawValue === "string" && !rawValue.trim()) {
-        this.unloadDeck(deck);
+        ds.title = "—";
+        ds.trackLoaded = this.explicitTrackLoaded[deck] ?? false;
         this.touch(deck);
       }
-      if ((/ArtistName$/i.test(tail) || /Artist$/i.test(tail)) && typeof rawValue === "string" && rawValue.trim()) {
-        ds.artist = rawValue;
-        ds.trackLoaded = true;
-        this.touch(deck);
-      } else if ((/ArtistName$/i.test(tail) || /Artist$/i.test(tail)) && typeof rawValue === "string" && !rawValue.trim()) {
-        this.unloadDeck(deck);
+      if ((/ArtistName$/i.test(tail) || /Artist$/i.test(tail)) && typeof rawValue === "string") {
+        ds.artist = rawValue.trim() ? rawValue : "—";
         this.touch(deck);
       }
 
@@ -718,6 +720,7 @@ export class StageLinqBridge {
 
         if (typeof playing2 === "boolean") {
           ds.play = playing2;
+          this.transportRevision[deck]++;
           this.touch(deck);
           this.maybeLogPlayChange(deck, playing2);
         }
@@ -746,6 +749,7 @@ export class StageLinqBridge {
       }
 
       if (/^(?:Track\/)?CurrentLoopInPosition$/i.test(tail) && typeof rawValue === "number") {
+        this.loopInSamples[deck] = rawValue;
         const sr = this.sampleRateHz[deck];
         if (typeof sr === "number" && sr > 0) {
           ds.loopInSec = rawValue / sr;
@@ -753,12 +757,12 @@ export class StageLinqBridge {
           logDiscover(deck, "[DISCOVER] LoopIn set:", rawValue, "samples / sr=", sr, "->", ds.loopInSec.toFixed(3) + "s");
           logCues(deck, `[CUE] Deck ${deck} loop in @ ${ds.loopInSec.toFixed(3)}s`);
         } else {
-          this.pendingLoopInSamples[deck] = rawValue;
           logDiscover(deck, "[DISCOVER] LoopIn deferred (no SampleRate yet):", rawValue, "samples");
         }
       }
 
       if (/^(?:Track\/)?CurrentLoopOutPosition$/i.test(tail) && typeof rawValue === "number") {
+        this.loopOutSamples[deck] = rawValue;
         const sr = this.sampleRateHz[deck];
         if (typeof sr === "number" && sr > 0) {
           ds.loopOutSec = rawValue / sr;
@@ -766,7 +770,6 @@ export class StageLinqBridge {
           logDiscover(deck, "[DISCOVER] LoopOut set:", rawValue, "samples / sr=", sr, "->", ds.loopOutSec.toFixed(3) + "s");
           logCues(deck, `[CUE] Deck ${deck} loop out @ ${ds.loopOutSec.toFixed(3)}s`);
         } else {
-          this.pendingLoopOutSamples[deck] = rawValue;
           logDiscover(deck, "[DISCOVER] LoopOut deferred (no SampleRate yet):", rawValue, "samples");
         }
       }
@@ -840,18 +843,14 @@ export class StageLinqBridge {
       if (typeof status?.title === "string") {
         if (status.title.trim()) {
           ds.title = status.title;
-          ds.trackLoaded = true;
+          ds.trackLoaded = this.explicitTrackLoaded[deck] ?? true;
         } else {
-          this.unloadDeck(deck);
+          ds.title = "—";
+          ds.trackLoaded = this.explicitTrackLoaded[deck] ?? false;
         }
       }
       if (typeof status?.artist === "string") {
-        if (status.artist.trim()) {
-          ds.artist = status.artist;
-          ds.trackLoaded = true;
-        } else {
-          this.unloadDeck(deck);
-        }
+        ds.artist = status.artist.trim() ? status.artist : "—";
       }
 
       // Some builds include key info in nowPlaying
@@ -886,7 +885,7 @@ export class StageLinqBridge {
       try {
       // Some emitters provide (info, payload), others (payload) only.
       const payload = b ?? a;
-      const now = Date.now();
+      const now = monotonicNowMs();
       if (this.realBeatReceivedSinceConnect && this.lastAnyBeatAtMs > 0) {
         recordBeatGap(now - this.lastAnyBeatAtMs);
       }
@@ -900,10 +899,13 @@ export class StageLinqBridge {
         this.lastBeatAtMs[deck] = now;
 
         const ds = this.decks[deck];
-        if (typeof payload.samples === "number") {
+        if (typeof payload.samples === "number" && Number.isFinite(payload.samples)) {
           const sr = this.sampleRateHz[deck];
           if (typeof sr === "number" && sr > 0) {
             const elapsed = payload.samples / sr;
+            this.positionAtMs[deck] = now;
+            this.positionTrackId[deck] = this.rawNetworkPaths[deck] || ds.fileName;
+            this.positionRevision[deck]++;
 
             // Throttle: only update if elapsed changed by >= 0.1s
             if (Math.abs(elapsed - this.lastElapsedEmitSec[deck]) >= ELAPSED_THROTTLE_S) {
@@ -922,13 +924,9 @@ export class StageLinqBridge {
                   sr
                 );
               }
-              this.touch(deck);
             }
           }
         }
-
-
-
 
         if (typeof payload.bpm === "number") {
           ds.currentBpm = payload.bpm;
@@ -953,10 +951,13 @@ export class StageLinqBridge {
           }
 
           // Prefer samples + sampleRate (ArtNet-style) if available
-          if (typeof d?.samples === "number") {
+          if (typeof d?.samples === "number" && Number.isFinite(d.samples)) {
             const sr = this.sampleRateHz[deck];
             if (typeof sr === "number" && sr > 0) {
               const elapsed = d.samples / sr;
+              this.positionAtMs[deck] = now;
+              this.positionTrackId[deck] = this.rawNetworkPaths[deck] || ds.fileName;
+              this.positionRevision[deck]++;
 
               // Throttle: only update if elapsed changed by >= 0.1s
               if (Math.abs(elapsed - this.lastElapsedEmitSec[deck]) >= ELAPSED_THROTTLE_S) {
@@ -975,13 +976,9 @@ export class StageLinqBridge {
                     sr
                   );
                 }
-                this.touch(deck);
               }
             }
           }
-
-
-
 
           this.recomputeDerived(deck);
           this.touch(deck);
@@ -1002,7 +999,9 @@ export class StageLinqBridge {
         if (!deck || !trackPath || trackPath !== this.rawNetworkPaths[deck] ||
           state.key === undefined || state.songLoaded === false) return;
         // The accumulated status recovers a key received before its replacement track path.
-        this.currentKeyCamelot[deck] = keyNameToCamelot(state.key);
+        const namedKey = keyNameToCamelot(state.key);
+        if (namedKey === this.currentKeyCamelot[deck]) return;
+        this.currentKeyCamelot[deck] = namedKey;
         this.recomputeDerived(deck);
         this.touch(deck);
         return;
@@ -1037,21 +1036,15 @@ export class StageLinqBridge {
 
 
       else if (tail === "ArtistName" || tail === "Track/ArtistName") {
-        if (typeof value === "string") {
-          if (value.trim()) {
-            ds.artist = value;
-            ds.trackLoaded = true;
-          } else {
-            this.unloadDeck(deck);
-          }
-        }
+        if (typeof value === "string") ds.artist = value.trim() ? value : "—";
       } else if (tail === "SongName" || tail === "Track/SongName") {
         if (typeof value === "string") {
           if (value.trim()) {
             ds.title = value;
-            ds.trackLoaded = true;
+            ds.trackLoaded = this.explicitTrackLoaded[deck] ?? true;
           } else {
-            this.unloadDeck(deck);
+            ds.title = "—";
+            ds.trackLoaded = this.explicitTrackLoaded[deck] ?? false;
           }
         }
       } else if (/^(Track\/)?(FileName|Filename|FilePath|Path)$/i.test(tail)) {
@@ -1069,6 +1062,7 @@ export class StageLinqBridge {
         const playing = this.coerceBool(value);
         if (typeof playing === "boolean") {
           ds.play = playing;
+          this.transportRevision[deck]++;
           this.maybeLogPlayChange(deck, playing);
         }
       }
@@ -1092,6 +1086,7 @@ export class StageLinqBridge {
         }
       }
       if ((tail === "Track/CurrentLoopInPosition" || tail === "CurrentLoopInPosition") && typeof value === "number") {
+        this.loopInSamples[deck] = value;
         const sr = this.sampleRateHz[deck];
         if (typeof sr === "number" && sr > 0) {
           ds.loopInSec = value / sr;
@@ -1099,11 +1094,12 @@ export class StageLinqBridge {
           logDiscover(deck, "[DISCOVER] LoopIn set (stateChanged):", value, "/ sr=", sr, "->", ds.loopInSec.toFixed(3) + "s");
           logCues(deck, `[CUE] Deck ${deck} loop in @ ${ds.loopInSec.toFixed(3)}s`);
         } else {
-          this.pendingLoopInSamples[deck] = value;
+          this.loopInSamples[deck] = value;
           logDiscover(deck, "[DISCOVER] LoopIn deferred (stateChanged, no SampleRate):", value, "samples");
         }
       }
       if ((tail === "Track/CurrentLoopOutPosition" || tail === "CurrentLoopOutPosition") && typeof value === "number") {
+        this.loopOutSamples[deck] = value;
         const sr = this.sampleRateHz[deck];
         if (typeof sr === "number" && sr > 0) {
           ds.loopOutSec = value / sr;
@@ -1111,7 +1107,7 @@ export class StageLinqBridge {
           logDiscover(deck, "[DISCOVER] LoopOut set (stateChanged):", value, "/ sr=", sr, "->", ds.loopOutSec.toFixed(3) + "s");
           logCues(deck, `[CUE] Deck ${deck} loop out @ ${ds.loopOutSec.toFixed(3)}s`);
         } else {
-          this.pendingLoopOutSamples[deck] = value;
+          this.loopOutSamples[deck] = value;
           logDiscover(deck, "[DISCOVER] LoopOut deferred (stateChanged, no SampleRate):", value, "samples");
         }
       }
@@ -1162,19 +1158,22 @@ export class StageLinqBridge {
 
   async connect() {
     this.realBeatReceivedSinceConnect = false;
-    await StageLinq.connect();
-    this.lastAnyBeatAtMs = Date.now();
+    await this.stageLinq.connect();
+    this.lastAnyBeatAtMs = monotonicNowMs();
     this.startWatchdog();
   }
 
   async disconnect() {
     this.stopWatchdog();
     this.resetState();
-    try { await StageLinq.disconnect(); } catch {}
-    // Force-null the singleton regardless of _isConnected state — disconnect() and
-    // reset() both bail out when the network is gone (unannounce throws, isConnected
-    // stays true). Direct property access is the only reliable escape hatch.
-    try { (StageLinq as any)._instance = null; } catch {}
+    const instance = this.stageLinq;
+    // Also stops discovery timers when an initial connect never completed.
+    instance.devices.disconnectAll();
+    try { await instance.disconnect(); } catch (error) {
+      logError('[StageLinq] Disconnect cleanup failed:', error);
+    }
+    instance.devices.removeAllListeners();
+    // A fresh public instance remains usable even if logout fails on a lost network.
     this.wire();
   }
 
@@ -1189,9 +1188,22 @@ export class StageLinqBridge {
     for (const d of DECKS) {
       this.decks[d] = this.blankDeck(d);
       this.currentKeyCamelot[d] = null;
+      this.explicitTrackLoaded[d] = null;
       this.lastBeatAtMs[d] = 0;
-      this.lastTriggeredFileNames[d] = '';
+      this.positionAtMs[d] = null;
+      this.positionTrackId[d] = '';
+      this.positionRevision[d]++;
+      this.lastTriggeredTrackPaths[d] = '';
       this.rawNetworkPaths[d] = '';
+      this.sampleRateHz[d] = null;
+      this.currentBpmRaw[d] = null;
+      this.speedStateRaw[d] = null;
+      this.lastSpeedDiscoverSig[d] = null;
+      this.trackLengthSamples[d] = null;
+      this.loopInSamples[d] = null;
+      this.loopOutSamples[d] = null;
+      this.lastElapsedEmitSec[d] = -1;
+      this.lastPlay[d] = undefined;
     }
     this.lastAnyBeatAtMs = 0;
     this.realBeatReceivedSinceConnect = false;
@@ -1200,7 +1212,7 @@ export class StageLinqBridge {
   private startWatchdog() {
     this.stopWatchdog();
     this.watchdogInterval = setInterval(() => {
-      const now = Date.now();
+      const now = monotonicNowMs();
 
       for (const deck of DECKS) {
         const ds = this.decks[deck];
@@ -1240,6 +1252,19 @@ export class StageLinqBridge {
     return { ...this.decks[deck] };
   }
 
+  getDeckTiming(deck: DeckNumber): SourceTiming {
+    return {
+      positionAtMs: this.positionAtMs[deck],
+      positionRevision: this.positionRevision[deck],
+      transportRevision: this.transportRevision[deck],
+      trackId: this.positionTrackId[deck],
+    };
+  }
+
+  getDeckTimings(): Record<DeckNumber, SourceTiming> {
+    return Object.fromEntries(DECKS.map((deck) => [deck, this.getDeckTiming(deck)])) as Record<DeckNumber, SourceTiming>;
+  }
+
   getRawNetworkPath(deck: DeckNumber): string {
     return this.rawNetworkPaths[deck];
   }
@@ -1248,7 +1273,7 @@ export class StageLinqBridge {
   getLastBeatAgeMs(): number {
     if (!this.realBeatReceivedSinceConnect) return Infinity;
     if (this.lastAnyBeatAtMs === 0) return Infinity;
-    return Date.now() - this.lastAnyBeatAtMs;
+    return monotonicNowMs() - this.lastAnyBeatAtMs;
   }
 
   /**
@@ -1264,13 +1289,12 @@ export class StageLinqBridge {
     netPath: string,
     onProgress: (pct: number) => void,
   ): Promise<Uint8Array> {
-    const parts = netPath.split('/');
-    // net://uuid/source/path → parts: ['net:', '', 'uuid', 'source', ...]
-    if (parts.length < 4 || parts[0] !== 'net:') {
-      throw new Error(`Invalid net path (expected net://uuid/source/...): "${netPath}"`);
+    const parsedPath = parseNetworkPath(netPath);
+    if (!parsedPath || !parsedPath.sourceName || !parsedPath.folderPath) {
+      throw new Error('Invalid net path (expected net://uuid/source/file): "' + netPath + '"');
     }
-    const deviceId = `net://${parts[2]}`;
-    const filePath = '/' + parts.slice(3).join('/');
+    const deviceId = 'net://' + parsedPath.deviceUuid;
+    const filePath = '/' + parsedPath.sourceName + '/' + parsedPath.folderPath;
 
     logWaveform(`[WAVEFORM] downloadFile deviceId="${deviceId}" filePath="${filePath}"`);
 

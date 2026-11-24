@@ -1,9 +1,19 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { ROLES, DECK_LAYOUTS, type DeckLayout, type Role, type UserName } from './userSettings.js';
 import type { FreewheelSettings, ReloadConfigResult } from './globalSettings.js';
+import type { SaveState } from './settingsWriter.js';
 
 interface Props {
   activeUser: UserName;
+  usersReady: boolean;
+  usersLoadError: string | null;
+  userSaveState: SaveState;
+  onReloadUsers: () => Promise<void>;
+  onRetryUserSave: () => void;
+  freewheelLoadError: string | null;
+  freewheelSaveState: SaveState;
+  onRefreshFreewheel: () => Promise<void>;
+  onRetryFreewheelSave: () => void;
   detailZoomSec: number;
   onChangeDetailZoomSec: (value: number) => void;
   showTrackNotes: boolean;
@@ -30,6 +40,8 @@ const ZOOM_STEP = 1;
 
 export default function SettingsModal({
   activeUser,
+  usersReady, usersLoadError, userSaveState, onReloadUsers, onRetryUserSave,
+  freewheelLoadError, freewheelSaveState, onRefreshFreewheel, onRetryFreewheelSave,
   detailZoomSec,
   onChangeDetailZoomSec,
   showTrackNotes,
@@ -142,6 +154,11 @@ export default function SettingsModal({
           {/* ── User-scoped settings ─────────────────────────────────────────── */}
           <section className="settingsSection">
             <h3 className="settingsSectionTitle">User Settings</h3>
+            {!usersReady && !usersLoadError && <p role="status" className="settingHint">Loading preferences…</p>}
+            {usersLoadError && <div role="alert" className="settingHint">{usersLoadError} <button onClick={() => { void onReloadUsers(); }}>Retry loading</button></div>}
+            {userSaveState.phase === 'error' && <div role="alert" className="settingHint">Preferences were not saved: {userSaveState.error} <button onClick={onRetryUserSave}>Retry saving</button></div>}
+            {(userSaveState.phase === 'pending' || userSaveState.phase === 'saving') && <p role="status" className="settingHint">Saving preferences…</p>}
+            <fieldset className="settingsFields" disabled={!usersReady}>
 
             <div className="settingRow">
               <label className="settingLabel" htmlFor="roleSelect">
@@ -257,11 +274,15 @@ export default function SettingsModal({
                 default — like the waveform zoom — are unaffected.
               </div>
             </div>
+            </fieldset>
           </section>
 
           {/* ── Global (backend-owned) settings ───────────────────────────── */}
           <section className="settingsSection">
             <h3 className="settingsSectionTitle">Global Settings</h3>
+            {freewheelLoadError && <div role="alert" className="settingHint">{freewheelLoadError} <button onClick={() => { void onRefreshFreewheel(); }}>Retry loading</button></div>}
+            {freewheelSaveState.phase === 'error' && <div role="alert" className="settingHint">Freewheel settings were not saved: {freewheelSaveState.error} <button onClick={onRetryFreewheelSave}>Retry saving</button></div>}
+            {(freewheelSaveState.phase === 'pending' || freewheelSaveState.phase === 'saving') && <p role="status" className="settingHint">Saving freewheel settings…</p>}
 
             <div className="settingRow">
               <label className="settingLabel" htmlFor="freewheelDuration">

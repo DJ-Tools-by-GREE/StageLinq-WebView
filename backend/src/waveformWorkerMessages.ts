@@ -11,7 +11,7 @@ export interface CachedWaveformEntry {
   /** Pre-serialized `waveform_data` WS frame, ready to ws.send() verbatim. Null if no peaks for this track. */
   peaksFrame: string | null;
   /** Pre-serialized `artwork_data` WS frame, ready to ws.send() verbatim (with base64 already baked in). */
-  artworkFrame: string;
+  artworkFrame: string | null;
   /** Raw artwork bytes for the HTTP /api/artwork/:deck route (Buffer-backed on main thread). */
   artworkBytes: ArrayBuffer | null;
   artworkMime: string | null;
@@ -39,6 +39,7 @@ export type MainToWaveformWorker =
 
 export type WaveformWorkerToMain =
   | { type: 'ready' }
+  | { type: 'initError'; msg: string }
   | {
       type: 'cacheLoaded';
       entries: CachedWaveformEntry[];

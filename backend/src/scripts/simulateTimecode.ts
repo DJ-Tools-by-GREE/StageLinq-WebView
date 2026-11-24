@@ -14,43 +14,18 @@
  *   npm run -w backend simulate-tc -- recordings/foo.jsonl --out foo.html
  *   npm run -w backend simulate-tc -- recordings/foo.jsonl --fps 30 --latency 80
  *
- * The TC algorithm here is a faithful port of artnetWorker.ts → doSend():
- * timelineFrames, drift-snap (15% of one frame), latency comp, freewheel-on-
- * stall, speedState, clamp to track length. The only thing it doesn't do is
- * actually emit packets.
+ * Uses the same pure TimecodeTimeline as the live worker. Legacy logs only
+ * contain changed deck state, so source timing is inferred from position and
+ * play events; raw repeated BeatInfo and watchdog provenance are unavailable.
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { TimecodeTimeline } from '../timecodeTimeline.js';
+import type { DeckNumber, DeckState, SourceTiming } from '../types.js';
+import { parseConfig } from '../jsonFile.js';
 
-// ── Types (kept local so this script is movable/standalone) ────────────────
-type DeckNumber = 1 | 2 | 3 | 4;
 const DECKS: DeckNumber[] = [1, 2, 3, 4];
-
-interface HotCue { index: number; sec: number }
-interface SavedLoop { index: number; inSec: number; outSec: number; active: boolean }
-interface DeckState {
-  deck: DeckNumber;
-  trackLoaded: boolean;
-  fileName: string;
-  title: string;
-  artist: string;
-  elapsedSec: number;
-  totalSec: number;
-  currentBpm: number;
-  trackBpm: number;
-  speedState: number;
-  keyIndex: number | null;
-  keyCamelot: string;
-  fader: number;
-  play: boolean;
-  updatedAt: number;
-  hotCues: HotCue[];
-  loopActive: boolean;
-  loopInSec: number | null;
-  loopOutSec: number | null;
-  savedLoops: SavedLoop[];
-}
 
 interface TrackOffset { offsetSec: number; offsetFrame: number }
 type TrackOffsetMap = Record<string, TrackOffset>;
@@ -91,7 +66,7 @@ function parseArgs(argv: string[]): Args {
   const input = path.resolve(positional[0]);
   const outHtml = opts.out ? path.resolve(opts.out) : input.replace(/\.jsonl$/i, '') + '.tc-analysis.html';
   const outJson = opts.json ? path.resolve(opts.json) : null;
-  return {
+  const args: Args = {
     input,
     outHtml,
     outJson,
@@ -103,6 +78,13 @@ function parseArgs(argv: string[]): Args {
     enableFreewheel: !opts['no-freewheel'],
     staleMs: Number(opts['stale-ms'] ?? 250),
   };
+  for (const [name, value] of Object.entries({ fps: args.fps, tickHz: args.tickHz })) {
+    if (!Number.isFinite(value) || value <= 0) throw new Error(name + ' must be finite and positive');
+  }
+  if (!Number.isFinite(args.latencyMs) || !Number.isFinite(args.freewheelMaxSec) || args.freewheelMaxSec < 0 || !Number.isFinite(args.staleMs) || args.staleMs < 0) {
+    throw new Error('latency must be finite; freewheel and stale durations must be finite and nonnegative');
+  }
+  return args;
 }
 
 // ── Log parser ─────────────────────────────────────────────────────────────
@@ -183,9 +165,9 @@ function normalizeTrackName(name: string): string {
 
 function loadTrackOffsetsFromConfig(configPath: string): TrackOffsetMap {
   const raw = fs.readFileSync(configPath, 'utf8');
-  const cfg = JSON.parse(raw);
+  const cfg = parseConfig(raw);
   const playlists: any[] = Array.isArray(cfg.playlists) ? cfg.playlists : [];
-  const idx = Math.max(0, Math.min(playlists.length - 1, Number(cfg.current_playlist ?? 0)));
+  const idx = Number(cfg.current_playlist ?? -1);
   const out: TrackOffsetMap = {};
   // Walk current playlist first (priority), then fall back to others.
   const ordered = [playlists[idx], ...playlists.filter((_, i) => i !== idx)].filter(Boolean);
@@ -212,6 +194,7 @@ class DeckTimeline {
   private events: DeckEvent[];
   private cursor = 0;
   private state: DeckState;
+  private timing: SourceTiming = { positionAtMs: null, positionRevision: 0, transportRevision: 0, trackId: '' };
   constructor(deck: DeckNumber, events: DeckEvent[]) {
     this.events = events;
     this.state = blankDeck(deck);
@@ -220,6 +203,12 @@ class DeckTimeline {
   advanceTo(tMs: number): DeckState {
     while (this.cursor < this.events.length && this.events[this.cursor].t <= tMs) {
       const ev = this.events[this.cursor++];
+      const update = ev.state ?? ev.diff;
+      if (update && Object.hasOwn(update, 'elapsedSec') && Number.isFinite(update.elapsedSec)) {
+        this.timing.positionAtMs = ev.t;
+        this.timing.positionRevision++;
+      }
+      if (update && Object.hasOwn(update, 'play')) this.timing.transportRevision++;
       if (ev.state) {
         // Keyframe — replace the whole state but preserve deck #.
         this.state = { ...ev.state, deck: this.state.deck };
@@ -227,23 +216,22 @@ class DeckTimeline {
         for (const k of Object.keys(ev.diff)) (this.state as any)[k] = (ev.diff as any)[k];
       }
     }
+    this.timing.trackId = this.state.fileName;
     return this.state;
   }
+  getTiming(): SourceTiming { return this.timing; }
   /** Most recent event's t (for global staleness derivation). */
   lastEventT(): number {
     return this.cursor > 0 ? this.events[this.cursor - 1].t : -Infinity;
   }
 }
 
-// ── Per-deck TC state machine (faithful port of artnetWorker doSend) ──────
+// ── Per-deck simulation (shared live-worker timeline) ──────
 // One instance per deck, treated as if that deck is permanently sACN-selected.
-const DRIFT_THRESHOLD_RATIO = 0.15;
 
 interface PerDeckSim {
   deck: DeckNumber;
-  timelineFrames: number | null;
-  lastTickMs: number | null;
-  staleSinceMs: number | null;
+  timeline: TimecodeTimeline;
   // counters / flags surfaced in analysis
   driftSnapCount: number;
   freewheelSpans: { startMs: number; endMs: number | null }[];
@@ -272,9 +260,7 @@ interface TickSample {
 function makeSim(deck: DeckNumber): PerDeckSim {
   return {
     deck,
-    timelineFrames: null,
-    lastTickMs: null,
-    staleSinceMs: null,
+    timeline: new TimecodeTimeline(),
     driftSnapCount: 0,
     freewheelSpans: [],
     emittedSamples: 0,
@@ -292,111 +278,34 @@ interface TickEnv {
   trackOffsets: TrackOffsetMap;
 }
 
-function applyOffset(raw: DeckState, offsets: TrackOffsetMap, fps: number): DeckState | null {
-  if (!raw.fileName || raw.elapsedSec <= 0) return null;
-  const fileKey = normalizeTrackName(raw.fileName);
-  const offset = offsets[fileKey];
-  if (!offset) return raw;
-  const offsetSec = offset.offsetSec + offset.offsetFrame / fps;
-  return {
-    ...raw,
-    elapsedSec: Math.max(0, raw.elapsedSec + offsetSec),
-    totalSec: Math.max(0, raw.totalSec + offsetSec),
-  };
-}
-
 function tickPerDeck(
   sim: PerDeckSim,
   raw: DeckState,
   tMs: number,
-  globalLastEventT: number,
+  timing: SourceTiming,
   env: TickEnv,
 ): TickSample {
-  const fileKey = normalizeTrackName(raw.fileName || '');
-  const source = applyOffset(raw, env.trackOffsets, env.fps);
-
-  // No source ⇒ silent, reset timeline, no packet.
-  if (!source) {
-    sim.timelineFrames = null;
-    sim.lastTickMs = null;
-    return { tMs, tcFrames: null, freewheel: false, emitted: false, sourceSec: 0, play: raw.play, fileKey };
-  }
-
-  // Stale = no fresh deck event globally for > staleMs.
-  const stale = globalLastEventT > -Infinity && (tMs - globalLastEventT) > env.staleMs;
-
-  if (stale) {
-    if (sim.staleSinceMs == null) sim.staleSinceMs = tMs;
-  } else {
-    sim.staleSinceMs = null;
-  }
-
-  if (stale) {
-    if (!env.enableFreewheel) { sim.lastTickMs = null; closeFreewheelSpan(sim, tMs); return tcSample(tMs, null, false, false, source, raw.play, fileKey); }
-    const stalledForSec = sim.staleSinceMs ? (tMs - sim.staleSinceMs) / 1000 : 0;
-    if (stalledForSec > env.freewheelMaxSec) {
-      sim.lastTickMs = null;
-      closeFreewheelSpan(sim, tMs);
-      return tcSample(tMs, null, false, false, source, raw.play, fileKey);
-    }
-  }
-
-  const sourceSec = Number(source.elapsedSec) || 0;
-  const sourceFrames = Math.max(0, sourceSec * env.fps);
-  const treatAsPlaying = stale ? sim.lastTickMs !== null : raw.play === true;
-
-  if (!treatAsPlaying) {
-    sim.timelineFrames = sourceFrames;
-    sim.lastTickMs = null;
-    closeFreewheelSpan(sim, tMs);
-    return tcSample(tMs, null, false, false, source, raw.play, fileKey);
-  }
-
-  const isFreewheelingNow = stale && env.enableFreewheel && sim.lastTickMs !== null;
-  if (isFreewheelingNow) openFreewheelSpan(sim, tMs);
+  const result = sim.timeline.tick(raw, timing, tMs, {
+    fps: env.fps, staleThresholdMs: env.staleMs, reconnecting: false,
+    enableFreewheeling: env.enableFreewheel, freewheelMaxDurationSec: env.freewheelMaxSec,
+  });
+  if (result.corrected) sim.driftSnapCount++;
+  if (result.freewheelActive) openFreewheelSpan(sim, tMs);
   else closeFreewheelSpan(sim, tMs);
-
-  if (sim.timelineFrames == null) sim.timelineFrames = sourceFrames;
-  if (sim.lastTickMs == null) {
-    sim.lastTickMs = tMs;
-    sim.timelineFrames = sourceFrames;
-    // Worker returns here too — no packet on first sample.
-    return tcSample(tMs, null, isFreewheelingNow, false, source, raw.play, fileKey);
-  }
-
-  const dtSec = Math.max(0, (tMs - sim.lastTickMs) / 1000);
-  const playRate = 1 + (raw.speedState ?? 0) / 100;
-  sim.timelineFrames += dtSec * env.fps * playRate;
-
-  if (!stale) {
-    const drift = Math.abs(sourceFrames - sim.timelineFrames);
-    if (drift > env.fps * DRIFT_THRESHOLD_RATIO) {
-      sim.driftSnapCount++;
-      sim.timelineFrames = sourceFrames;
-    }
-    if (sim.timelineFrames < sourceFrames) sim.timelineFrames = sourceFrames;
-  }
-
-  if (sim.timelineFrames <= 0) return tcSample(tMs, null, isFreewheelingNow, false, source, raw.play, fileKey);
-
-  sim.lastTickMs = tMs;
-
-  const latencyCompFrames = (env.fps * env.latencyMs) / 1000;
-  const rawFramePos = sim.timelineFrames + latencyCompFrames;
-  if (rawFramePos < 0) return tcSample(tMs, null, isFreewheelingNow, false, source, raw.play, fileKey);
-
+  const source = result.source;
+  const fileKey = normalizeTrackName(source?.fileName || raw.fileName || '');
+  if (result.frames === null || !source) return tcSample(tMs, null, result.freewheelActive, false, source, raw.play, fileKey);
+  const offset = env.trackOffsets[fileKey];
+  const offsetSec = offset ? offset.offsetSec + offset.offsetFrame / env.fps : 0;
+  const rawFramePos = result.frames + offsetSec * env.fps + env.fps * env.latencyMs / 1000;
+  if (!Number.isFinite(rawFramePos) || rawFramePos < 0) return tcSample(tMs, null, result.freewheelActive, false, source, raw.play, fileKey);
   let totalFrames = Math.floor(rawFramePos);
-  const totalSec = Number(source.totalSec) || 0;
-  if (totalSec > 0) {
-    const maxFrame = Math.max(0, Math.floor(totalSec * env.fps) - 1);
-    totalFrames = Math.min(totalFrames, maxFrame);
-  }
-
+  const totalSec = Number(source.totalSec) + offsetSec;
+  if (Number.isFinite(totalSec) && totalSec > 0) totalFrames = Math.min(totalFrames, Math.max(0, Math.floor(totalSec * env.fps) - 1));
   sim.emittedSamples++;
   if (sim.firstEmitMs == null) sim.firstEmitMs = tMs;
   sim.lastEmitMs = tMs;
-
-  return { tMs, tcFrames: totalFrames, freewheel: isFreewheelingNow, emitted: true, sourceSec: source.elapsedSec, play: raw.play, fileKey };
+  return { tMs, tcFrames: totalFrames, freewheel: result.freewheelActive, emitted: true, sourceSec: source.elapsedSec + offsetSec, play: raw.play, fileKey };
 }
 
 function tcSample(
@@ -458,7 +367,7 @@ function main() {
   // repo root if requested or if the header didn't carry them.
   let trackOffsets: TrackOffsetMap = {};
   let offsetsSource = 'none';
-  if (log.trackOffsetsFromHeader && Object.keys(log.trackOffsetsFromHeader).length > 0) {
+  if (log.trackOffsetsFromHeader !== null) {
     trackOffsets = log.trackOffsetsFromHeader;
     offsetsSource = 'recording-header';
   } else if (args.configPath) {
@@ -466,8 +375,8 @@ function main() {
     offsetsSource = `config (${args.configPath})`;
   } else {
     // Best-effort: try config.json at repo root.
-    const guess = path.resolve(process.cwd(), 'config.json');
-    if (fs.existsSync(guess)) {
+    const guess = [path.resolve(process.cwd(), 'config.json'), path.resolve(process.cwd(), '..', 'config.json')].find(p => fs.existsSync(p));
+    if (guess) {
       trackOffsets = loadTrackOffsetsFromConfig(guess);
       offsetsSource = `config (${guess})`;
     }
@@ -498,8 +407,7 @@ function main() {
     trackOffsets,
   };
 
-  // Sweep at tickHz over the full duration. Keep all samples for the JSON dump
-  // but decimate for the SVG so the chart isn't 500k-point polylines.
+  // Sweep at tickHz; retain decimated points for the SVG and aggregate statistics for JSON.
   const tickStepMs = 1000 / args.tickHz;
   const totalTicks = Math.floor(log.durationMs / tickStepMs) + 1;
 
@@ -516,23 +424,12 @@ function main() {
   // Per-deck stats accumulators (filename change list, etc.)
   const fileTimelinePerDeck: Record<DeckNumber, { tMs: number; fileKey: string }[]> = { 1: [], 2: [], 3: [], 4: [] };
 
-  // Walk all deck events to drive `globalLastEventT` per tick. Cheaper to
-  // recompute from a single sorted array of all events than to query each
-  // timeline.
-  const allEventTs = log.deckEvents.map(e => e.t).sort((a, b) => a - b);
-  let allEvCursor = 0;
-  let globalLastEventT = -Infinity;
-
   for (let tick = 0; tick < totalTicks; tick++) {
     const tMs = Math.min(log.durationMs, tick * tickStepMs);
-    while (allEvCursor < allEventTs.length && allEventTs[allEvCursor] <= tMs) {
-      globalLastEventT = allEventTs[allEvCursor];
-      allEvCursor++;
-    }
     const emitChart = (tick % decimateEvery) === 0 || tick === totalTicks - 1;
     for (const d of DECKS) {
       const raw = timelines[d].advanceTo(tMs);
-      const sample = tickPerDeck(sims[d], raw, tMs, globalLastEventT, env);
+      const sample = tickPerDeck(sims[d], raw, tMs, timelines[d].getTiming(), env);
 
       // Record file-change events.
       const filehist = fileTimelinePerDeck[d];
@@ -600,6 +497,7 @@ function main() {
       args,
       durationMs: log.durationMs,
       offsetsSource,
+      timingSource: 'inferred from recorded positions and play events; raw BeatInfo provenance unavailable',
       trackOffsetsCount: Object.keys(trackOffsets).length,
       gaps: log.gaps,
       perDeckStats,
@@ -645,7 +543,7 @@ function renderHtml(r: RenderInput): string {
   yMin = Math.floor(yMin);
   yMax = Math.ceil(yMax);
 
-  const xMin = 0, xMax = log.durationMs;
+  const xMin = 0, xMax = Math.max(1, log.durationMs);
 
   // SVG dimensions
   const W = 1400, H = 600;
@@ -769,6 +667,7 @@ function renderHtml(r: RenderInput): string {
     input: path.basename(args.input),
     durationMs: log.durationMs,
     durationSec: log.durationMs / 1000,
+    timingSource: 'inferred from recorded positions and play events; raw BeatInfo provenance unavailable',
     fps: args.fps,
     latencyMs: args.latencyMs,
     tickHz: args.tickHz,
@@ -875,26 +774,16 @@ function renderHtml(r: RenderInput): string {
 
 <details>
 <summary>Algorithm — TC mirror of the live Art-Net worker</summary>
-<pre class="json">For each simulated tick t:
-  globalLastEventT = max(t' for any deck event with t' ≤ t)
-  stale = (t − globalLastEventT) > ${args.staleMs}ms
-
-  For each deck d ∈ {1..4}:
-    raw = reconstructed DeckState[d] at t
-    source = applyOffset(raw, trackOffsets, fps)   # by basename
-    if source is null OR elapsedSec ≤ 0:
-      timeline_d ← null; lastTick_d ← null; emit silent
-    elif stale and freewheel disabled OR stalledFor > ${args.freewheelMaxSec}s:
-      emit silent
-    elif !raw.play (and not freewheeling through stall):
-      timeline_d ← sourceFrames; emit silent
-    else:
-      dt = t − lastTick_d
-      timeline_d += dt · fps · (1 + speedState/100)
-      if !stale: drift-snap if |source − timeline| > 15% of one frame
-      framePos = timeline_d + (fps · ${args.latencyMs}/1000)
-      clamp to track length, convert → HH:MM:SS:FF
-</pre>
+<pre class="json">Uses the same TimecodeTimeline class as the live Art-Net worker.
+For each deck, position freshness comes from elapsedSec/keyframe events;
+metadata on this or another deck never refreshes its position clock.
+The timeline extrapolates each source from its capture timestamp, follows
+explicit pause/seek/loop events, and freewheels a stale running source
+within the configured enable/threshold/duration controls.
+Offsets, latency compensation and duration clamping match the worker.
+Legacy recordings omit raw BeatInfo heartbeat and transport provenance;
+repeated positions and watchdog-generated play changes are ambiguous.
+This is a simulation of recorded state, not proof of actual packet timing.</pre>
 </details>
 
 <script>

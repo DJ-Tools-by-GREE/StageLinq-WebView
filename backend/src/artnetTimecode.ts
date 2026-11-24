@@ -1,5 +1,6 @@
 import { Worker } from 'node:worker_threads';
-import type { DeckNumber, DeckState } from './types.js';
+import { ARTNET_WORKER_READY_TIMEOUT_MS } from './constants.js';
+import type { DeckNumber, DeckState, SourceTiming } from './types.js';
 import type {
   ArtNetWorkerInitOptions,
   MainToWorker,
@@ -24,23 +25,7 @@ export interface ArtNetOptions {
   freewheelStaleThresholdMs: number;
 }
 
-/**
- * Owns the Art-Net worker thread. The worker now owns the full timecode pipeline:
- *  - the 30 Hz tick (no main-thread setInterval pump anymore)
- *  - the deck-state cache for all 4 decks
- *  - selectedDeck, trackOffsets, freewheel-stale derivation
- *
- * The main thread is reduced to forwarding state changes:
- *  - setSelectedDeck() on sACN flip
- *  - setTrackOffsets() on config (re)load
- *  - pushDeckState() on each bridge mutation (or pushAllDeckStates() during replay)
- *  - beatPulse() on every StageLinq beatMessage so freewheel-stale resets
- *
- * Even if main-thread CPU stalls for seconds (huge StageLinq downloads, ffmpeg
- * storms, GC pauses), the worker keeps ticking and freewheels cleanly across the
- * gap. When main resumes and pushes the catch-up state, the timeline rebases
- * cleanly because the drift snap is suppressed during stall.
- */
+/** Pushes deck state and captured position timing to the independent UDP worker. */
 export class ArtNetTimecodeBroadcaster {
   private opts: ArtNetOptions;
   private worker: Worker | null = null;
@@ -74,20 +59,20 @@ export class ArtNetTimecodeBroadcaster {
     this.post({ type: 'setSelectedDeck', deck });
   }
 
+  setSource(decks: Record<DeckNumber, DeckState>, timings: Record<DeckNumber, SourceTiming>, offsets: TrackOffsetMap) {
+    this.post({ type: 'setSource', decks, timings, offsets });
+  }
+
   setTrackOffsets(offsets: TrackOffsetMap) {
     this.post({ type: 'setTrackOffsets', offsets });
   }
 
-  pushDeckState(deck: DeckNumber, state: DeckState) {
-    this.post({ type: 'pushDeckState', deck, state });
+  pushDeckState(deck: DeckNumber, state: DeckState, timing: SourceTiming) {
+    this.post({ type: 'pushDeckState', deck, state, timing });
   }
 
-  pushAllDeckStates(decks: Record<DeckNumber, DeckState>, bumpBeat: boolean) {
-    this.post({ type: 'pushAllDeckStates', decks, bumpBeat });
-  }
-
-  beatPulse(atMs: number) {
-    this.post({ type: 'beatPulse', atMs });
+  pushAllDeckStates(decks: Record<DeckNumber, DeckState>, timings: Record<DeckNumber, SourceTiming>) {
+    this.post({ type: 'pushAllDeckStates', decks, timings });
   }
 
   setReconnecting(reconnecting: boolean) {
@@ -114,7 +99,10 @@ export class ArtNetTimecodeBroadcaster {
       if (code !== 0) {
         logError(`[ArtNet] Worker exited with code ${code}`);
       }
-      this.worker = null;
+      if (this.worker === worker) {
+        this.worker = null;
+        this.handleWorkerMessage({ type: 'freewheelState', active: false });
+      }
     });
 
     const sendHz = Math.max(1, Number(this.opts.sendHz ?? this.opts.fps));
@@ -132,23 +120,34 @@ export class ArtNetTimecodeBroadcaster {
       freewheelStaleThresholdMs: this.opts.freewheelStaleThresholdMs,
     };
 
-    await new Promise<void>((resolve, reject) => {
-      const onMessage = (m: WorkerToMain) => {
-        if (m.type === 'ready') {
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const cleanup = () => {
+          clearTimeout(timeout);
           worker.off('message', onMessage);
           worker.off('error', onError);
-          resolve();
-        }
-      };
-      const onError = (err: Error) => {
-        worker.off('message', onMessage);
-        worker.off('error', onError);
-        reject(err);
-      };
-      worker.on('message', onMessage);
-      worker.on('error', onError);
-      this.post({ type: 'init', opts: initOpts });
-    });
+          worker.off('exit', onExit);
+        };
+        const onMessage = (m: WorkerToMain) => {
+          if (m.type === 'ready') { cleanup(); resolve(); }
+          else if (m.type === 'initError') { cleanup(); reject(new Error(m.message)); }
+        };
+        const onError = (err: Error) => { cleanup(); reject(err); };
+        const onExit = (code: number) => { cleanup(); reject(new Error('Art-Net worker exited before ready: ' + code)); };
+        const timeout = setTimeout(() => {
+          cleanup();
+          reject(new Error('Art-Net worker readiness timed out'));
+        }, ARTNET_WORKER_READY_TIMEOUT_MS);
+        worker.on('message', onMessage);
+        worker.on('error', onError);
+        worker.on('exit', onExit);
+        worker.postMessage({ type: 'init', opts: initOpts } satisfies MainToWorker);
+      });
+    } catch (error) {
+      await worker.terminate();
+      if (this.worker === worker) this.worker = null;
+      throw error;
+    }
 
     logLifecycle(`${GRN}Art-Net TC enabled: ${this.opts.targetIps.join(', ')}:${this.opts.port} @ ${this.opts.fps}fps, send=${sendHz}Hz (worker thread, deck ${this.opts.deck}, pump-in-worker)${RST}`);
   }
@@ -168,6 +167,7 @@ export class ArtNetTimecodeBroadcaster {
       });
     });
     this.worker = null;
+    this.handleWorkerMessage({ type: 'freewheelState', active: false });
   }
 
   private post(msg: MainToWorker) {
@@ -204,6 +204,7 @@ export class ArtNetTimecodeBroadcaster {
         break;
       case 'stats':
       case 'ready':
+      case 'initError':
         break;
     }
   }

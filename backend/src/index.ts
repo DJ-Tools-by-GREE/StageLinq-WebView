@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { type Request, type Response, type NextFunction } from 'express';
 import cors from 'cors';
 import fs from 'node:fs/promises';
 import http from 'node:http';
@@ -12,9 +12,9 @@ import { StageLinqBridge, getRecentOverThresholdGaps } from './stagelinqBridge.j
 import type { DeckNumber, SnapshotPayload, StageLinqStatus, TrackNote, WaveformStatusPayload, WsPayload } from './types.js';
 import { ArtNetTimecodeBroadcaster } from './artnetTimecode.js';
 import { OscBpmSender } from './oscBpm.js';
-import { RECONNECT_DELAY_MS, WS_FPS, DISCONNECT_DETECT_TIMEOUT_S, FREEWHEEL_STALE_THRESHOLD_MS, FREEWHEEL_FLAP_SHORT_CYCLE_MAX_MS, FREEWHEEL_FLAP_WINDOW_MS, FREEWHEEL_FLAP_MIN_CYCLES, FREEWHEEL_FLAP_LOG_COOLDOWN_MS, MAIN_EVENT_LOOP_LAG_WARN_MS, WS_BROADCAST_WARN_MS } from './constants.js';
+import { RECONNECT_DELAY_MS, WS_FPS, DISCONNECT_DETECT_TIMEOUT_S, FREEWHEEL_STALE_THRESHOLD_MS, FREEWHEEL_FLAP_SHORT_CYCLE_MAX_MS, FREEWHEEL_FLAP_WINDOW_MS, FREEWHEEL_FLAP_MIN_CYCLES, FREEWHEEL_FLAP_LOG_COOLDOWN_MS, MAIN_EVENT_LOOP_LAG_WARN_MS, WS_BROADCAST_WARN_MS, SHUTDOWN_TIMEOUT_MS } from './constants.js';
 import { States, StageLinqValue } from "@gree44/stagelinq";
-import { logError, logLifecycle, logWarn, logWaveform, logUiOut, applyLoggingConfig, applyDisplayConfig, DISPLAY_ENABLED, logDashboard, deckColor, getStatusSlot, DIM, R, GRN, YEL, RED, RST, subscribeTerminalLines, getTerminalRing } from './logging.js';
+import { logError, logLifecycle, logWarn, logWaveform, logUiOut, LOG_ENABLED, applyLoggingConfig, applyDisplayConfig, DISPLAY_ENABLED, logDashboard, deckColor, getStatusSlot, DIM, R, GRN, YEL, RED, RST, subscribeTerminalLines, getTerminalRing } from './logging.js';
 import {
   initWaveformCache,
   requestExtraction,
@@ -28,6 +28,10 @@ import { GlobalSettingsStore, readFreewheelFromConfig, FREEWHEEL_MIN_DURATION_SE
 import { Recorder, listRecordings } from './recorder.js';
 import { Replay } from './replay.js';
 import { makeStateProvider } from './stateProvider.js';
+import { parseConfig, validateConfig, writeJsonFile } from './jsonFile.js';
+import { asyncRoute, sendWsFrame } from './httpUtils.js';
+import { makeArtNetSourceSync } from './artnetSource.js';
+import { DECK_DMX, readDmxChannel, mapDmxToDeck } from './sacnControl.js';
 
 function isIgnorableStageLinqError(err: unknown): boolean {
   if (!err) return false;
@@ -67,18 +71,8 @@ function ensureState(state: StageLinqValue) {
   if (!States.includes(state)) States.push(state);
 }
 
-// Total time (TrackLength) + KeyIndex (CurrentKeyIndex) for all decks
+// Additional loop subscriptions used by this application.
 [
-  StageLinqValue.EngineDeck1TrackTrackLength,
-  StageLinqValue.EngineDeck2TrackTrackLength,
-  StageLinqValue.EngineDeck3TrackTrackLength,
-  StageLinqValue.EngineDeck4TrackTrackLength,
-
-  StageLinqValue.EngineDeck1TrackCurrentKeyIndex,
-  StageLinqValue.EngineDeck2TrackCurrentKeyIndex,
-  StageLinqValue.EngineDeck3TrackCurrentKeyIndex,
-  StageLinqValue.EngineDeck4TrackCurrentKeyIndex,
-
   StageLinqValue.EngineDeck1TrackCurrentLoopInPosition,
   StageLinqValue.EngineDeck2TrackCurrentLoopInPosition,
   StageLinqValue.EngineDeck3TrackCurrentLoopInPosition,
@@ -201,30 +195,21 @@ interface RootConfig {
   }>;
 }
 
-function stripJsonComments(input: string): string {
-  return input
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/(^|[^:\\])\/\/.*$/gm, '$1');
-}
-
-async function loadRootConfig(): Promise<{ config: RootConfig | null; sourcePath: string | null }> {
-  const candidates = [
+async function loadRootConfig(requiredPath?: string | null): Promise<{ config: RootConfig | null; sourcePath: string | null }> {
+  const candidates = requiredPath ? [requiredPath] : [
     path.resolve(process.cwd(), 'config.json'),
     path.resolve(__dirname, '../../config.json'),
   ];
-
   for (const filePath of candidates) {
     try {
-      const raw = await fs.readFile(filePath, 'utf8');
-      const parsed = JSON.parse(stripJsonComments(raw)) as RootConfig;
-      logLifecycle(`${GRN}[CONFIG] Loaded ${filePath}${RST}`);
+      const parsed = parseConfig(await fs.readFile(filePath, 'utf8')) as RootConfig;
+      logLifecycle('[CONFIG] Loaded', filePath);
       return { config: parsed, sourcePath: filePath };
-    } catch {
-      // try next candidate
+    } catch (error) {
+      if (requiredPath || (error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
     }
   }
-
-  logLifecycle(`${RED}[CONFIG] No config.json found, using env/default values.${RST}`);
+  logLifecycle('[CONFIG] No config.json found, using env/default values.');
   return { config: null, sourcePath: candidates[0] };
 }
 
@@ -294,19 +279,6 @@ function buildTrackNoteMap(cfg: RootConfig | null): Map<string, { description: s
   return map;
 }
 
-function deviceIdFromNetPath(netPath: string): string | null {
-  const parts = netPath.split('/');
-  // net://uuid/source/... → parts: ['net:', '', 'uuid', 'source', ...]
-  if (parts.length < 4 || parts[0] !== 'net:') return null;
-  return `net://${parts[2]}`;
-}
-
-function filePathFromNetPath(netPath: string): string | null {
-  const parts = netPath.split('/');
-  if (parts.length < 4 || parts[0] !== 'net:') return null;
-  return '/' + parts.slice(3).join('/');
-}
-
 function buildActivePlaylistFileSet(cfg: RootConfig | null): Set<string> {
   const set = new Set<string>();
   const playlists = cfg?.playlists ?? [];
@@ -334,61 +306,6 @@ function computeNextTrack(cfg: RootConfig | null, currentFileName: string | null
   const pos = playable.findIndex((item) => normalizeTrackName(String(item.song_index ?? '')) === key);
   if (pos < 0) return null;
   return playable[pos + 1]?.song_index ?? null;
-}
-
-function mapDmxToDeck(value: number): DeckNumber | null {
-  // 0–50 is the documented "off" band — explicit deselection from the lighting
-  // console. The Art-Net poll lambda turns a null selection into a no-packet
-  // tick, so timecode stops cleanly on the receiver side.
-  if (value <= 50) return null;
-  if (value <= 101) return 1;
-  if (value <= 152) return 2;
-  if (value <= 203) return 3;
-  return 4;
-}
-
-function toAbsoluteDmxValue(value: number): number {
-  if (!Number.isFinite(value)) return 0;
-  const v = Math.max(0, value);
-  // sacn package payload is commonly 0..100 (relative). Convert to 0..255.
-  if (v <= 100) return Math.round((v / 100) * 255);
-  // already absolute scale
-  return Math.min(255, Math.round(v));
-}
-
-function coerceDmxPayload(packet: any): number[] {
-  const candidates = [
-    packet?.payload,
-    packet?.propertyValues,
-    packet?.values,
-    packet?.dmxData,
-    packet?.data?.payload,
-  ];
-
-  for (const c of candidates) {
-    if (Array.isArray(c)) return c.map((v) => Number(v) || 0);
-    if (Buffer.isBuffer(c)) return Array.from(c);
-    if (ArrayBuffer.isView(c)) {
-      const view = c as ArrayBufferView;
-      return Array.from(new Uint8Array(view.buffer, view.byteOffset, view.byteLength));
-    }
-    if (c && typeof c === 'object') {
-      const numericKeys = Object.keys(c).filter((k) => /^\d+$/.test(k));
-      if (numericKeys.length > 0) {
-        const out: number[] = [];
-        for (const k of numericKeys) {
-          const idx = Number(k);
-          out[idx] = Number((c as any)[k]) || 0;
-        }
-        return out;
-      }
-    }
-    if (c && typeof c === 'object' && Array.isArray((c as any).values)) {
-      return (c as any).values.map((v: any) => Number(v) || 0);
-    }
-  }
-
-  return [];
 }
 
 function getLocalIpv4Addresses(): string[] {
@@ -427,6 +344,8 @@ function resolveTargetIps(
 }
 
 async function main() {
+  let shuttingDown = false;
+  const intervals: NodeJS.Timeout[] = [];
   let { config, sourcePath: configPath } = await loadRootConfig();
   if (config?.logging) applyLoggingConfig(config.logging);
   if (config?.display) applyDisplayConfig(config.display);
@@ -440,7 +359,7 @@ async function main() {
     const PROBE_INTERVAL_MS = 250;
     let lastProbeAt = Date.now();
     let lastWarnAt = 0;
-    setInterval(() => {
+    intervals.push(setInterval(() => {
       const now = Date.now();
       const lag = now - lastProbeAt - PROBE_INTERVAL_MS;
       lastProbeAt = now;
@@ -448,7 +367,7 @@ async function main() {
         lastWarnAt = now;
         logError(`[main] event-loop lag ${lag.toFixed(0)}ms (probe ${PROBE_INTERVAL_MS}ms)`);
       }
-    }, PROBE_INTERVAL_MS);
+    }, PROBE_INTERVAL_MS));
   }
 
   // Art-Net settings from root config.json (env vars override).
@@ -463,7 +382,8 @@ async function main() {
   const artnetDeck = (Number(process.env.ARTNET_DECK ?? 1) as 1 | 2 | 3 | 4);
   const artnetFps = Number(process.env.ARTNET_FPS ?? config?.timecode?.fps ?? 30);
   const artnetSendHz = Number(process.env.ARTNET_SEND_HZ ?? artnetFps);
-  const artnetFpsType = 0x03;
+  if (![24, 25, 30].includes(artnetFps)) throw new Error('ARTNET_FPS/timecode.fps must be 24, 25, or 30; drop-frame is not implemented');
+  const artnetFpsType = artnetFps === 24 ? 0x00 : artnetFps === 25 ? 0x01 : 0x03;
   const artnetLatencyCompMs = Number(process.env.ARTNET_LATENCY_COMP_MS ?? 80);
   const artnetStreamId = Number(process.env.ARTNET_STREAM_ID ?? config?.timecode?.stream_id ?? 0x00);
 
@@ -482,7 +402,6 @@ async function main() {
   const sacnUniverse = Number(process.env.SACN_UNIVERSE ?? config?.control_input?.universe ?? 20);
   const controlAddress = Number(process.env.SACN_ADDRESS ?? config?.control_input?.address ?? 1);
   const sacnSimEnabled = (process.env.SACN_SIM === '1') || (config?.sacn_sim?.enabled === true);
-  const controlChannelIndex = Math.max(0, controlAddress - 1);
 
   let trackOffsets = buildTrackOffsetMap(config);
   let trackNotes = buildTrackNoteMap(config);
@@ -498,22 +417,22 @@ async function main() {
     if (reloadInProgress) return { ok: false, reason: 'in-progress' };
     reloadInProgress = true;
     try {
-      const next = await loadRootConfig();
-      config = next.config;
-      configPath = next.sourcePath;
-      if (config?.logging) applyLoggingConfig(config.logging);
-      if (config?.display) applyDisplayConfig(config.display);
-      trackOffsets = buildTrackOffsetMap(config);
-      trackNotes = buildTrackNoteMap(config);
-      activePlaylistFiles = buildActivePlaylistFileSet(config);
-      waveformAllTracks = config?.waveform?.all_tracks ?? true;
-      // Push the new offsets into the Art-Net worker so the next tick uses them.
-      artnet.setTrackOffsets(buildTrackOffsetObject(trackOffsets));
-      // Re-apply freewheel from the reloaded file. Operator-edited (via UI) values are
-      // already on disk, so the round-trip is the same as a fresh boot.
-      const fw = readFreewheelFromConfig(config);
-      if (configPath) globalSettings.reset(configPath, { freewheel: fw });
-      artnet.setFreewheel(fw.enable_freewheeling, fw.max_duration_sec);
+      await globalSettings.reload((nextConfig) => {
+        config = nextConfig as RootConfig;
+        if (config?.logging) applyLoggingConfig(config.logging);
+        if (config?.display) applyDisplayConfig(config.display);
+        trackOffsets = buildTrackOffsetMap(config);
+        trackNotes = buildTrackNoteMap(config);
+        activePlaylistFiles = buildActivePlaylistFileSet(config);
+        waveformAllTracks = config?.waveform?.all_tracks ?? true;
+        // Push the new offsets into the Art-Net worker so the next tick uses them.
+        if (!syncArtNetSource()) artnet.setTrackOffsets(replay.getTrackOffsets() ?? buildTrackOffsetObject(trackOffsets));
+        replay.configureMappedAudioFiles(config?.recordings ?? []);
+        // Re-apply freewheel from the reloaded file. Operator-edited (via UI) values are
+        // already on disk, so the round-trip is the same as a fresh boot.
+        const fw = readFreewheelFromConfig(config);
+        artnet.setFreewheel(fw.enable_freewheeling, fw.max_duration_sec);
+      });
       logLifecycle(`${GRN}[CONFIG] Reloaded. Offset entries: ${trackOffsets.size}${RST}`);
       return { ok: true, offsetEntries: trackOffsets.size, sourcePath: configPath };
     } catch (e: any) {
@@ -554,6 +473,10 @@ async function main() {
   }
 
   const app = express();
+  app.use((_req, res, next) => {
+    if (shuttingDown) { res.status(503).json({ error: 'server shutting down' }); return; }
+    next();
+  });
   app.use(cors());
   app.use(express.json());
 
@@ -595,7 +518,7 @@ async function main() {
     res.json({ name: req.params.name, settings });
   });
 
-  app.put('/api/users/:name/settings', async (req, res) => {
+  app.put('/api/users/:name/settings', asyncRoute(async (req, res) => {
     if (!FIXED_USERS.includes(req.params.name as any)) {
       res.status(404).json({ error: 'unknown user' });
       return;
@@ -611,7 +534,7 @@ async function main() {
       return;
     }
     res.json({ name: req.params.name, settings: next });
-  });
+  }));
 
   // Global (non-per-user) settings.
   app.get('/api/global-settings', (_req, res) => {
@@ -626,7 +549,7 @@ async function main() {
     });
   });
 
-  app.put('/api/global-settings/freewheel', async (req, res) => {
+  app.put('/api/global-settings/freewheel', asyncRoute(async (req, res) => {
     const body = req.body;
     if (!body || typeof body !== 'object' || Array.isArray(body)) {
       res.status(400).json({ error: 'body must be a JSON object' });
@@ -660,29 +583,29 @@ async function main() {
       `${GRN}[FREEWHEEL] enable=${next.enable_freewheeling} max=${next.max_duration_sec}s${RST}`,
     );
     res.json({ freewheel: next });
-  });
+  }));
 
   // Bulk read/write of the on-disk config.json. Backs the in-app config editor.
   // Write-only: the operator must Ctrl+R (or restart) to apply — keeps a Save
   // mid-show from re-initialising the StageLinq bridge / Art-Net worker by
   // surprise. The freewheel knob in the runtime settings modal is its own
   // live-knob path (`PUT /api/global-settings/freewheel`) and stays unaffected.
-  app.get('/api/config', async (_req, res) => {
+  app.get('/api/config', asyncRoute(async (_req, res) => {
     try {
       if (!configPath) {
         res.status(404).json({ error: 'no config.json found on disk' });
         return;
       }
       const raw = await fs.readFile(configPath, 'utf8');
-      const parsed = JSON.parse(stripJsonComments(raw));
+      const parsed = parseConfig(raw);
       res.json({ config: parsed, sourcePath: configPath });
     } catch (e: any) {
       logError('[CONFIG] GET /api/config failed:', e?.message || e);
       res.status(500).json({ error: e?.message || String(e) });
     }
-  });
+  }));
 
-  app.put('/api/config', async (req, res) => {
+  app.put('/api/config', asyncRoute(async (req, res) => {
     if (!configPath) {
       res.status(500).json({ error: 'no config.json path resolved at boot' });
       return;
@@ -692,22 +615,23 @@ async function main() {
       res.status(400).json({ error: 'body must be a JSON object' });
       return;
     }
+    try { validateConfig(body); } catch (error) {
+      res.status(400).json({ error: (error as Error).message });
+      return;
+    }
     try {
-      const text = JSON.stringify(body, null, 4) + '\n';
-      const tmp = `${configPath}.tmp`;
-      await fs.writeFile(tmp, text, 'utf8');
-      await fs.rename(tmp, configPath);
+      await writeJsonFile(configPath, body);
       logLifecycle(`${GRN}[CONFIG] Wrote ${configPath} via PUT /api/config (operator must Ctrl+R or restart to apply).${RST}`);
       res.json({ ok: true, sourcePath: configPath, applied: false });
     } catch (e: any) {
       logError('[CONFIG] PUT /api/config failed:', e?.message || e);
       res.status(500).json({ error: e?.message || String(e) });
     }
-  });
+  }));
 
   // Mid-show hot reload — same code path as Ctrl+R on the backend TTY, exposed
   // for headless / PM2 deployments and arm-gated in the UI.
-  app.post('/api/config/reload', async (_req, res) => {
+  app.post('/api/config/reload', asyncRoute(async (_req, res) => {
     logLifecycle(`${YEL}[CONFIG] HTTP reload requested. Reloading config...${RST}`);
     const result = await reloadConfig();
     if (result.ok) {
@@ -723,7 +647,7 @@ async function main() {
       return;
     }
     res.status(500).json({ ok: false, error: result.error });
-  });
+  }));
 
   app.get('/api/artwork/:deck', (req, res) => {
     const deck = Number(req.params.deck) as DeckNumber;
@@ -738,53 +662,54 @@ async function main() {
 
   // -- Record & Replay --
 
-  app.post('/api/record/start', async (req, res) => {
+  app.post('/api/record/start', asyncRoute(async (req, res) => {
     const name = typeof req?.body?.name === 'string' ? req.body.name : undefined;
     const result = await recorder.start(name);
     if (result.ok) { res.json(result); return; }
     res.status(result.code).json({ ok: false, error: result.error });
-  });
+  }));
 
-  app.post('/api/record/stop', async (_req, res) => {
+  app.post('/api/record/stop', asyncRoute(async (_req, res) => {
     const result = await recorder.stop();
     if (result.ok) { res.json(result); return; }
     res.status(result.code).json({ ok: false, error: result.error });
-  });
+  }));
 
   app.get('/api/record/status', (_req, res) => {
     res.json(recorder.getStatus());
   });
 
-  app.post('/api/record/resume-abort', (_req, res) => {
+  app.post('/api/record/resume-abort', asyncRoute(async (_req, res) => {
     if (!recorder.hasPendingResume()) {
       res.status(409).json({ ok: false, error: 'no pending resume' });
       return;
     }
-    recorder.abortPendingResume();
+    await recorder.abortPendingResume();
     res.json({ ok: true });
-  });
+  }));
 
-  app.get('/api/recordings', async (_req, res) => {
+  app.get('/api/recordings', asyncRoute(async (_req, res) => {
     try {
       const list = await listRecordings(recordingsDir);
       res.json({ recordings: list, dir: recordingsDir });
     } catch (e: any) {
       res.status(500).json({ error: e?.message || String(e) });
     }
-  });
+  }));
 
-  app.post('/api/replay/arm', async (_req, res) => {
-    if (recorder.isActive()) {
+  app.post('/api/replay/arm', asyncRoute(async (_req, res) => {
+    if (recorder.isBusy()) {
       res.status(409).json({ ok: false, error: 'cannot arm replay while recording' });
       return;
     }
     const mappings = config?.recordings ?? [];
     const result = await replay.arm(mappings);
     res.json(result);
-  });
+  }));
 
   app.post('/api/replay/disarm', (_req, res) => {
     replay.disarm();
+    syncArtNetSource();
     res.json({ ok: true });
   });
 
@@ -794,8 +719,7 @@ async function main() {
 
   // sACN deck simulator — sends a real sACN packet to the configured universe/address
   let sacnSender: any = null;
-  const DECK_DMX: Record<number, number> = { 1: 50, 2: 127, 3: 178, 4: 230 };
-  if (sacnSimEnabled) app.post('/api/sacn/deck', async (req, res) => {
+  if (sacnSimEnabled) app.post('/api/sacn/deck', asyncRoute(async (req, res) => {
     const deck = Number(req?.body?.deck);
     if (![1, 2, 3, 4].includes(deck)) { res.status(400).json({ error: 'deck must be 1–4' }); return; }
     try {
@@ -805,13 +729,13 @@ async function main() {
         sacnSender = new SenderClass({ universe: sacnUniverse, minRefreshRate: 0, defaultPacketOptions: { useRawDmxValues: true } });
       }
       const payload: Record<number, number> = {};
-      payload[controlAddress] = DECK_DMX[deck];
+      payload[controlAddress] = DECK_DMX[deck as DeckNumber];
       await sacnSender.send({ payload });
-      res.json({ ok: true, deck, universe: sacnUniverse, address: controlAddress, dmx: DECK_DMX[deck] });
+      res.json({ ok: true, deck, universe: sacnUniverse, address: controlAddress, dmx: DECK_DMX[deck as DeckNumber] });
     } catch (e: any) {
       res.status(500).json({ error: e?.message || String(e) });
     }
-  });
+  }));
 
   if (sacnSimEnabled) app.get('/sacn-sim', (_req, res) => {
     const u = sacnUniverse;
@@ -884,6 +808,13 @@ async function main() {
 </html>`);
   });
 
+  app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
+    const status = (error as { status?: number })?.status;
+    const code = status && status >= 400 && status < 500 ? status : 500;
+    logError('[HTTP] Request failed:', error);
+    res.status(code).json({ error: error instanceof Error ? error.message : 'Request failed' });
+  });
+
   // Serve frontend build if present
   const frontendDist = path.resolve(__dirname, '../../frontend/dist');
   app.use(express.static(frontendDist));
@@ -892,7 +823,7 @@ async function main() {
   });
 
   const server = http.createServer(app);
-  const wss = new WebSocketServer({ server, path: '/ws' });
+  const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 16 * 1024 });
 
   let reconnecting = false;
   let bridge!: StageLinqBridge;
@@ -901,6 +832,7 @@ async function main() {
   // config.json; falls back to process.cwd() if no config was found at boot.
   const recordingsDir = path.resolve(configPath ? path.dirname(configPath) : process.cwd(), 'recordings');
   const replay = new Replay({ recordingsDir });
+  replay.configureMappedAudioFiles(config?.recordings ?? []);
   let recorder!: Recorder;
 
   // Live status — recomputed on demand; recorder pushes a status event whenever it changes.
@@ -930,7 +862,7 @@ async function main() {
       const raw = JSON.stringify({ type: 'terminal_lines', mode: 'append', lines: [line] });
       for (const ws of terminalSubscribers) {
         if (ws.readyState === ws.OPEN) {
-          try { ws.send(raw); } catch {}
+          sendWsFrame(ws, raw);
         }
       }
     });
@@ -945,7 +877,7 @@ async function main() {
     const raw = JSON.stringify(msg);
     for (const ws of clients) {
       if (ws.readyState === ws.OPEN) {
-        try { ws.send(raw); } catch {}
+        sendWsFrame(ws, raw);
       }
     }
   }
@@ -956,7 +888,7 @@ async function main() {
   function broadcastFrame(raw: string) {
     for (const ws of clients) {
       if (ws.readyState === ws.OPEN) {
-        try { ws.send(raw); } catch {}
+        sendWsFrame(ws, raw);
       }
     }
   }
@@ -976,7 +908,7 @@ async function main() {
   }
 
   const connectWithRetry = async () => {
-    while (true) {
+    while (!shuttingDown) {
       try {
         logLifecycle('StageLinq: joining network, waiting for devices...');
         await bridge.connect();
@@ -996,7 +928,7 @@ async function main() {
       logLifecycle(`[StageLinq] Device IP detected: ${ip}`);
     },
     onCommunicationLost: async () => {
-      if (reconnecting) return;
+      if (reconnecting || shuttingDown) return;
       reconnecting = true;
       // Force the Art-Net worker into stale immediately. The worker would
       // otherwise wait FREEWHEEL_STALE_THRESHOLD_MS for its own derivation to
@@ -1009,9 +941,11 @@ async function main() {
       artnet.setReconnecting(false);
     },
     onTrackChanged: (deck, fileName, rawNetworkPath) => {
+      const taskId = ++waveformTaskIds[deck];
       const t0 = Date.now();
       // Notify the replay engine first so it can attach/detach before any heavy I/O.
       replay.onTrackChanged(deck, fileName);
+      syncArtNetSource();
       // Mapped backup-audio files are large and useless to scan — skip waveform/artwork.
       if (replay.shouldSuppressWaveformExtraction(fileName)) {
         logLifecycle(`[REPLAY] suppressing waveform extraction for mapped file "${fileName}"`);
@@ -1036,7 +970,6 @@ async function main() {
       // Cache miss for at least one of the two. Download once and ask the
       // worker to extract whatever's missing — the audio bytes are transferred
       // (zero-copy) into the worker; main thread does no ffmpeg / JSON work.
-      const taskId = ++waveformTaskIds[deck];
       logWaveform(`[WAVEFORM] Deck ${deck}: queuing "${fileName}" peaksOnly=${havePeaksFrame ? false : true} (artworkOnly=${havePeaksFrame})`);
 
       (async () => {
@@ -1098,7 +1031,8 @@ async function main() {
       return obj;
     },
     getPlaylistRef: () => `current_playlist=${config?.current_playlist ?? -1}`,
-    isReplayActive: () => replay.isActive(),
+    isReplayActive: () => replay.isArmedOrActive(),
+    getSelectedDeck: () => selectedDeck,
     getStatus: () => stagelinqStatusForApi(),
   });
 
@@ -1107,21 +1041,6 @@ async function main() {
   // bridge reports 'connected' (handled in the snapshot loop below) so the gap
   // marker is paired with a fresh keyframe of real deck state.
   await recorder.prepareResumeFromOrphan().catch(e => logError('[REC] prepareResumeFromOrphan threw:', e));
-
-  // Graceful shutdown: stop any active recording so we get a clean .meta.json sidecar
-  // and don't leave the file looking like an orphan to the next boot. SIGKILL still
-  // leaves an orphan — that's exactly what prepareResumeFromOrphan() is for.
-  let shutdownInProgress = false;
-  const stopRecorderOnExit = async () => {
-    if (shutdownInProgress) return;
-    shutdownInProgress = true;
-    if (recorder.isActive()) {
-      try { await recorder.stop(); } catch (e) { logError('[REC] shutdown stop failed:', e); }
-    }
-  };
-  process.once('SIGINT', () => { void stopRecorderOnExit(); });
-  process.once('SIGTERM', () => { void stopRecorderOnExit(); });
-  process.once('beforeExit', () => { void stopRecorderOnExit(); });
 
   const stateProvider = makeStateProvider({
     bridge,
@@ -1144,7 +1063,16 @@ async function main() {
     freewheelStaleThresholdMs: FREEWHEEL_STALE_THRESHOLD_MS,
   });
 
+  const syncArtNetSource = makeArtNetSourceSync({
+    getDecks: () => stateProvider.getDecks(),
+    getDeckTimings: () => stateProvider.getDeckTimings(),
+    getReplayOffsets: () => replay.getTrackOffsets(),
+    getLiveOffsets: () => buildTrackOffsetObject(trackOffsets),
+    setSource: (decks, timings, offsets) => artnet.setSource(decks, timings, offsets),
+  });
+
   let oscBpm: OscBpmSender | null = null;
+  let sacnReceiver: { close(): unknown } | null = null;
 
   let selectedDeck: DeckNumber | null = null;
   const setSelectedDeck = (nextDeck: DeckNumber | null, reason: string) => {
@@ -1165,19 +1093,12 @@ async function main() {
       const Receiver = sacn?.Receiver ?? sacn?.default?.Receiver;
       if (Receiver) {
         const sACN = new Receiver({ universes: [sacnUniverse] });
+        sacnReceiver = sACN;
 
         sACN.on('packet', (packet: any) => {
-          const payload = coerceDmxPayload(packet);
-          // logLifecycle(`[sACN] Payload U${sacnUniverse} slots=${Math.max(0, payload.length - 1)}:`, payload);
-
-          // sacn payload is usually 1-based (channel 1 at index 1). We also tolerate 0-based arrays.
-          const dmxValue = Number(
-            payload[controlAddress] ?? payload[controlChannelIndex]
-          );
-          if (Number.isFinite(dmxValue)) {
-            const absoluteDmxValue = toAbsoluteDmxValue(dmxValue);
-            const nextDeck = mapDmxToDeck(absoluteDmxValue);
-            setSelectedDeck(nextDeck, `sACN U${sacnUniverse} CH${controlAddress}=${dmxValue} (abs ${absoluteDmxValue})`);
+          const dmxValue = readDmxChannel(packet, controlAddress);
+          if (dmxValue !== null) {
+            setSelectedDeck(mapDmxToDeck(dmxValue), 'sACN channel ' + controlAddress + '=' + dmxValue);
           }
         });
 
@@ -1193,23 +1114,6 @@ async function main() {
           logError('[sACN] Receiver error:', err?.message || err);
         });
 
-        process.once('SIGINT', () => {
-          oscBpm?.stop();
-          try { sACN.close(); } catch {}
-          try { sacnSender?.close(); } catch {}
-          // Fire-and-forget — worker_threads are killed with the parent anyway,
-          // but the explicit shutdown lets the worker flush its 50 ms drain.
-          void shutdownWaveformWorker();
-          process.exit(0);
-        });
-        process.once('SIGTERM', () => {
-          oscBpm?.stop();
-          try { sACN.close(); } catch {}
-          try { sacnSender?.close(); } catch {}
-          void shutdownWaveformWorker();
-          process.exit(0);
-        });
-
         logLifecycle(`[sACN] Listening Universe ${sacnUniverse}, Address ${controlAddress} (select)`);
       } else {
         logError('[sACN] Receiver export not found. Deck select via sACN is disabled.');
@@ -1221,6 +1125,33 @@ async function main() {
     setSelectedDeck(artnetDeck, `mode=${controlMode}`);
     logLifecycle(`[CONTROL] mode=${controlMode} not implemented, using fixed deck ${selectedDeck}.`);
   }
+
+  const shutdown = async () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    const deadline = setTimeout(() => process.exit(1), SHUTDOWN_TIMEOUT_MS);
+    deadline.unref();
+    for (const interval of intervals) clearInterval(interval);
+    server.close();
+    for (const client of wss.clients) client.terminate();
+    wss.close();
+    oscBpm?.stop();
+    try { sacnReceiver?.close(); } catch {}
+    try { sacnSender?.close(); } catch {}
+    let failed = false;
+    try { await recorder.shutdown(); } catch (error) {
+      failed = true;
+      logError('[REC] Shutdown failed:', error);
+    }
+    const results = await Promise.allSettled([bridge.disconnect(), artnet.stop(), shutdownWaveformWorker()]);
+    for (const result of results) {
+      if (result.status === 'rejected') { failed = true; logError('[SHUTDOWN]', result.reason); }
+    }
+    clearTimeout(deadline);
+    process.exit(failed ? 1 : 0);
+  };
+  process.once('SIGINT', () => { void shutdown(); });
+  process.once('SIGTERM', () => { void shutdown(); });
 
   await new Promise<void>((resolve) => {
     server.listen(PORT, '0.0.0.0', () => {
@@ -1318,22 +1249,13 @@ async function main() {
   // replay is overriding outputs, this listener still fires (the bridge tracks
   // the audio deck's real state for the replay clock) but its values are
   // ignored — the snapshot tick below pushes the synthesized states instead.
-  bridge.subscribeDeckState((deck, state) => {
+  bridge.subscribeDeckState((deck, state, timing) => {
     if (replay.isOverridingOutputs()) return;
-    artnet.pushDeckState(deck, state);
+    if (syncArtNetSource()) return;
+    artnet.pushDeckState(deck, state, timing);
   });
 
-  // Seed the worker's deck cache with whatever the bridge currently holds.
-  // Blank-deck values are fine — they just establish presence so the worker
-  // doesn't have to wait for the first state mutation before its first tick
-  // can resolve a (silent) source deck.
-  {
-    const seed = bridge.getDecks();
-    for (const d of [1, 2, 3, 4] as DeckNumber[]) {
-      artnet.pushDeckState(d, seed[d]);
-    }
-  }
-
+  syncArtNetSource(undefined, true);
 
   wss.on('connection', (ws) => {
     clients.add(ws);
@@ -1354,9 +1276,7 @@ async function main() {
           // Seed the panel with the recent ring so the user sees context, not
           // just whatever happens to land after they open the panel.
           const seed = getTerminalRing().slice();
-          try {
-            ws.send(JSON.stringify({ type: 'terminal_lines', mode: 'replace', lines: seed }));
-          } catch {}
+          sendWsFrame(ws, JSON.stringify({ type: 'terminal_lines', mode: 'replace', lines: seed }));
         } else {
           if (terminalSubscribers.delete(ws)) releaseTerminalTap();
         }
@@ -1364,7 +1284,7 @@ async function main() {
     });
 
     const hello: WsPayload = { type: 'hello', ts: Date.now(), version: '0.1.0', fps: WS_FPS };
-    try { ws.send(JSON.stringify(hello)); } catch {}
+    sendWsFrame(ws, JSON.stringify(hello));
 
     // Replay any cached waveforms and artwork for currently loaded decks. Both
     // frames are pre-serialized in the worker, so this loop does no JSON or
@@ -1377,11 +1297,11 @@ async function main() {
       sentFiles.add(fn);
       const peaksFrame = peaksFrameCache.get(fn);
       if (peaksFrame) {
-        try { ws.send(peaksFrame); } catch {}
+        sendWsFrame(ws, peaksFrame);
       }
       const artworkFrame = artworkFrameCache.get(fn);
       if (artworkFrame) {
-        try { ws.send(artworkFrame); } catch {}
+        sendWsFrame(ws, artworkFrame);
       }
     }
 
@@ -1417,17 +1337,14 @@ async function main() {
   // Broadcast snapshots at 30Hz
   const intervalMs = Math.round(1000 / WS_FPS);
   let lastBroadcastWarnAt = 0;
-  setInterval(() => {
+  intervals.push(setInterval(() => {
     const decks = stateProvider.getDecks();
+    const sourceSwitched = syncArtNetSource(decks);
 
-    // Replay-override path: the bridge subscription is gated off (its real
-    // states would be wrong), so the snapshot tick is the only place we can
-    // forward the synthesized states to the Art-Net worker. The audio deck's
-    // real elapsedSec drives the replay clock, which means a steady tick from
-    // the bridge keeps `bumpBeat` fresh — the worker won't go stale during
-    // replay either.
-    if (replay.isOverridingOutputs()) {
-      artnet.pushAllDeckStates(decks, true);
+    // Preserve the audio clock's source timestamps through replay; snapshot delivery
+    // itself must never make a stale source fresh.
+    if (replay.isOverridingOutputs() && !sourceSwitched) {
+      artnet.pushAllDeckStates(decks, stateProvider.getDeckTimings());
     }
 
     if (selectedDeck && oscBpm) {
@@ -1449,7 +1366,7 @@ async function main() {
       // First connect after boot: if we found an unfinished recording on disk, resume it
       // now that the bridge has fresh state to keyframe. Other status flips (no-device,
       // reconnecting) just update the recorded status; resume only fires once.
-      if (status === 'connected' && recorder.hasPendingResume() && !replay.isActive()) {
+      if (status === 'connected' && recorder.hasPendingResume() && !replay.isArmedOrActive()) {
         recorder.finalizeResume().then(r => {
           if (!r.ok) logError(`[REC] resume failed: ${r.error}`);
         }).catch(e => logError('[REC] resume threw:', e));
@@ -1471,7 +1388,7 @@ async function main() {
     };
 
     // Log only when meaningful values changed
-    const comparableStr = JSON.stringify(makeComparableSnapshot(payload));
+    const comparableStr = LOG_ENABLED.uiOut ? JSON.stringify(makeComparableSnapshot(payload)) : '';
     if (comparableStr !== lastComparable) {
       lastComparable = comparableStr;
       logUiOut('[UI OUT]', JSON.stringify(payload));
@@ -1483,6 +1400,8 @@ async function main() {
       lastBroadcastWarnAt = Date.now();
       logError(`[main] WS broadcast slow: ${broadcastCostMs}ms (clients=${clients.size})`);
     }
+
+    if (!DISPLAY_ENABLED.dashboard || !process.stdout.isTTY) return;
 
     // Build multi-line dashboard
     const deckNums: DeckNumber[] = [1, 2, 3, 4];
@@ -1551,7 +1470,7 @@ async function main() {
     }
 
     logDashboard(lines);
-  }, intervalMs);
+  }, intervalMs));
 
 
 

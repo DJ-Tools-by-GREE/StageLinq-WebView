@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import type { DeckNumber, DeckState, RecordingStatus, ReplayStatus, StageLinqStatus, TerminalLogLine, TrackNote, WsPayload } from './types.js';
+import type { DeckNumber, DeckState, RecordingStatus, ReplayStatus, StageLinqStatus, TerminalLogLine, TrackNote, WaveformStatusPayload, WsPayload } from './types.js';
 import type { WaveformState } from './appTypes.js';
 import DeckCard from './DeckCard.js';
 import HeaderBar from './HeaderBar.js';
@@ -7,10 +7,10 @@ import SettingsModal from './SettingsModal.js';
 import TerminalPanel from './TerminalPanel.js';
 import TrackNotePopup from './TrackNotePopup.js';
 import ConfigEditorOverlay from './configEditor/ConfigEditorOverlay.js';
+import { useUserPreferences, useFreewheelPreferences } from './useSettingsPersistence.js';
 import {
   FIXED_USERS,
   type UserName,
-  type UsersMap,
   type UserSettings,
   type Role,
   type DeckLayout,
@@ -18,26 +18,14 @@ import {
   effectiveShowTrackNotes,
   effectiveRole,
   effectiveDeckLayout,
-  fetchAllUsers,
-  putUserSettings,
   loadActiveUser,
   saveActiveUser,
   clampZoom,
   ROLE_DERIVED_KEYS,
 } from './userSettings.js';
-import {
-  fetchGlobalSettings,
-  putFreewheelSettings,
-  postReloadConfig,
-  type FreewheelSettings,
-  type GlobalSettingsMeta,
-  type ReloadConfigResult,
-  FREEWHEEL_DURATION_FALLBACK,
-} from './globalSettings.js';
+import { postReloadConfig, type ReloadConfigResult } from './globalSettings.js';
 
 const DECK_NUMBERS: DeckNumber[] = [1, 2, 3, 4];
-
-const SETTINGS_PUT_DEBOUNCE_MS = 250;
 
 const TERMINAL_MAX_LINES = 1000;
 
@@ -86,6 +74,7 @@ export default function App() {
     3: makeBlankWaveform(),
     4: makeBlankWaveform(),
   });
+  const waveformStatusesRef = useRef<Partial<Record<DeckNumber, WaveformStatusPayload>>>({});
   const artworkObjectUrlsRef = useRef<Record<string, string>>({});
   const [artworkUrls, setArtworkUrls] = useState<Record<string, string>>({});
   // Frontend-side peaks cache, keyed by fileName. The backend `waveform_data`
@@ -109,21 +98,11 @@ export default function App() {
   const [terminalOpen, setTerminalOpen] = useState(false);
   const [terminalLines, setTerminalLines] = useState<TerminalLogLine[]>([]);
 
-  // Users + active user. Users map starts as empty per name and is
-  // hydrated from /api/users on mount. The active-user pick is per-browser.
-  const [users, setUsers] = useState<UsersMap>(() => {
-    const blank = {} as UsersMap;
-    for (const n of FIXED_USERS) blank[n] = {};
-    return blank;
-  });
+  const { users, ready: usersReady, loadError: usersLoadError, saveStates: userSaveStates,
+    update: updateUserSettings, retry: retryUserSave, reload: reloadUsers } = useUserPreferences();
   const [activeUser, setActiveUserState] = useState<UserName>(() => loadActiveUser());
-
-  // Global (backend-owned) settings. Hydrated once on mount; PUTs go straight to
-  // the backend, which persists to config.json and live-pushes into the Art-Net worker.
-  const [freewheel, setFreewheel] = useState<FreewheelSettings | null>(null);
-  const [freewheelMeta, setFreewheelMeta] = useState<GlobalSettingsMeta>({
-    freewheel_max_duration_sec: FREEWHEEL_DURATION_FALLBACK,
-  });
+  const { freewheel, meta: freewheelMeta, loadError: freewheelLoadError, saveState: freewheelSaveState,
+    update: updateFreewheel, retry: retryFreewheelSave, refresh: refreshFreewheel } = useFreewheelPreferences();
 
   const detailZoomSec = effectiveZoom(users[activeUser]);
   const showTrackNotes = effectiveShowTrackNotes(users[activeUser]);
@@ -141,88 +120,12 @@ export default function App() {
     setActiveUserState(name);
   }, []);
 
-  // Hydrate users on mount.
-  useEffect(() => {
-    const ac = new AbortController();
-    fetchAllUsers(ac.signal)
-      .then((map) => setUsers(map))
-      .catch(() => {});
-    return () => ac.abort();
-  }, []);
-
-  // Hydrate global settings on mount.
-  useEffect(() => {
-    const ac = new AbortController();
-    fetchGlobalSettings(ac.signal)
-      .then((res) => {
-        setFreewheel(res.freewheel);
-        if (res.meta) setFreewheelMeta(res.meta);
-      })
-      .catch(() => {});
-    return () => ac.abort();
-  }, []);
-
-  const updateFreewheel = useCallback(async (patch: Partial<FreewheelSettings>) => {
-    // Optimistic — flip the toggle/slider immediately so the UI is responsive even
-    // if the network round-trip stalls; reconcile from the server's clamp on success.
-    setFreewheel((prev) => (prev ? { ...prev, ...patch } : prev));
-    try {
-      const next = await putFreewheelSettings(patch);
-      setFreewheel(next);
-    } catch {
-      // Best-effort refetch on failure to recover the on-disk truth.
-      fetchGlobalSettings()
-        .then((res) => setFreewheel(res.freewheel))
-        .catch(() => {});
-    }
-  }, []);
-
-  // Mid-show config reload. Refetches global settings on success so the
-  // freewheel knob reflects whatever the file now says (in case the operator
-  // hand-edited config.json before clicking).
   const reloadBackendConfig = useCallback(async (): Promise<ReloadConfigResult> => {
     const result = await postReloadConfig();
-    if (result.ok) {
-      fetchGlobalSettings()
-        .then((res) => setFreewheel(res.freewheel))
-        .catch(() => {});
-    }
+    if (result.ok) await refreshFreewheel();
     return result;
-  }, []);
+  }, [refreshFreewheel]);
 
-  // Per-user debounced PUT. One timer per user so quickly editing user A then
-  // user B does not drop A's pending write.
-  const putTimersRef = useRef<Partial<Record<UserName, ReturnType<typeof setTimeout>>>>({});
-
-  // Patch semantics: any key whose value is `undefined` is REMOVED from the
-  // persisted settings (so the field falls back to role/global defaults).
-  // Any other value overwrites. Used by the "Reset to role defaults" button
-  // in SettingsModal — see ROLE_DERIVED_KEYS in userSettings.ts.
-  const updateUserSettings = useCallback((name: UserName, patch: Partial<UserSettings>) => {
-    setUsers((prev) => {
-      const merged: UserSettings = { ...prev[name] };
-      for (const [k, v] of Object.entries(patch)) {
-        if (v === undefined) delete (merged as Record<string, unknown>)[k];
-        else (merged as Record<string, unknown>)[k] = v;
-      }
-      const next: UsersMap = { ...prev, [name]: merged };
-      const existing = putTimersRef.current[name];
-      if (existing) clearTimeout(existing);
-      putTimersRef.current[name] = setTimeout(() => {
-        delete putTimersRef.current[name];
-        putUserSettings(name, merged).catch(() => {});
-      }, SETTINGS_PUT_DEBOUNCE_MS);
-      return next;
-    });
-  }, []);
-
-  useEffect(() => () => {
-    for (const t of Object.values(putTimersRef.current)) {
-      if (t) clearTimeout(t);
-    }
-  }, []);
-
-  const lastSeq = useRef(-1);
   const unmounting = useRef(false);
   const retryTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const heartbeatTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -275,10 +178,14 @@ export default function App() {
   }, []);
 
   const connect = useCallback(() => {
+    if (unmounting.current) return;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
+    let lastSeq = -1;
+    waveformStatusesRef.current = {};
 
     ws.onopen = () => {
+      if (unmounting.current || wsRef.current !== ws) return;
       lastMsgAt.current = Date.now();
       setConnected(true);
       heartbeatTimer.current = setInterval(() => {
@@ -293,13 +200,14 @@ export default function App() {
     };
 
     ws.onmessage = (ev) => {
+      if (unmounting.current || wsRef.current !== ws) return;
       let msg: WsPayload;
       try { msg = JSON.parse(ev.data as string); } catch { return; }
 
       if (msg.type === 'snapshot') {
         lastMsgAt.current = Date.now();
-        if (msg.seq <= lastSeq.current) return;
-        lastSeq.current = msg.seq;
+        if (msg.seq <= lastSeq) return;
+        lastSeq = msg.seq;
         const nextDecks = msg.decks as DecksState;
         latestDecksRef.current = nextDecks;
         for (const d of DECK_NUMBERS) {
@@ -335,14 +243,18 @@ export default function App() {
           // fileName), bind them now. Cheap no-op when the deck already shows
           // the same fileName as last tick.
           const fnNow = nextDecks[d].fileName;
-          if (fnNow && prevFile[d] !== fnNow) {
+          if (fnNow && (prevFile[d] !== fnNow || (!prev[d] && nextDecks[d].trackLoaded))) {
             const cached = peaksByFileRef.current[fnNow];
+            const pendingStatus = waveformStatusesRef.current[d];
             if (cached) {
               setWaveforms((w) => (
                 w[d].fileName === fnNow && w[d].peaks
                   ? w
                   : { ...w, [d]: { peaks: cached.peaks, peaksPerSec: cached.peaksPerSec, stage: 'ready', progress: 100, fileName: fnNow } }
               ));
+            } else if (pendingStatus?.fileName === fnNow) {
+              setWaveforms((w) => ({ ...w, [d]: { ...makeBlankWaveform(),
+                stage: pendingStatus.stage, progress: pendingStatus.progress, fileName: fnNow } }));
             }
           }
 
@@ -386,6 +298,8 @@ export default function App() {
         }
       } else if (msg.type === 'waveform_status') {
         const { deck, stage, progress, fileName } = msg;
+        waveformStatusesRef.current[deck] = msg;
+        if (latestDecksRef.current[deck].fileName !== fileName || !latestDecksRef.current[deck].trackLoaded) return;
         setWaveforms((prev) => {
           const changed = prev[deck].fileName !== fileName;
           return {
@@ -419,9 +333,17 @@ export default function App() {
         });
       } else if (msg.type === 'artwork_data') {
         const { fileName, data, mime } = msg;
-        if (!data || !mime) return;
         const prev = artworkObjectUrlsRef.current[fileName];
         if (prev) URL.revokeObjectURL(prev);
+        if (!data || !mime) {
+          delete artworkObjectUrlsRef.current[fileName];
+          setArtworkUrls((urls) => {
+            const next = { ...urls };
+            delete next[fileName];
+            return next;
+          });
+          return;
+        }
         const blob = new Blob([Uint8Array.from(atob(data), (c) => c.charCodeAt(0))], { type: mime });
         const url = URL.createObjectURL(blob);
         artworkObjectUrlsRef.current[fileName] = url;
@@ -442,6 +364,8 @@ export default function App() {
     };
 
     ws.onclose = () => {
+      if (unmounting.current || wsRef.current !== ws) return;
+      wsRef.current = null;
       setConnected(false);
       if (heartbeatTimer.current) { clearInterval(heartbeatTimer.current); heartbeatTimer.current = null; }
       if (!unmounting.current) {
@@ -459,13 +383,20 @@ export default function App() {
       unmounting.current = true;
       if (retryTimeout.current) clearTimeout(retryTimeout.current);
       if (heartbeatTimer.current) clearInterval(heartbeatTimer.current);
-      wsRef.current?.close();
+      const ws = wsRef.current;
+      wsRef.current = null;
+      if (ws) {
+        ws.onopen = ws.onmessage = ws.onclose = ws.onerror = null;
+        ws.close();
+      }
       for (const d of DECK_NUMBERS) {
         const t = pendingPopupTimers.current[d];
         if (t) { clearTimeout(t); pendingPopupTimers.current[d] = null; }
       }
     };
   }, [connect]);
+
+  const closeConfigEditor = useCallback(() => setConfigEditorOpen(false), []);
 
   const dismissTopPopup = useCallback(() => {
     setPopupQueue((q) => q.slice(1));
@@ -550,6 +481,15 @@ export default function App() {
       {settingsOpen && (
         <SettingsModal
           activeUser={activeUser}
+          usersReady={usersReady}
+          usersLoadError={usersLoadError}
+          userSaveState={userSaveStates[activeUser] ?? { phase: 'idle' }}
+          onReloadUsers={reloadUsers}
+          onRetryUserSave={() => retryUserSave(activeUser)}
+          freewheelLoadError={freewheelLoadError}
+          freewheelSaveState={freewheelSaveState}
+          onRefreshFreewheel={refreshFreewheel}
+          onRetryFreewheelSave={retryFreewheelSave}
           detailZoomSec={detailZoomSec}
           onChangeDetailZoomSec={(v) =>
             updateUserSettings(activeUser, { detailZoomSec: clampZoom(v) })
@@ -584,7 +524,7 @@ export default function App() {
         />
       )}
       {configEditorOpen && (
-        <ConfigEditorOverlay onClose={() => setConfigEditorOpen(false)} />
+        <ConfigEditorOverlay onClose={closeConfigEditor} />
       )}
       {popupQueue.length > 0 && (
         <TrackNotePopup

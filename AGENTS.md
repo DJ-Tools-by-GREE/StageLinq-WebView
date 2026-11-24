@@ -13,7 +13,7 @@ If you are unsure about an approach, missing context, or lack information about 
 The StageLinq dependency resolves the local sibling checkout at **../StageLinq**.
 Read its source and memory.md when diagnosing package events, payloads or
 connection behavior. Run npm ci in that checkout before installing WebView,
-and rebuild the library after source edits. The project.zip archive is a
+and rebuild the library after source edits (root npm run build does this automatically). The project.zip archive is a
 historical snapshot.
 
 ### Maintain Project State (`memory.md`)
@@ -70,7 +70,7 @@ StageLinq-WebView/
 ├── project.zip                 # full project snapshot
 ├── package.json                # workspace root; top-level dev/build/start scripts
 ├── receiveSacn.js              # standalone sACN debug script (not part of the app)
-├── recordings/                 # JSONL show recordings + .meta.json sidecars (gitignored)
+├── recordings/                 # JSONL show recordings + .meta.json sidecars (historical files tracked)
 ├── backend/
 │   ├── src/
 │   │   ├── index.ts            # entry point: Express, WebSocket, snapshot loop, sACN input
@@ -116,7 +116,7 @@ npm run -w backend dev
 # Development (frontend HMR on :5173, proxies /ws + /api to backend)
 npm run -w frontend dev
 
-# Production build (frontend → backend)
+# Production build (sibling StageLinq → frontend typecheck/build → backend)
 npm run build
 
 # Production start
@@ -275,3 +275,13 @@ Port `8090` (configurable via `PORT` env). Path `/ws`.
 | 2 | Blue |
 | 3 | Green |
 | 4 | Red |
+
+
+### Audit-established contracts (2026-11-24)
+
+- Bridge lifecycle uses public StageLinqInstance; do not restore private singleton mutation. Per-device downloads remain serialized.
+- SourceTiming belongs to real BeatInfo positions and explicit transport changes. Metadata/repeated snapshots are not heartbeats. Live worker and offline simulator share timecodeTimeline.ts; preserve this shared implementation.
+- Replay uses saved recording offsets and is mutually exclusive with recording while loading/armed/active. Explicit pause stops output; missing source data uses freewheel controls.
+- Settings/config writes use jsonFile.ts serialization and propagate errors before committing cached runtime state. Existing malformed files must not be silently replaced.
+- Track deletion preserves remaining offsets/frames; deleting the active playlist clears selection.
+- Run npm run build and npm test for changes to these contracts. Tests simulate device/output behavior; live hardware validation remains separate. Full findings: docs/review-2026-11-24/README.md.

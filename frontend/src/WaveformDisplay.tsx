@@ -1,5 +1,7 @@
-import { useEffect, useRef } from 'react';
-import type { WaveformStage, HotCue, SavedLoop } from './types';
+import { useEffect, useMemo, useRef } from 'react';
+import { peakBins, peakMaximum } from './waveformPeaks.js';
+import { useCanvasSize } from './useCanvasSize.js';
+import type { WaveformStage, HotCue, SavedLoop } from './types.js';
 
 const DEFAULT_DETAIL_ZOOM_SEC = 10;
 
@@ -34,6 +36,9 @@ interface DetailState {
   loopOutSec: number | null;
   savedLoops: SavedLoop[];
   detailZoomSec: number;
+  width: number;
+  height: number;
+  ratio: number;
 }
 
 interface Props {
@@ -61,46 +66,46 @@ export default function WaveformDisplay({
   const overviewRef = useRef<HTMLCanvasElement>(null);
   const detailRef = useRef<HTMLCanvasElement>(null);
 
+  const overviewSize = useCanvasSize(overviewRef);
+  const detailSize = useCanvasSize(detailRef);
+  const overviewPeaks = useMemo(() => peakBins(peaks ?? [], overviewSize.width), [peaks, overviewSize.width]);
+
   const color = DECK_COLORS[deck] ?? '#ffffff';
-  const maxPeak = peaks && peaks.length > 0 ? Math.max(...peaks) : 1;
+  const maxPeak = useMemo(() => peakMaximum(peaks), [peaks]);
 
   const detailStateRef = useRef<DetailState>({
     peaks, peaksPerSec, totalSec, color, maxPeak,
     hotCues, loopActive, loopInSec, loopOutSec, savedLoops,
-    detailZoomSec,
+    detailZoomSec, ...detailSize,
   });
 
   useEffect(() => {
     detailStateRef.current = {
       peaks, peaksPerSec, totalSec, color, maxPeak,
       hotCues, loopActive, loopInSec, loopOutSec, savedLoops,
-      detailZoomSec,
+      detailZoomSec, ...detailSize,
     };
   });
 
-  // Overview: redraws on each React render (driven by elapsedSec prop from state).
   useEffect(() => {
     const canvas = overviewRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    canvas.width = canvas.offsetWidth || canvas.width;
-    canvas.height = canvas.offsetHeight || canvas.height;
-    const w = canvas.width;
-    const h = canvas.height;
+    const { width: w, height: h } = overviewSize;
 
     ctx.clearRect(0, 0, w, h);
     if (!peaks || peaks.length === 0) return;
 
     const frac = totalSec > 0 ? Math.min(1, elapsedSec / totalSec) : 0;
-    const playedIdx = Math.round(frac * peaks.length);
+    const playedIdx = Math.round(frac * overviewPeaks.length);
 
-    const barW = w / peaks.length;
-    for (let i = 0; i < peaks.length; i++) {
+    const barW = w / overviewPeaks.length;
+    for (let i = 0; i < overviewPeaks.length; i++) {
       const played = i < playedIdx;
       ctx.fillStyle = played ? color + 'cc' : color + '44';
-      const amp = (peaks[i] / maxPeak) * h * 0.88;
+      const amp = (overviewPeaks[i] / maxPeak) * h * 0.88;
       ctx.fillRect(i * barW, h - amp, Math.max(1, barW), amp);
     }
 
@@ -137,7 +142,7 @@ export default function WaveformDisplay({
       ctx.fillStyle = cueColor;
       ctx.fillRect(x - 1, 0, 2, h);
     }
-  }, [peaks, elapsedSec, totalSec, color, maxPeak, hotCues, loopActive, loopInSec, loopOutSec, savedLoops]);
+  }, [peaks, overviewPeaks, overviewSize, elapsedSec, totalSec, color, maxPeak, hotCues, loopActive, loopInSec, loopOutSec, savedLoops]);
 
   // Detail: rAF loop reads elapsedSec directly from ref — bypasses React render cycle.
   useEffect(() => {
@@ -147,33 +152,25 @@ export default function WaveformDisplay({
     if (!ctx) return;
 
     let rafId: number;
-    let canvasWidth = 0;
-    let canvasHeight = 0;
+    let previousState: DetailState | null = null;
+    let previousElapsed = NaN;
 
     const draw = () => {
       rafId = requestAnimationFrame(draw);
 
       const s = detailStateRef.current;
+      const elapsed = elapsedSecRef.current;
+      if (s === previousState && elapsed === previousElapsed) return;
+      previousState = s;
+      previousElapsed = elapsed;
       if (!s.peaks || s.peaks.length === 0) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         return;
       }
 
-      const newWidth = canvas.offsetWidth;
-      if (newWidth !== canvasWidth) {
-        canvas.width = newWidth;
-        canvasWidth = newWidth;
-      }
-      const newHeight = canvas.offsetHeight;
-      if (newHeight !== canvasHeight) {
-        canvas.height = newHeight;
-        canvasHeight = newHeight;
-      }
-
-      const w = canvas.width;
-      const h = canvas.height;
+      const w = s.width;
+      const h = s.height;
       const mid = h / 2;
-      const elapsed = elapsedSecRef.current;
 
       ctx.clearRect(0, 0, w, h);
 
@@ -215,12 +212,11 @@ export default function WaveformDisplay({
         }
       }
 
-      for (let i = startIdx; i <= endIdx; i++) {
-        const peak = i >= 0 && i < s.peaks.length ? s.peaks[i] : 0;
-        const amp = (peak / s.maxPeak) * mid * 0.92;
-        const x = (i - startIdx) * pxPerPeak;
-        ctx.fillStyle = (i < 0 || i >= s.peaks.length) ? s.color + '22' : s.color + 'cc';
-        ctx.fillRect(x, mid - amp, Math.max(1, pxPerPeak), amp * 2);
+      const columns = peakBins(s.peaks, w, startIdx, endIdx);
+      ctx.fillStyle = s.color + 'cc';
+      for (let x = 0; x < columns.length; x++) {
+        const amp = (columns[x] / s.maxPeak) * mid * 0.92;
+        ctx.fillRect(x, mid - amp, 1, amp * 2);
       }
 
       ctx.fillStyle = 'rgba(255,255,255,0.18)';

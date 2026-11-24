@@ -1,10 +1,11 @@
 import { parentPort } from 'node:worker_threads';
 import dgram from 'node:dgram';
 import path from 'node:path';
-import type { DeckNumber, DeckState } from './types.js';
+import { monotonicNowMs, TimecodeTimeline } from './timecodeTimeline.js';
+import type { TimelineTick } from './timecodeTimeline.js';
+import type { DeckNumber, DeckState, SourceTiming } from './types.js';
 import {
   ARTNET_BIND_TIMEOUT_MS,
-  ARTNET_DRIFT_THRESHOLD_RATIO,
   ARTNET_SOCKET_RECOVERY_COOLDOWN_MS,
   ARTNET_SOCKET_RECOVERY_DELAY_MS,
   ARTNET_TICK_STATS_LOG_INTERVAL_MS,
@@ -73,24 +74,20 @@ class ArtNetWorker {
 
   // ── Owned state (was on main thread) ────────────────────────────────────
   private decks: Record<DeckNumber, DeckState | null> = { 1: null, 2: null, 3: null, 4: null };
+  private timings: Record<DeckNumber, SourceTiming | null> = { 1: null, 2: null, 3: null, 4: null };
   private selectedDeck: DeckNumber | null = null;
   private trackOffsets: TrackOffsetMap = {};
-  // Wall-clock ms of the last beatPulse / pushDeckState / pushAllDeckStates.
-  // Used to derive freewheel-stale internally instead of relying on a flag from main.
-  private lastBeatAtMs = 0;
   private reconnecting = false;
   private freewheelStaleThresholdMs = 250;
 
   // ── Freewheel internals ─────────────────────────────────────────────────
-  private staleSinceMs: number | null = null;
   private freewheelExpiredLogged = false;
   private enableFreewheeling = true;
   private freewheelMaxDurationSec = 30;
   private freewheelActiveEmitted = false;
 
   // ── Timeline ────────────────────────────────────────────────────────────
-  private timelineFrames: number | null = null;
-  private lastTickMs: number | null = null;
+  private timeline = new TimecodeTimeline();
 
   private socketFaulted = false;
   private lastSocketRecoveryMs = 0;
@@ -117,12 +114,18 @@ class ArtNetWorker {
     });
 
     await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(
-        () => reject(new Error('[ArtNet/wk] socket.bind() timed out')),
-        ARTNET_BIND_TIMEOUT_MS,
-      );
-      this.socket.bind(() => {
+      const cleanup = () => {
         clearTimeout(timeout);
+        this.socket.off('error', onError);
+      };
+      const onError = (err: Error) => { cleanup(); reject(err); };
+      const timeout = setTimeout(() => {
+        cleanup();
+        reject(new Error('[ArtNet/wk] socket.bind() timed out'));
+      }, ARTNET_BIND_TIMEOUT_MS);
+      this.socket.once('error', onError);
+      this.socket.bind(() => {
+        cleanup();
         try { this.socket.setBroadcast(true); } catch {}
         resolve();
       });
@@ -131,15 +134,9 @@ class ArtNetWorker {
     const sendHz = Math.max(1, opts.sendHz);
     this.targetIntervalMs = 1000 / sendHz;
 
-    const now = Date.now();
+    const now = monotonicNowMs();
     this.nextDeadlineMs = now + this.targetIntervalMs;
     this.windowStartMs = now;
-    // Seed lastBeatAtMs so we don't immediately go stale before main has had
-    // a chance to push the first beatPulse / deck state. The bridge's connect
-    // grace period covers any real first-beat delay; we just don't want a
-    // freewheel flicker in the first 250 ms of life.
-    this.lastBeatAtMs = now;
-
     this.scheduleNext();
 
     this.statsTimer = setInterval(() => this.flushStats(), ARTNET_TICK_STATS_LOG_INTERVAL_MS);
@@ -164,75 +161,46 @@ class ArtNetWorker {
     // the next tick rebases off the new deck's source position cleanly instead
     // of hitting the drift-snap (which would emit one bad frame at the old
     // timeline value before catching up).
-    this.timelineFrames = null;
-    this.lastTickMs = null;
+    this.timeline.reset();
+  }
+
+  setSource(decks: Record<DeckNumber, DeckState>, timings: Record<DeckNumber, SourceTiming>, offsets: TrackOffsetMap) {
+    this.decks = decks;
+    this.timings = timings;
+    this.trackOffsets = offsets;
+    this.timeline.reset();
+    this.freewheelExpiredLogged = false;
   }
 
   setTrackOffsets(offsets: TrackOffsetMap) {
     this.trackOffsets = offsets;
   }
 
-  pushDeckState(deck: DeckNumber, state: DeckState) {
+  pushDeckState(deck: DeckNumber, state: DeckState, timing: SourceTiming) {
     this.decks[deck] = state;
-    // Any push from a real bridge implies fresh data. Don't bump for replay
-    // (pushAllDeckStates handles that with its own bumpBeat flag) since replay
-    // sends synthesised states whose freshness is the audio deck's elapsedSec.
-    this.lastBeatAtMs = Date.now();
+    this.timings[deck] = timing;
   }
 
-  pushAllDeckStates(decks: Record<DeckNumber, DeckState>, bumpBeat: boolean) {
+  pushAllDeckStates(decks: Record<DeckNumber, DeckState>, timings: Record<DeckNumber, SourceTiming>) {
     for (const n of [1, 2, 3, 4] as DeckNumber[]) {
-      const ds = decks[n];
-      if (ds) this.decks[n] = ds;
+      if (decks[n]) this.pushDeckState(n, decks[n], timings[n]);
     }
-    if (bumpBeat) this.lastBeatAtMs = Date.now();
-  }
-
-  beatPulse(atMs: number) {
-    // Trust the main-thread timestamp if it's reasonable; otherwise wall-clock.
-    // Guards against clock skew between threads (vanishingly rare in Node, but
-    // worker_threads share the same process so this is really just a sanity check).
-    const now = Date.now();
-    this.lastBeatAtMs = atMs > 0 && atMs <= now + 1000 ? atMs : now;
   }
 
   setReconnecting(reconnecting: boolean) {
     this.reconnecting = reconnecting;
   }
 
-  private isStale(nowMs: number): boolean {
-    if (this.reconnecting) return true;
-    if (this.lastBeatAtMs === 0) return false;
-    return (nowMs - this.lastBeatAtMs) > this.freewheelStaleThresholdMs;
-  }
-
-  private resolveSourceDeck(): DeckState | null {
-    const sel = this.selectedDeck;
-    if (!sel) return null;
-    const raw = this.decks[sel];
-    if (!raw) return null;
-    if (Number(raw.elapsedSec) <= 0) return null;
-    const fileKey = normalizeTrackName(raw.fileName || '');
-    const offset = this.trackOffsets[fileKey];
-    if (!offset) return raw;
-    const offsetSec = offset.offsetSec + offset.offsetFrame / this.opts.fps;
-    return {
-      ...raw,
-      elapsedSec: Math.max(0, raw.elapsedSec + offsetSec),
-      totalSec: Math.max(0, raw.totalSec + offsetSec),
-    };
-  }
-
   private scheduleNext() {
     if (this.shuttingDown) return;
-    const delay = Math.max(0, this.nextDeadlineMs - Date.now());
+    const delay = Math.max(0, this.nextDeadlineMs - monotonicNowMs());
     this.tickTimer = setTimeout(() => this.tick(), delay);
   }
 
   private tick() {
     if (this.shuttingDown) return;
 
-    const now = Date.now();
+    const now = monotonicNowMs();
     const behind = now - this.nextDeadlineMs;
 
     // If we've fallen pathologically behind, snap forward and warn.
@@ -244,29 +212,28 @@ class ArtNetWorker {
       this.nextDeadlineMs += this.targetIntervalMs;
     }
 
-    // Derive `stale` here, so a long main-thread stall (during which no
-    // beatPulse/pushDeckState arrives) naturally tips us into freewheel without
-    // any cooperation from main. Stale-edge tracking lives alongside.
-    const stale = this.isStale(now);
-    if (stale) {
-      if (this.staleSinceMs == null) {
-        this.staleSinceMs = now;
-        this.freewheelExpiredLogged = false;
-      }
-    } else {
-      if (this.staleSinceMs != null) {
-        this.staleSinceMs = null;
-        this.freewheelExpiredLogged = false;
-      }
-    }
-
+    const selected = this.selectedDeck;
+    const result = this.timeline.tick(selected ? this.decks[selected] : null, selected ? this.timings[selected] : null, now, {
+      fps: this.opts.fps,
+      staleThresholdMs: this.freewheelStaleThresholdMs,
+      reconnecting: this.reconnecting,
+      enableFreewheeling: this.enableFreewheeling,
+      freewheelMaxDurationSec: this.freewheelMaxDurationSec,
+    });
+    if (result.expired && !this.freewheelExpiredLogged) {
+      this.freewheelExpiredLogged = true;
+      logWarn('[ArtNet/wk] Freewheel timeout reached (' + this.freewheelMaxDurationSec + 's) — going silent until beats resume');
+    } else if (!result.expired) this.freewheelExpiredLogged = false;
     try {
-      this.doSend(now, stale);
+      this.doSend(now, result);
     } catch (e: any) {
-      logError(`[ArtNet/wk] tick error: ${e?.message || e}`);
+      logError('[ArtNet/wk] tick error: ' + (e?.message || e));
     }
-
-    this.maybeEmitFreewheelState(now, stale);
+    const active = this.opts.enabled && result.freewheelActive;
+    if (active !== this.freewheelActiveEmitted) {
+      this.freewheelActiveEmitted = active;
+      send({ type: 'freewheelState', active });
+    }
 
     // Per-interval cadence tracking.
     if (this.lastSendAtMs != null) {
@@ -285,105 +252,17 @@ class ArtNetWorker {
     this.scheduleNext();
   }
 
-  private maybeEmitFreewheelState(nowMs: number, stale: boolean) {
-    let active = false;
-    if (stale && this.opts.enabled && this.enableFreewheeling && this.lastTickMs !== null) {
-      const stalledForSec = this.staleSinceMs ? (nowMs - this.staleSinceMs) / 1000 : 0;
-      if (stalledForSec <= this.freewheelMaxDurationSec) active = true;
-    }
-    if (active === this.freewheelActiveEmitted) return;
-    this.freewheelActiveEmitted = active;
-    send({ type: 'freewheelState', active });
-  }
-
-  private doSend(nowMs: number, stale: boolean) {
-    if (!this.opts.enabled) return;
-    const deckState = this.resolveSourceDeck();
-    if (!deckState) {
-      // No selected deck or no usable deck state → silent, and reset the timeline so
-      // a later select / state push starts cleanly from the source position.
-      this.timelineFrames = null;
-      this.lastTickMs = null;
-      return;
-    }
-
-    // Hard kill paths for freewheeling — go silent (skip the packet entirely) instead of
-    // freezing or snapping back. Reset lastTickMs so when beats resume the freewheel restarts
-    // cleanly from the new source position rather than continuing from a stale dt.
-    if (stale) {
-      if (!this.enableFreewheeling) {
-        this.lastTickMs = null;
-        return;
-      }
-      const stalledForSec = this.staleSinceMs ? (nowMs - this.staleSinceMs) / 1000 : 0;
-      if (stalledForSec > this.freewheelMaxDurationSec) {
-        if (!this.freewheelExpiredLogged) {
-          this.freewheelExpiredLogged = true;
-          logWarn(
-            `[ArtNet/wk] Freewheel timeout reached (${this.freewheelMaxDurationSec}s) — going silent until beats resume`
-          );
-        }
-        this.lastTickMs = null;
-        return;
-      }
-    }
-
-    const sourceSec = Number(deckState.elapsedSec) || 0;
-    const sourceFrames = Math.max(0, sourceSec * this.opts.fps);
-
-    // While stale (no fresh beats), assume the deck is still playing at the last-known
-    // speed and keep the previously-running timeline. Don't honour deckState.play here
-    // since the watchdog may have flipped it false; that would otherwise drop us into
-    // the stopped branch and freeze TC mid-show across a brief disconnect.
-    const treatAsPlaying = stale ? this.lastTickMs !== null : deckState.play === true;
-
-    // Deck is paused (and not freewheeling through a stall). Reset the timeline so a
-    // play-resume restarts from the source position, and emit no packet — TC must be
-    // silent whenever the deck isn't moving.
-    if (!treatAsPlaying) {
-      this.timelineFrames = sourceFrames;
-      this.lastTickMs = null;
-      return;
-    }
-
-    if (this.timelineFrames == null) {
-      this.timelineFrames = sourceFrames;
-    }
-
-    if (this.lastTickMs == null) {
-      this.lastTickMs = nowMs;
-      this.timelineFrames = sourceFrames;
-      return;
-    }
-
-    const dtSec = Math.max(0, (nowMs - this.lastTickMs) / 1000);
-    const playRate = 1 + (deckState.speedState ?? 0) / 100;
-    this.timelineFrames += dtSec * this.opts.fps * playRate;
-
-    // While stale, source elapsedSec is frozen at the last update — skip the drift snap
-    // so the freewheel timeline isn't yanked back to the stale source value.
-    if (!stale) {
-      const drift = Math.abs(sourceFrames - this.timelineFrames);
-      if (drift > this.opts.fps * ARTNET_DRIFT_THRESHOLD_RATIO) {
-        this.timelineFrames = sourceFrames;
-      }
-
-      if (this.timelineFrames < sourceFrames) {
-        this.timelineFrames = sourceFrames;
-      }
-    }
-
-    if (this.timelineFrames <= 0) return;
-
-    this.lastTickMs = nowMs;
-
+  private doSend(nowMs: number, result: TimelineTick) {
+    if (!this.opts.enabled || result.frames === null || !result.source) return;
+    const deckState = result.source;
+    const offset = this.trackOffsets[normalizeTrackName(deckState.fileName || '')];
+    const offsetSec = offset ? offset.offsetSec + offset.offsetFrame / this.opts.fps : 0;
     const latencyCompFrames = (this.opts.fps * this.opts.latencyCompMs) / 1000;
-    const rawFramePos = this.timelineFrames + latencyCompFrames;
-    if (rawFramePos < 0) return;
-
+    const rawFramePos = result.frames + offsetSec * this.opts.fps + latencyCompFrames;
+    if (!Number.isFinite(rawFramePos) || rawFramePos < 0) return;
     let totalFrames = Math.floor(rawFramePos);
-    const totalSec = Number(deckState.totalSec) || 0;
-    if (totalSec > 0) {
+    const totalSec = Number(deckState.totalSec) + offsetSec;
+    if (Number.isFinite(totalSec) && totalSec > 0) {
       const maxFrame = Math.max(0, Math.floor(totalSec * this.opts.fps) - 1);
       totalFrames = Math.min(totalFrames, maxFrame);
     }
@@ -416,7 +295,7 @@ class ArtNetWorker {
           logError(`[ArtNet/wk] Send error to ${ip}: ${err.message}`);
           const code = (err as NodeJS.ErrnoException).code;
           if ((code === 'ENETUNREACH' || code === 'EADDRNOTAVAIL') && !this.socketFaulted) {
-            const now = Date.now();
+            const now = monotonicNowMs();
             if (now - this.lastSocketRecoveryMs > ARTNET_SOCKET_RECOVERY_COOLDOWN_MS) {
               this.socketFaulted = true;
               void this.recoverSocket();
@@ -447,14 +326,14 @@ class ArtNetWorker {
         resolve();
       });
     });
-    this.lastSocketRecoveryMs = Date.now();
+    this.lastSocketRecoveryMs = monotonicNowMs();
     this.socketFaulted = false;
     this.socketRecoveryCount++;
     logSuccess('[ArtNet/wk] Socket recreated');
   }
 
   private flushStats() {
-    const now = Date.now();
+    const now = monotonicNowMs();
     const windowMs = now - this.windowStartMs;
     const count = this.intervals.length;
     if (count === 0) {
@@ -523,8 +402,12 @@ port.on('message', (raw: MainToWorker) => {
   switch (raw.type) {
     case 'init':
       worker.start(raw.opts).catch((e) => {
-        logError(`[ArtNet/wk] init failed: ${e?.message || e}`);
+        send({ type: 'initError', message: '[ArtNet/wk] init failed: ' + (e?.message || e) });
+        worker.shutdown();
       });
+      break;
+    case 'setSource':
+      worker.setSource(raw.decks, raw.timings, raw.offsets);
       break;
     case 'setSelectedDeck':
       worker.setSelectedDeck(raw.deck);
@@ -533,13 +416,10 @@ port.on('message', (raw: MainToWorker) => {
       worker.setTrackOffsets(raw.offsets);
       break;
     case 'pushDeckState':
-      worker.pushDeckState(raw.deck, raw.state);
+      worker.pushDeckState(raw.deck, raw.state, raw.timing);
       break;
     case 'pushAllDeckStates':
-      worker.pushAllDeckStates(raw.decks, raw.bumpBeat);
-      break;
-    case 'beatPulse':
-      worker.beatPulse(raw.atMs);
+      worker.pushAllDeckStates(raw.decks, raw.timings);
       break;
     case 'setReconnecting':
       worker.setReconnecting(raw.reconnecting);

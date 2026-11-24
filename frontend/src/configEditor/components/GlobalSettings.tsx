@@ -373,7 +373,7 @@ export function GlobalSettings({ config, onChange }: Props) {
                 value={config.current_playlist}
                 onChange={e => onChange({ ...config, current_playlist: Number(e.target.value) })}
               >
-                {config.playlists.length === 0 && <option value={0}>— none —</option>}
+                <option value={-1}>— none —</option>
                 {config.playlists.map((pl, i) => (
                   <option key={i} value={i}>{i}: {pl.name}</option>
                 ))}

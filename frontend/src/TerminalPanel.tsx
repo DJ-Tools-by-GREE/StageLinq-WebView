@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import type { TerminalLogLine } from './types.js';
 
 interface Props {
@@ -14,7 +14,7 @@ function formatTs(ms: number): string {
   return `${hh}:${mm}:${ss}`;
 }
 
-export default function TerminalPanel({ lines, onClose }: Props) {
+function TerminalPanel({ lines, onClose }: Props) {
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const stickToBottomRef = useRef(true);
 
@@ -65,3 +65,5 @@ export default function TerminalPanel({ lines, onClose }: Props) {
     </div>
   );
 }
+
+export default memo(TerminalPanel);

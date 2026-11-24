@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { logLifecycle, logError, GRN, YEL, RED, RST } from './logging.js';
+import { logLifecycle, logError } from './logging.js';
+import { writeJsonFile } from './jsonFile.js';
 
 export const FIXED_USERS = ['Default User', 'Jan', 'Dennis'] as const;
 export type UserName = typeof FIXED_USERS[number];
@@ -37,36 +38,29 @@ export class UserSettingsStore {
   }
 
   async load(): Promise<void> {
+    let parsed: unknown;
+    let missing = false;
     try {
-      const raw = await fs.readFile(this.filePath, 'utf8');
-      const parsed = JSON.parse(raw);
-      if (isPlainObject(parsed) && isPlainObject((parsed as any).users)) {
-        this.data = { users: { ...(parsed as any).users } };
-        logLifecycle(`${GRN}[USERS] Loaded ${this.filePath}${RST}`);
-      } else {
-        logLifecycle(`${YEL}[USERS] ${this.filePath} malformed; resetting to defaults.${RST}`);
-        this.data = structuredClone(DEFAULT_FILE);
-        await this.persist();
-      }
-    } catch (err: any) {
-      if (err?.code === 'ENOENT') {
-        logLifecycle(`${YEL}[USERS] ${this.filePath} not found, creating with defaults.${RST}`);
-      } else {
-        logError(`${RED}[USERS] Failed to read ${this.filePath}, resetting:${RST}`, err?.message || err);
-      }
-      this.data = structuredClone(DEFAULT_FILE);
-      await this.persist();
+      parsed = JSON.parse(await fs.readFile(this.filePath, 'utf8'));
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      missing = true;
+      parsed = structuredClone(DEFAULT_FILE);
     }
-
-    // Ensure all fixed users exist in the file even if it was previously written without one.
-    let mutated = false;
+    if (!isPlainObject(parsed) || !isPlainObject(parsed.users)) {
+      throw new Error('users.json must contain a users object');
+    }
+    const data: UsersFileShape = { users: { ...parsed.users } as Record<string, UserSettings> };
+    let changed = missing;
     for (const name of FIXED_USERS) {
-      if (!isPlainObject(this.data.users[name])) {
-        this.data.users[name] = {};
-        mutated = true;
+      if (!isPlainObject(data.users[name])) {
+        data.users[name] = {};
+        changed = true;
       }
     }
-    if (mutated) await this.persist();
+    if (changed) await writeJsonFile(this.filePath, data);
+    this.data = data;
+    logLifecycle('[USERS] Loaded', this.filePath);
   }
 
   list(): Array<{ name: string; settings: UserSettings }> {
@@ -82,26 +76,20 @@ export class UserSettingsStore {
   }
 
   async setSettings(name: string, settings: UserSettings): Promise<UserSettings | null> {
-    if (!FIXED_USERS.includes(name as UserName)) return null;
-    if (!isPlainObject(settings)) return null;
-    this.data.users[name] = { ...settings };
-    await this.persist();
-    return { ...this.data.users[name] };
+    if (!FIXED_USERS.includes(name as UserName) || !isPlainObject(settings)) return null;
+    const value = structuredClone(settings);
+    const next = this.writing.then(async () => {
+      const data = { users: { ...this.data.users, [name]: value } };
+      await writeJsonFile(this.filePath, data);
+      this.data = data;
+    });
+    this.writing = next.catch(err => {
+      logError('[USERS] Failed to persist settings:', err?.message || err);
+    });
+    await next;
+    return structuredClone(value);
   }
 
-  private async persist(): Promise<void> {
-    // Serialize writes so concurrent PUTs can't interleave.
-    const next = this.writing.then(async () => {
-      const tmp = `${this.filePath}.tmp`;
-      const text = JSON.stringify(this.data, null, 2) + '\n';
-      await fs.writeFile(tmp, text, 'utf8');
-      await fs.rename(tmp, this.filePath);
-    });
-    this.writing = next.catch((err) => {
-      logError(`${RED}[USERS] Failed to write ${this.filePath}:${RST}`, err?.message || err);
-    });
-    return this.writing;
-  }
 }
 
 export function resolveUsersFilePath(rootDir: string): string {

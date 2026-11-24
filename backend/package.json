@@ -11,11 +11,14 @@
   },
   "dependencies": {
     "@gree44/stagelinq": "file:../../StageLinq",
+    "metadata-connect": "^1.2.0",
+    "file-type": "^21.3.1",
     "better-sqlite3": "^12.11.1",
     "cors": "^2.8.5",
     "express": "^4.19.2",
     "sacn": "4.6.2",
-    "ws": "^8.18.0"
+    "ws": "^8.18.0",
+    "jsonc-parser": "^3.3.1"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",

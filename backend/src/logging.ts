@@ -1,18 +1,26 @@
 import { format as utilFormat } from 'node:util';
 import fs from 'node:fs';
 import path from 'node:path';
+import { DASHBOARD_THROTTLE_MS } from './constants.js';
 
 const isTTY = Boolean(process.stdout.isTTY);
 
 const LOG_DIR = path.resolve(process.cwd(), 'logs');
 let logFileStream: fs.WriteStream | null = null;
+let logFileFailed = false;
 
-function getLogStream(): fs.WriteStream {
+function getLogStream(): fs.WriteStream | null {
+    if (logFileFailed) return null;
     if (!logFileStream) {
         try { fs.mkdirSync(LOG_DIR, { recursive: true }); } catch {}
         const ts = new Date().toISOString().replace(/[:.]/g, '-');
         const file = path.join(LOG_DIR, `run-${ts}.log`);
         logFileStream = fs.createWriteStream(file, { flags: 'a' });
+        logFileStream.on('error', (error) => {
+            logFileFailed = true;
+            logFileStream = null;
+            process.stderr.write('[LOG] File logging disabled: ' + error.message + '\n');
+        });
         logFileStream.write(`--- session start ${new Date().toISOString()} ---\n`);
     }
     return logFileStream;
@@ -21,7 +29,7 @@ function getLogStream(): fs.WriteStream {
 function writeToFile(level: 'ERROR' | 'WARN', ...args: any[]) {
     try {
         const ts = new Date().toISOString().slice(11, 23); // HH:MM:SS.mmm
-        getLogStream().write(`[${ts}] [${level}] ${utilFormat(...args)}\n`);
+        getLogStream()?.write(`[${ts}] [${level}] ${utilFormat(...args)}\n`);
     } catch {}
 }
 
@@ -45,7 +53,7 @@ const statusSlots = new Map<string, string>();
 let lastDashboardLines: string[] = [];
 let lastDashboardContent = '';
 let lastDrawMs = 0;
-const DASHBOARD_THROTTLE_MS = 100; // ~10Hz
+let lastDrawHeight = 0;
 let rows = isTTY ? (process.stdout.rows ?? 0) : 0;
 let scrollBottom = 0;
 
@@ -112,14 +120,15 @@ export function logDashboard(lines: string[]) {
     if (!isTTY || !DISPLAY_ENABLED.dashboard) return;
     const content = lines.join('\n');
     const now = Date.now();
-    const prevHeight = lastDashboardLines.length;
     lastDashboardLines = lines;
-    if (content === lastDashboardContent && now - lastDrawMs < DASHBOARD_THROTTLE_MS) return;
+    if (now - lastDrawMs < DASHBOARD_THROTTLE_MS) return;
+    if (content === lastDashboardContent) return;
     lastDashboardContent = content;
     lastDrawMs = now;
-    if (prevHeight !== lines.length) {
+    if (lastDrawHeight !== lines.length) {
         applyScrollRegion();
     }
+    lastDrawHeight = lines.length;
     drawDashboard();
 }
 

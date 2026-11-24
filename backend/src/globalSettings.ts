@@ -1,5 +1,5 @@
-import fs from 'node:fs/promises';
-import { logError, logLifecycle, GRN, RED, RST, YEL } from './logging.js';
+import { updateConfigFile, readConfigFile } from './jsonFile.js';
+import { logError, logLifecycle } from './logging.js';
 import { DEFAULT_ENABLE_FREEWHEELING, DEFAULT_FREEWHEEL_MAX_DURATION_SEC } from './constants.js';
 
 /**
@@ -52,71 +52,47 @@ export function applyFreewheelToConfig<T extends Record<string, unknown>>(cfg: T
   return cfg;
 }
 
-/**
- * Atomically rewrite `config.json` with a mutated copy. Reads the current file
- * as raw JSON (NOT through stripJsonComments — we want to round-trip cleanly).
- * If the on-disk file contains JS-style comments, they will be lost on write
- * — config.json today does not, and the in-app editor is the deliberate way to
- * turn this knob, so that's an acceptable trade for keeping the writer trivial.
- */
 export class GlobalSettingsStore {
-  private filePath: string;
   private cached: GlobalSettings;
-  private writing: Promise<void> = Promise.resolve();
+  private writing: Promise<unknown> = Promise.resolve();
 
-  constructor(filePath: string, initial: GlobalSettings) {
-    this.filePath = filePath;
-    this.cached = initial;
+  constructor(private filePath: string, initial: GlobalSettings) {
+    this.cached = structuredClone(initial);
   }
 
   get(): GlobalSettings {
-    return { freewheel: { ...this.cached.freewheel } };
+    return structuredClone(this.cached);
   }
 
-  /** Re-point the store at a (possibly different) config file and seed the cache from it. */
-  reset(filePath: string, settings: GlobalSettings): void {
-    this.filePath = filePath;
-    this.cached = { freewheel: { ...settings.freewheel } };
-  }
-
-  async setFreewheel(next: Partial<FreewheelConfig>): Promise<FreewheelConfig> {
-    const merged: FreewheelConfig = {
-      enable_freewheeling:
-        typeof next.enable_freewheeling === 'boolean'
-          ? next.enable_freewheeling
-          : this.cached.freewheel.enable_freewheeling,
-      max_duration_sec:
-        next.max_duration_sec !== undefined
-          ? clampDuration(next.max_duration_sec)
-          : this.cached.freewheel.max_duration_sec,
-    };
-    this.cached = { freewheel: merged };
-    await this.persist();
-    return { ...merged };
-  }
-
-  private async persist(): Promise<void> {
-    const next = this.writing.then(async () => {
-      let parsed: Record<string, unknown> = {};
-      try {
-        const raw = await fs.readFile(this.filePath, 'utf8');
-        const obj = JSON.parse(raw);
-        if (isPlainObject(obj)) parsed = obj as Record<string, unknown>;
-      } catch (err: any) {
-        if (err?.code !== 'ENOENT') {
-          logLifecycle(`${YEL}[CONFIG] Could not re-read ${this.filePath} before write (${err?.message ?? err}); rewriting from cache.${RST}`);
-        }
-      }
-      applyFreewheelToConfig(parsed, this.cached.freewheel);
-      const tmp = `${this.filePath}.tmp`;
-      const text = JSON.stringify(parsed, null, 4) + '\n';
-      await fs.writeFile(tmp, text, 'utf8');
-      await fs.rename(tmp, this.filePath);
-      logLifecycle(`${GRN}[CONFIG] Persisted freewheel settings to ${this.filePath}${RST}`);
+  reload(apply: (config: Record<string, unknown>) => void): Promise<void> {
+    return this.enqueue(async () => {
+      const config = await readConfigFile(this.filePath);
+      const settings = { freewheel: readFreewheelFromConfig(config) };
+      apply(config);
+      this.cached = settings;
     });
-    this.writing = next.catch((err) => {
-      logError(`${RED}[CONFIG] Failed to persist freewheel settings to ${this.filePath}:${RST}`, err?.message || err);
+  }
+
+  setFreewheel(patch: Partial<FreewheelConfig>): Promise<FreewheelConfig> {
+    return this.enqueue(async () => {
+      const merged: FreewheelConfig = {
+        enable_freewheeling: typeof patch.enable_freewheeling === 'boolean'
+          ? patch.enable_freewheeling : this.cached.freewheel.enable_freewheeling,
+        max_duration_sec: patch.max_duration_sec !== undefined
+          ? clampDuration(patch.max_duration_sec) : this.cached.freewheel.max_duration_sec,
+      };
+      await updateConfigFile(this.filePath, config => applyFreewheelToConfig(config, merged));
+      this.cached = { freewheel: merged };
+      logLifecycle('[CONFIG] Persisted freewheel settings to', this.filePath);
+      return { ...merged };
     });
-    return this.writing;
+  }
+
+  private enqueue<T>(operation: () => Promise<T>): Promise<T> {
+    const next = this.writing.then(operation);
+    this.writing = next.catch(err => {
+      logError('[CONFIG] Settings operation failed:', err?.message || err);
+    });
+    return next;
   }
 }

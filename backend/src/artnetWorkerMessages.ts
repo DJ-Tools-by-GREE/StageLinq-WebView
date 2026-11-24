@@ -1,4 +1,4 @@
-import type { DeckNumber, DeckState } from './types.js';
+import type { DeckNumber, DeckState, SourceTiming } from './types.js';
 
 export interface ArtNetWorkerInitOptions {
   enabled: boolean;
@@ -23,30 +23,18 @@ export interface ArtNetWorkerInitOptions {
 
 export type TrackOffsetMap = Record<string, { offsetSec: number; offsetFrame: number }>;
 
-/**
- * The Art-Net worker now owns the full timecode pipeline:
- *  - the 30 Hz tick (was: main-thread setInterval pumping into the worker)
- *  - the deck-state cache for all 4 decks
- *  - the selectedDeck pointer (sACN-driven)
- *  - the per-track offset map
- *  - the freewheel-stale derivation (was: main thread compared `getLastBeatAgeMs()`)
- *
- * Main thread only PUSHES state changes — fire-and-forget. Even if main-thread CPU
- * stalls for seconds (huge StageLinq downloads, ffmpeg storms, GC pauses), the worker
- * keeps ticking and freewheels cleanly across the gap with no drift-snap on resume.
- */
+/** Metadata updates carry the last position timestamp unchanged; only BeatInfo advances it. */
 export type MainToWorker =
   | { type: 'init'; opts: ArtNetWorkerInitOptions }
+  | { type: 'setSource'; decks: Record<DeckNumber, DeckState>; timings: Record<DeckNumber, SourceTiming>; offsets: TrackOffsetMap }
   /** sACN selected this deck (or null = no deck selected → TC silent). */
   | { type: 'setSelectedDeck'; deck: DeckNumber | null }
   /** Replace the per-track offset map (boot, config reload). */
   | { type: 'setTrackOffsets'; offsets: TrackOffsetMap }
   /** Push one deck's full state. Sent on every bridge state mutation when not replaying. */
-  | { type: 'pushDeckState'; deck: DeckNumber; state: DeckState }
-  /** Push all four decks at once. Used by the replay tick path; `lastBeatAtMs` is bumped too. */
-  | { type: 'pushAllDeckStates'; decks: Record<DeckNumber, DeckState>; bumpBeat: boolean }
-  /** Bump `lastBeatAtMs` so freewheel-stale resets. Sent on every beatMessage from main. */
-  | { type: 'beatPulse'; atMs: number }
+  | { type: 'pushDeckState'; deck: DeckNumber; state: DeckState; timing: SourceTiming }
+  /** Replay snapshots preserve the audio source's timestamp when its clock has not advanced. */
+  | { type: 'pushAllDeckStates'; decks: Record<DeckNumber, DeckState>; timings: Record<DeckNumber, SourceTiming> }
   /** Bridge is in the middle of a reconnect cycle — force stale on the worker. */
   | { type: 'setReconnecting'; reconnecting: boolean }
   | { type: 'setFreewheel'; enableFreewheeling: boolean; freewheelMaxDurationSec: number }
@@ -67,6 +55,7 @@ export interface TickStats {
 
 export type WorkerToMain =
   | { type: 'ready' }
+  | { type: 'initError'; message: string }
   | { type: 'log'; level: 'info' | 'success' | 'warn' | 'error'; msg: string }
   /**
    * Periodic, healthy tick-stats heartbeat (every ARTNET_TICK_STATS_LOG_INTERVAL_MS).

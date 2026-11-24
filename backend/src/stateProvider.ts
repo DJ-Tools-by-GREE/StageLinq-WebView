@@ -1,4 +1,4 @@
-import type { DeckNumber, DeckState, StageLinqStatus } from './types.js';
+import type { DeckNumber, DeckState, StageLinqStatus, SourceTiming } from './types.js';
 import type { StageLinqBridge } from './stagelinqBridge.js';
 import type { Replay } from './replay.js';
 
@@ -12,6 +12,7 @@ import type { Replay } from './replay.js';
 export interface StateProvider {
   getDecks(): Record<DeckNumber, DeckState>;
   getDeck(deck: DeckNumber): DeckState;
+  getDeckTimings(): Record<DeckNumber, SourceTiming>;
   getLastBeatAgeMs(): number;
   getStatus(reconnecting: boolean): StageLinqStatus;
   isReplayOverriding(): boolean;
@@ -28,13 +29,12 @@ export function makeStateProvider(deps: StateProviderDeps): StateProvider {
   const { bridge, replay, disconnectTimeoutSec } = deps;
 
   function override(): null | Record<DeckNumber, DeckState> {
-    if (!replay.isOverridingOutputs()) return null;
     // We need the audio deck's real elapsedSec from the bridge to drive the replay clock.
     const status = replay.getStatus();
     if (!status.audioDeck) return null;
     const audio = bridge.getDeck(status.audioDeck);
-    const tickResult = replay.tick(audio.play, audio.elapsedSec);
-    return tickResult ? tickResult.decks : null;
+    const tickResult = replay.tick(audio.play, audio.elapsedSec, bridge.getDeckTiming?.(status.audioDeck));
+    return replay.isOverridingOutputs() && tickResult ? tickResult.decks : null;
   }
 
   return {
@@ -45,6 +45,9 @@ export function makeStateProvider(deps: StateProviderDeps): StateProvider {
     getDeck(deck) {
       const replayed = override();
       return replayed ? replayed[deck] : bridge.getDeck(deck);
+    },
+    getDeckTimings() {
+      return (replay.isOverridingOutputs() ? replay.getDeckTimings() : null) ?? bridge.getDeckTimings();
     },
     getLastBeatAgeMs() {
       return replay.isOverridingOutputs() ? 0 : bridge.getLastBeatAgeMs();

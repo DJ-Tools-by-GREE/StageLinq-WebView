@@ -42,7 +42,9 @@ export function PlaylistEditor({ config, onChange }: Props) {
 
   const deletePlaylist = (idx: number) => {
     const next = playlists.filter((_, i) => i !== idx);
-    setPlaylists(next);
+    onChange({ ...config, playlists: next,
+      current_playlist: config.current_playlist === idx ? -1
+        : config.current_playlist > idx ? config.current_playlist - 1 : config.current_playlist });
     setActiveTab(Math.min(tab, Math.max(0, next.length - 1)));
   };
 
@@ -55,15 +57,7 @@ export function PlaylistEditor({ config, onChange }: Props) {
   };
 
   const deleteEntry = (idx: number) => {
-    const filtered = playlist.content.filter((_, i) => i !== idx);
-    if (idx < playlist.content.length - 1) {
-      const gap = playlist.content[idx + 1].offset_sec - playlist.content[idx].offset_sec;
-      setContent(filtered.map((entry, i) =>
-        i >= idx ? { ...entry, offset_sec: entry.offset_sec - gap } : entry
-      ));
-    } else {
-      setContent(filtered);
-    }
+    setContent(playlist.content.filter((_, i) => i !== idx));
   };
 
   const moveEntry = (idx: number, dir: -1 | 1) => {
