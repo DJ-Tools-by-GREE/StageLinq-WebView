@@ -348,6 +348,59 @@
   padding-left: 14px;
 }
 
+.config-editor-root .video-section-toggle {
+  background: transparent;
+  border: 0;
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+  padding: 0;
+  display: flex;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.config-editor-root .video-offsets-card {
+  grid-column: 1 / -1;
+}
+
+.config-editor-root .video-offset-add {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(100px, 160px) auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.config-editor-root .video-offset-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.config-editor-root .video-offset-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(100px, 160px) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.config-editor-root .video-offset-track {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 600px) {
+  .config-editor-root .video-offset-add {
+    grid-template-columns: 1fr;
+  }
+  .config-editor-root .video-offset-row {
+    grid-template-columns: minmax(80px, 1fr) 95px auto;
+  }
+}
+
 .config-editor-root .label-inline.disabled {
   opacity: 0.5;
 }

@@ -1,5 +1,13 @@
 {
     "current_playlist": 0,
+    "video": {
+        "enabled": false,
+        "directory": "",
+        "ndi_name_prefix": "StageLinq",
+        "output_format": "source",
+        "latency_comp_ms": 0,
+        "offsets_sec": {}
+    },
     "waveform": {
         "all_tracks": true
     },

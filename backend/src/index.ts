@@ -32,6 +32,8 @@ import { parseConfig, validateConfig, writeJsonFile } from './jsonFile.js';
 import { asyncRoute, sendWsFrame } from './httpUtils.js';
 import { makeArtNetSourceSync } from './artnetSource.js';
 import { DECK_DMX, readDmxChannel, mapDmxToDeck } from './sacnControl.js';
+import { VideoService } from './videoService.js';
+import type { VideoConfig } from './videoTypes.js';
 
 function isIgnorableStageLinqError(err: unknown): boolean {
   if (!err) return false;
@@ -143,6 +145,7 @@ interface ConfigTrack {
 }
 
 interface RootConfig {
+  video?: Partial<VideoConfig>;
   current_playlist?: number;
   timecode?: {
     fps?: number;
@@ -350,6 +353,10 @@ async function main() {
   if (config?.logging) applyLoggingConfig(config.logging);
   if (config?.display) applyDisplayConfig(config.display);
 
+  const video = new VideoService();
+  const configBaseDir = path.dirname(configPath ?? path.resolve(process.cwd(), 'config.json'));
+  await video.initialize(config?.video, configBaseDir);
+
   await initWaveformCache(process.cwd());
 
   // Event-loop lag probe — surfaces main-thread stalls (ffmpeg-done callbacks, JSON.stringify of
@@ -417,7 +424,8 @@ async function main() {
     if (reloadInProgress) return { ok: false, reason: 'in-progress' };
     reloadInProgress = true;
     try {
-      await globalSettings.reload((nextConfig) => {
+      await globalSettings.reload(async (nextConfig) => {
+        await video.configure(nextConfig.video, configBaseDir);
         config = nextConfig as RootConfig;
         if (config?.logging) applyLoggingConfig(config.logging);
         if (config?.display) applyDisplayConfig(config.display);
@@ -508,6 +516,15 @@ async function main() {
   app.get('/api/health', (_req, res) => {
     res.json({ ok: true, ts: Date.now() });
   });
+
+  app.get('/api/video/status', (_req, res) => {
+    res.json(video.getStatus());
+  });
+
+  app.post('/api/video/rescan', asyncRoute(async (_req, res) => {
+    await video.rescan();
+    res.json({ ok: true, status: video.getStatus() });
+  }));
 
   app.get('/api/users', (_req, res) => {
     res.json({ users: usersStore.list() });
@@ -1065,7 +1082,7 @@ async function main() {
       logError('[REC] Shutdown failed:', error);
     }
     await media.shutdown();
-    const results = await Promise.allSettled([bridge.disconnect(), artnet.stop(), shutdownWaveformWorker()]);
+    const results = await Promise.allSettled([bridge.disconnect(), artnet.stop(), shutdownWaveformWorker(), video.shutdown()]);
     for (const result of results) {
       if (result.status === 'rejected') { failed = true; logError('[SHUTDOWN]', result.reason); }
     }
@@ -1261,6 +1278,7 @@ async function main() {
   let lastBroadcastWarnAt = 0;
   intervals.push(setInterval(() => {
     const decks = stateProvider.getDecks();
+    video.update(decks, stateProvider.getDeckTimings(), stateProvider.isReplayOverriding());
     media.update(bridge.getDecks(), decks);
     const sourceSwitched = syncArtNetSource(decks);
 

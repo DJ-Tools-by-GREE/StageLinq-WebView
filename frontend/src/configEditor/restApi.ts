@@ -102,6 +102,11 @@ function migrateConfig(raw: any): { config: AppConfig; legacyNoteFieldFound: boo
     },
     playlists,
     recordings,
+    video: {
+      ...DEFAULT_CONFIG.video,
+      ...(src.video ?? {}),
+      offsets_sec: { ...(src.video?.offsets_sec ?? {}) },
+    },
   };
   return { config, legacyNoteFieldFound };
 }
@@ -195,6 +200,14 @@ function orderedConfig(config: AppConfig): Record<string, unknown> {
       audio_file: r.audio_file,
       log_file: r.log_file,
     })),
+    video: {
+      enabled: config.video.enabled,
+      directory: config.video.directory,
+      ndi_name_prefix: config.video.ndi_name_prefix,
+      output_format: config.video.output_format,
+      latency_comp_ms: config.video.latency_comp_ms,
+      offsets_sec: { ...config.video.offsets_sec },
+    },
   };
 }
 

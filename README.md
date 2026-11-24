@@ -1,6 +1,6 @@
 # StageLinq WebView
 
-Real-time DJ deck visualizer for Denon Prime 4+ (Engine DJ / StageLinq). Displays all 4 decks in a browser, broadcasts Art-Net SMPTE timecode, and accepts DMX/sACN control input — all from a single Node.js server.
+Real-time DJ deck visualizer for Denon Prime 4+ (Engine DJ / StageLinq). Displays all 4 decks in a browser, broadcasts Art-Net SMPTE timecode, accepts DMX/sACN control input, and optionally sends synchronized music videos over four NDI outputs on macOS.
 
 Detailed audit, implemented fixes, remaining recommendations and validation: [2026-11-24 review](docs/review-2026-11-24/README.md).
 
@@ -31,6 +31,121 @@ Detailed audit, implemented fixes, remaining recommendations and validation: [20
 **OSC BPM output** (optional)
 - Sends BPM to an OSC-compatible device when a deck is active via sACN
 - Format: `/cmd "Master 3.<channel> At BPM <bpm>"`
+
+## Video / NDI output (macOS, optional)
+
+Play matching music videos in sync with each deck and send four independent,
+video-only NDI sources to another computer over Ethernet. A native macOS helper
+owns decoding and NDI encoding; Node exchanges timing and status with it. Video
+does not depend on sACN deck selection or channel faders. During Record & Replay,
+it follows the four reconstructed tracks through the same state provider as the
+other outputs, using the current video configuration.
+
+### Setup
+
+1. Obtain the **NDI SDK for Apple** from [NDI](https://ndi.video/for-developers/ndi-sdk/download/).
+   Build with Apple's Command Line Tools installed. If the SDK is not in its
+   standard location, set **NDI_SDK_DIR** to the directory containing its include folder:
+
+   ~~~bash
+   NDI_SDK_DIR="/Library/NDI SDK for Apple" npm run build
+   ~~~
+
+2. The helper loads the SDK's runtime dynamically. If necessary, set
+   **NDI_RUNTIME_LIBRARY** to the absolute path of the official libndi.dylib
+   when starting WebView. **VIDEO_HELPER_PATH** can override the native executable.
+   Rebuild just the helper with **npm run build:video**.
+   The SDK headers are needed to build; running the compiled helper requires
+   the NDI runtime library, not the development headers.
+3. Set the video folder and enable output in Config Editor → Video / NDI,
+   then Save and Reload config. Settings → Video / NDI shows active output
+   status and provides **Rescan videos** after files are added or replaced.
+4. In TouchDesigner, create four [NDI In TOPs](https://docs.derivative.ca/NDI_In_TOP)
+   and select **StageLinq Deck 1** through **StageLinq Deck 4** under this Mac's
+   hostname. Source names remain available and send black while idle.
+
+Without the SDK, the macOS build creates an explicitly limited decoder/test
+helper; enabling network output reports a setup error. Other platforms skip the
+native build. The rest of WebView remains usable with video disabled. SDK
+headers and runtime binaries are not included in this repository.
+
+### Configuration and matching
+
+The checked-in configuration has video disabled with an empty folder. All
+video fields are optional; this is an enabled example:
+
+~~~json
+"video": {
+  "enabled": true,
+  "directory": "/Volumes/Show/Videos",
+  "ndi_name_prefix": "StageLinq",
+  "output_format": "source",
+  "latency_comp_ms": 0,
+  "offsets_sec": {
+    "Artist - Song.mp3": 2.0
+  }
+}
+~~~
+
+- **directory:** root folder plus every subfolder. Relative paths resolve
+  against the configuration file's directory. Nested symbolic links are skipped
+  to avoid cycles and unintended traversal.
+- **Matching:** Artist - Song.mp3 matches Artist - Song (Music Video).mp4.
+  Audio extensions are removed; video stems and the suffix are case-sensitive.
+  MP4, M4V and MOV extensions are accepted case-insensitively; codecs must be
+  supported by macOS AVFoundation. Multiple matches remain black and are
+  reported for resolution, rather than selecting an arbitrary file.
+- **output_format:** source preserves dimensions and sends at nominal source
+  FPS multiplied by deck speed. 1080p30 letterboxes to 1920 × 1080 at a fixed
+  30 fps while content still follows pitch. Source-mode rates above the
+  configured ceiling use 1080p30. Input/output resource limits live in
+  backend/src/constants.ts; the default frame-size limit is 3840 × 2160 pixels
+  and the output-rate ceiling is 120 fps.
+- **offsets_sec:** keys are exact audio basenames **including extension**.
+  Video position = deck position + offset. +2 skips a two-second video intro;
+  −2 starts the video two seconds into the audio track. Positions outside the
+  video's duration are black. These offsets are independent of lighting
+  playlist offsets.
+- **latency_comp_ms:** positive values advance the video to compensate for
+  NDI receiver, rendering and display delay. Calibrate against the final
+  display; this is separate from the content alignment offset.
+
+The helper follows play/pause, normal pitch changes, cue jumps and loops.
+Scratching and reverse are not supported. Pause, missing/ambiguous files,
+decoder failure and video end produce black. Missing fresh deck positions
+produce black after the source freshness threshold (250 ms by default);
+repeated snapshots do not refresh it. A separate 500 ms native command timeout
+also blacks out a stalled control connection. This video behavior does not
+change Art-Net's freewheel settings. Audio is never sent.
+
+The backend supervises the helper, restarts it after a runtime failure, bounds
+IPC queues and joins shutdown. Rescan/config reload prepares a complete catalog
+before replacing the active configuration; failures are returned to the caller.
+Folder scanning is bounded and does not load entire video files into Node.
+
+TouchDesigner's project/display frame rate is independent of the source's
+pitch-adjusted delivery rate. Validate source-mode cadence, latency and four
+simultaneous streams on the actual Mac, Ethernet link and receiver; 1080p30
+provides a fixed-format alternative. The existing unpitched-backup guidance
+for Record & Replay still applies.
+
+**REST:** GET /api/video/status returns runtime/library and per-deck status.
+POST /api/video/rescan rescans the active folder and returns
+{ ok: true, status: VideoStatus }; errors preserve the previous active catalog.
+
+**Validation:** run npm test for backend/frontend regressions. On macOS, run
+npm run build:video followed by npm run test:video for real decoding, format,
+transport and four-deck tests. These native tests use synthetic clips and an
+in-process sink; they never initialize NDI or announce network sources.
+Testing actual NDI transmission and TouchDesigner display sync is a separate
+deployment check with the SDK/runtime installed.
+
+The SDK 6.4.0.2 build was also verified with four real local NDI receivers in
+both source and 1080p30 modes: pitch-adjusted cadence, independent seek/pause,
+blackouts, no audio and orderly shutdown passed. This loopback check does not
+replace Ethernet and final-display latency calibration.
+
+[NDI®](https://ndi.video/) is a registered trademark of Vizrt NDI AB.
 
 ## Record & Replay (backup show)
 

@@ -22,6 +22,14 @@ export const DEFAULT_CONFIG: AppConfig = {
   osc: { enabled: false, target_ips: ['10.15.10.117'], target_port: 8000, speedmaster: 15 },
   playlists: [],
   recordings: [],
+  video: {
+    enabled: false,
+    directory: '',
+    ndi_name_prefix: 'StageLinq',
+    output_format: 'source',
+    latency_comp_ms: 0,
+    offsets_sec: {},
+  },
 };
 
 export const DEFAULT_OFFSET_START = 10800;

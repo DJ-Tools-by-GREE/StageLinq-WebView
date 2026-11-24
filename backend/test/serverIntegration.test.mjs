@@ -32,6 +32,16 @@ test('real HTTP settings failures, reload safety, and orderly recording shutdown
     return { status: response.status, body: await response.json() };
   };
   assert.equal((await request('/api/health')).status, 200);
+  const video = await request('/api/video/status');
+  assert.equal(video.status, 200);
+  assert.equal(video.body.enabled, false);
+  assert.equal(video.body.running, false);
+  assert.deepEqual(Object.keys(video.body.decks), ['1', '2', '3', '4']);
+  const scan = await request('/api/video/rescan', 'POST');
+  assert.equal(scan.status, 200);
+  assert.equal(scan.body.ok, true);
+  assert.equal(scan.body.status.indexedVideos, 0);
+  assert.equal((await request('/api/config', 'PUT', { ...config, video: { enabled: true, directory: '' } })).status, 400);
   await fs.writeFile(configFile, '{ broken');
   assert.equal((await request('/api/global-settings/freewheel', 'PUT', { max_duration_sec: 90 })).status, 500);
   assert.equal((await request('/api/global-settings')).body.freewheel.max_duration_sec, 30);

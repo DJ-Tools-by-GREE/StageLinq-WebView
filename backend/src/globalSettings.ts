@@ -64,11 +64,11 @@ export class GlobalSettingsStore {
     return structuredClone(this.cached);
   }
 
-  reload(apply: (config: Record<string, unknown>) => void): Promise<void> {
+  reload(apply: (config: Record<string, unknown>) => void | Promise<void>): Promise<void> {
     return this.enqueue(async () => {
       const config = await readConfigFile(this.filePath);
       const settings = { freewheel: readFreewheelFromConfig(config) };
-      apply(config);
+      await apply(config);
       this.cached = settings;
     });
   }

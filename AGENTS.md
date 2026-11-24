@@ -288,3 +288,10 @@ Port `8090` (configurable via `PORT` env). Path `/ws`.
 
 - Media cache/message trackId is the full network path matching DeckState.mediaId; never fall back to basename for media identity. Playlist/replay mappings retain their basename contract. Keep media admission, bounds, cancellation and lazy cache-only replay loading together.
 - Recording v2 uses monotonic elapsed time and records applied offsets plus SourceTiming, including explicit transportPlay. Preserve v1 compatibility and line-numbered corruption errors. Resource limits live in constants.ts.
+
+### Video output contracts (2026-11-24)
+
+- Four independent NDI outputs consume StateProvider deck state and SourceTiming; sACN selection and faders do not choose a video deck. Video alignment offsets are separate from lighting offsets.
+- Native macOS code in native/video-ndi owns video decoding and NDI frames. Node/native IPC carries only bounded control, timing and status messages. Preserve source identity, clock mapping, generation cancellation and blackout on stale input.
+- Video config changes must update backend validation and frontend config migration/serialization together. Await catalog/native preparation before committing a reload.
+- Official NDI SDK headers/runtime stay outside the repository. Native self-tests, probes and test mode must not initialize NDI or announce network sources. A build without the SDK is explicitly limited to decoder/test operation.

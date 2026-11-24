@@ -8,7 +8,9 @@
   ],
   "scripts": {
     "dev": "npm run -w backend dev",
-    "build": "npm run --prefix ../StageLinq build && npm run -w frontend build && npm run -w backend build",
+    "build": "npm run --prefix ../StageLinq build && npm run -w frontend build && npm run -w backend build && npm run build:video",
+    "build:video": "node scripts/build-video-ndi.mjs",
+    "test:video": "node --test native/video-ndi/test.mjs",
     "start": "npm run -w backend start",
     "show": "node scripts/show.mjs",
     "fresh": "npm ci --prefix ../StageLinq && npm ci && npm run build && node scripts/show.mjs",

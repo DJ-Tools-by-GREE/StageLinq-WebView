@@ -83,6 +83,15 @@ export interface RecordingMapping {
   log_file: string;
 }
 
+export interface VideoConfig {
+  enabled: boolean;
+  directory: string;
+  ndi_name_prefix: string;
+  output_format: 'source' | '1080p30';
+  latency_comp_ms: number;
+  offsets_sec: Record<string, number>;
+}
+
 export interface AppConfig {
   current_playlist: number;
   waveform: WaveformConfig;
@@ -95,6 +104,7 @@ export interface AppConfig {
   osc: OscConfig;
   playlists: Playlist[];
   recordings: RecordingMapping[];
+  video: VideoConfig;
 }
 
 export interface CsvSong {

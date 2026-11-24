@@ -701,7 +701,104 @@ The runtime backend does not yet read `hotcue-cache/` — the script builds the 
 
 ## In-progress / blockers
 
-(none)
+Video/NDI source implementation is in place on main, including the native
+helper, catalog/config, operator controls, timing and process supervision.
+Production NDI compilation/transmission remains blocked on the official SDK;
+the current helper is explicitly a decoder/test build without NDI support.
+Runtime review fixed source-identity gating before a replacement track's first
+position, resume waiting for a real sample, and rescan serialization so a scan
+queued behind a config reload cannot restore the previous video settings.
+The SDK is absent from standard locations and Downloads; its download form
+requires user details. SDK path requested. The user asked whether it is for
+development or running: headers are needed to build, while a completed sender
+needs only the NDI runtime library. Native no-NDI validation must remain
+clearly separate from actual NDI output.
+
+### 2026-11-24 — Video/NDI requirements
+
+The user wants video playback on the same MacBook as WebView, with four
+independent NDI video-only outputs, one per deck. There is no selected-deck
+arbitration; usually only one deck will be playing a track with a matching
+video. Videos live in a local folder configured through a new config.json
+value; scanning includes the root and every subfolder. The confirmed naming
+rule removes the audio extension: `Artist - Song.mp3` matches
+`Artist - Song (Music Video).mp4`. Matching audio/video edits
+should follow deck position and pitch, with an optional per-video input
+offset. Source resolution and pitch-adjusted source frame rate are preferred;
+1920x1080 at 30 fps is the accepted fallback. Normal visual sync is required;
+scratching and reverse are out of scope. Idle output may be black or an
+inactive stream. Audio remains on the DJ decks and must not be sent by video.
+The receiver is another device on the local network over Ethernet, most
+likely running TouchDesigner. During Record & Replay, video must follow all
+four reconstructed deck tracks through StateProvider.
+
+Implemented architecture: WebView owns folder
+indexing, mapping, configuration and StateProvider timing; a separate native
+macOS helper decodes and sends four named NDI sources, exchanging control and
+status only with Node. NDI's sender/frame APIs support per-frame resolution
+and rational frame-rate metadata, but the actual receiving application and
+hardware must be checked before promising pitch-varying delivery cadence.
+No further feature questions remain. Validate native resolution and
+pitch-varying frame rates against the actual TouchDesigner installation;
+its project/display rate is independent of the sender's media timeline.
+Keep four stable NDI source names and use the user-allowed black output when
+idle, preserving receiver assignments. Folder location is a runtime
+configuration value rather than a hardcoded path.
+
+The optional video section is included in backend validation and the config
+editor's types/defaults/migration/serialization. It defaults to disabled with
+an empty directory. GlobalSettingsStore.reload now awaits asynchronous
+application before updating its cache. Library scans are bounded, reject
+ambiguous stems, and skip nested symlinks. Supported containers are MP4/M4V/MOV
+with macOS-decodable codecs; filename case is significant. Per-video offsets
+are keyed by the exact audio basename including extension, positive to advance.
+
+The native AVAssetReader/Core Image helper uses four independent decoder/sender
+threads and exchanges only bounded JSON timing/status messages with Node.
+Clock mapping uses ping midpoints and the lowest round-trip sample. Generations
+isolate track/source replacements and failed-decoder retries. Unchanged config
+reloads/rescans preserve playback. Position freshness is 250 ms; an independent
+native command lease is 500 ms. Idle, pause, expired commands, failure and video
+end render black, without audio. Explicit transport/lease changes preempt even
+very low frame cadence. Video end follows the video track/sample range, not a
+longer embedded audio track. Sender cleanup precedes NDI runtime shutdown even
+if a cancelled metadata callback briefly retains a deck object.
+
+The root build includes scripts/build-video-ndi.mjs; npm run build:video rebuilds
+just the helper. NDI_SDK_DIR locates external SDK headers; NDI_RUNTIME_LIBRARY
+can select its dylib. No SDK binaries/headers are vendored. Config controls and
+four-deck status/rescan are in WebView Settings. GET /api/video/status and
+POST /api/video/rescan expose status and catalog refresh. Native tests run with
+npm run test:video using an in-process sink that never initializes NDI.
+
+The official NDI SDK is now installed at `/Library/NDI SDK for Apple`, version
+6.4.0.2 (2026-11-17). The full sibling/frontend/backend/native build succeeds
+with the SDK-enabled sender. Real send/receive verification passed using a
+temporary NDI configuration restricted to loopback (private group, local
+discovery target, multicast disabled). All four source names resolved to
+127.0.0.1. Source-mode 320x240 delivery measured 31.18/29.89/15.00/37.33 fps
+for requested rates 31.2/30/15/37.5; all four letterboxed 1080p30 outputs
+measured approximately 29.85 fps. Received pixels confirmed independent
+positions, pause/resume, seeks and initial/stale blackout. Across both modes,
+542 video frames and zero audio frames were received despite embedded fixture
+audio; sender and receiver shutdowns completed normally. Deployment
+TouchDesigner/display synchronization still requires the actual receiver.
+The local verification harness and captured evidence are in
+`/private/tmp/slwv-ndi-loopback-verify` (successful run `run-2416f158`); they
+are development artifacts, not shipped runtime components.
+SDK review found that exception unwinding could destroy NDI while a metadata
+callback retained a deck. An owning RAII object now explicitly joins/closes all
+decks before releasing NDI on every exit, including malformed IPC and partially
+failed configuration. The added regression covers errors during loading and
+playback. All 179 backend/frontend and 9 native tests pass with the SDK-enabled
+build. The HTTP fixture required permission to bind its loopback test server.
+
+Validation before SDK installation: full sibling/frontend/backend/native decoder build passed; all
+179 backend/frontend tests and all 8 native tests passed. Native validation
+covers real H.264 decode, letterboxing, source/fixed output cadence, seeks,
+blackouts, four concurrent decks, shutdown, EOF and malformed IPC. Live
+deck/network transmission and TouchDesigner display synchronization remain
+unverified until the deployment hardware is available.
 
 
 ### 2026-11-24 — Detailed audit and confirmed corrections in progress

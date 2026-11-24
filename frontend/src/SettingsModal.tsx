@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { ROLES, DECK_LAYOUTS, type DeckLayout, type Role, type UserName } from './userSettings.js';
 import type { FreewheelSettings, ReloadConfigResult } from './globalSettings.js';
 import type { SaveState } from './settingsWriter.js';
+import VideoStatusPanel from './VideoStatusPanel.js';
 
 interface Props {
   activeUser: UserName;
@@ -430,6 +431,7 @@ export default function SettingsModal({
               </div>
             </div>
           </section>
+          <VideoStatusPanel onOpenConfigEditor={onOpenConfigEditor} />
         </div>
       </div>
     </div>

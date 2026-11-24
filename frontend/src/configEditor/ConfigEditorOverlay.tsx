@@ -5,6 +5,7 @@ import { loadConfig, saveConfig } from './restApi.js';
 import { GlobalSettings } from './components/GlobalSettings.js';
 import { PlaylistEditor } from './components/PlaylistEditor.js';
 import { RecordingsEditor } from './components/RecordingsEditor.js';
+import { VideoEditor } from './components/VideoEditor.js';
 import './editor.css';
 
 interface Props {
@@ -139,7 +140,7 @@ function ConfigEditorOverlay({ onClose }: Props) {
         )}
         {savedBanner && (
           <div className="info-banner">
-            Saved. Press <strong>Ctrl+R</strong> in the backend terminal (or restart the process) to apply changes to the running show.
+            Saved. Use <strong>Settings → Controls → Reload config</strong> or press <strong>Ctrl+R</strong> in the backend terminal to apply changes to the running show.
           </div>
         )}
         {legacyNoteBanner && (
@@ -163,6 +164,7 @@ function ConfigEditorOverlay({ onClose }: Props) {
           ) : loadError ? null : (
             <>
               <GlobalSettings config={config} onChange={updateConfig} />
+              <VideoEditor config={config} onChange={updateConfig} />
               <PlaylistEditor config={config} onChange={updateConfig} />
               <RecordingsEditor config={config} onChange={updateConfig} />
             </>

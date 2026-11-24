@@ -1069,6 +1069,98 @@ html, body {
   margin: 0;
 }
 
+.videoStatusSection {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.videoStatusHeading,
+.videoStatusActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.videoStatusHeading {
+  justify-content: space-between;
+}
+
+.videoLibrarySummary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-wrap: anywhere;
+}
+
+.videoDeckStatusGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.videoDeckStatus {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 7px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--deck-accent);
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.videoDeckStatus--1 { --deck-accent: #c35dff; }
+.videoDeckStatus--2 { --deck-accent: #4b9dff; }
+.videoDeckStatus--3 { --deck-accent: #53d78a; }
+.videoDeckStatus--4 { --deck-accent: #ff6464; }
+
+.videoSourceName,
+.videoTrackName,
+.videoFileName {
+  overflow-wrap: anywhere;
+}
+
+.videoSourceName,
+.videoFileName {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.videoState {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.videoState--playing { color: #53d78a; }
+.videoState--loading { color: #8bbaff; }
+.videoState--error,
+.videoState--ambiguous,
+.videoStatusError { color: #ffad8d; }
+
+.videoStatusError {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+}
+
+.videoMatchConflicts {
+  font-size: 12px;
+  color: #ffad8d;
+}
+
+.videoMatchConflicts summary { cursor: pointer; }
+.videoMatchConflicts ul { padding-left: 20px; overflow-wrap: anywhere; }
+
+@media (max-width: 1080px) {
+  .videoDeckStatusGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 520px) {
+  .videoDeckStatusGrid { grid-template-columns: 1fr; }
+}
+
 /* ── Arm slider + locked control gate ───────────────────────────── */
 .armSlider {
   /* When locked, paint the rail red so the operator instantly knows clicks won't fire. */

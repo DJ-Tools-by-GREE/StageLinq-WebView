@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { parse, printParseErrorCode, type ParseError } from 'jsonc-parser';
+import { parseVideoConfig } from './videoConfig.js';
 
 export function parseConfig(text: string): Record<string, unknown> {
   const errors: ParseError[] = [];
@@ -19,6 +20,7 @@ export function parseConfig(text: string): Record<string, unknown> {
 }
 
 export function validateConfig(config: Record<string, unknown>): void {
+  parseVideoConfig(config.video);
   const object = (value: unknown, name: string): Record<string, unknown> => {
     if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(name + ' must be an object');
     return value as Record<string, unknown>;
