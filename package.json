@@ -14,7 +14,7 @@
     "fresh": "npm install && npm run build && node scripts/show.mjs"
   },
   "dependencies": {
-    "@gree44/stagelinq": "^3.0.9",
+    "@gree44/stagelinq": "file:../StageLinq",
     "sacn": "4.6.2"
   }
 }

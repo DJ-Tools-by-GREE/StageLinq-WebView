@@ -90,8 +90,13 @@ Logs and sidecars live in `recordings/` at the repo root (gitignored). One JSONL
 
 ## Install
 
+Keep this repository beside the StageLinq checkout. Both WebView workspaces
+resolve @gree44/stagelinq from ../StageLinq. Install and build that package
+first, then install WebView from its lockfile.
+
 ```bash
-npm install
+npm ci --prefix ../StageLinq
+npm ci
 ```
 
 ## Development
@@ -113,6 +118,7 @@ npm run -w frontend dev
 ## Production
 
 ```bash
+npm run --prefix ../StageLinq build
 npm run build   # builds frontend then backend
 npm start       # runs built backend, which also serves the frontend
 ```
@@ -199,10 +205,19 @@ Hot-reload: press **Ctrl+R** in the terminal running the backend to reload `conf
 
 ### Camelot key mapping
 
-StageLinq exposes `CurrentKeyIndex` as a number 0–23. The default mapping is `1A, 1B, 2A, 2B, … 12A, 12B`. If your device firmware uses a different order, override it:
+The bridge converts StageLinq's `CurrentKey` into Camelot notation and keeps it across beat updates. It accepts Camelot values such as `8A` and musical names such as `Am`, `A minor`, `C major`, `F#m`, and `B♭`. A valid named key takes precedence over the numeric index, including any `KEY_MAP` override.
+
+An empty or unrecognized named key falls back to `CurrentKeyIndex`, a number 0–23. The default index mapping is `1A, 1B, 2A, 2B, … 12A, 12B`. `KEY_MAP` overrides this numeric fallback when firmware uses a different order. Track changes, unloads, and reconnects clear the previous key.
 
 ```bash
 KEY_MAP="1A,1B,2A,2B,3A,3B,4A,4B,5A,5B,6A,6B,7A,7B,8A,8B,9A,9B,10A,10B,11A,11B,12A,12B"
+```
+
+Run the focused key regressions after building the backend.
+
+```bash
+npm run -w backend build
+node --test backend/test/stagelinqBridge.test.mjs
 ```
 
 ### config.json

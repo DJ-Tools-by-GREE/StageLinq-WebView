@@ -7,6 +7,33 @@ decision/bug-confirmation/direction change (per CLAUDE.md).
 
 ## Architectural decisions
 
+### 2026-11-24 — Local StageLinq dependency
+
+The root and backend dependencies now resolve the sibling StageLinq checkout,
+using file:../StageLinq and file:../../StageLinq respectively. The lockfile
+records a shared link to @gree44/stagelinq 3.5.7. The user selected this local
+checkout workflow for the rebuild following the upstream merge.
+
+Run npm ci --prefix ../StageLinq before npm ci in WebView on a fresh checkout.
+The sibling package owns its runtime dependencies and its prepare script builds
+dist. After library source edits, run npm run --prefix ../StageLinq build before
+building or starting WebView. Keep both repositories together when deploying
+this local dependency layout.
+
+### 2026-11-24 — Stable Camelot display with upstream CurrentKey
+
+Upstream StageLinq 3.5.7 subscribes to `Track/CurrentKey`. The previous bridge accepted values such as `Am` into `keyCamelot`, then replaced them with the numeric index mapping on the next beat. This was reproduced against the compiled bridge.
+
+`camelot.ts` now validates Camelot strings and converts musical names, including sharps, flats, and major/minor suffixes. The bridge retains the normalized named key per deck and uses it ahead of `CurrentKeyIndex` during derived-state updates. `KEY_MAP` continues to control the numeric fallback. Empty or malformed named-key updates clear that preference and restore the numeric fallback.
+
+Raw messages, named `stateChanged` messages, TrackData, and `nowPlaying.key` use the same conversion. TrackData selects the first valid normalized alias among `currentKey`, `camelot`, and `key`. Explicit aliases that are all invalid restore the numeric fallback. A track-path change, unload, or reconnect clears both the named key and index. Matching basename metadata preserves the full network path, which identifies replacements that share a filename.
+
+The accumulated `PlayerStatus` emitted by upstream `stateChanged` restores the named key of a replacement track when raw key data arrived before the new path. It applies only when the status path matches the current full track path and the status does not mark the song unloaded. Delayed `stateChanged` and `nowPlaying` statuses for a previous path are ignored. This follows existing library message batching and adds no timer.
+
+The focused Node tests in `backend/test/stagelinqBridge.test.mjs` exercise the actual bridge with synthetic events. They cover string/index ordering, beat updates, key changes, invalid values, track changes, reconnects, and a `KEY_MAP` override. Run `npm run -w backend build` followed by `node --test backend/test/stagelinqBridge.test.mjs`. Live hardware validation remains pending.
+
+Validation passed in the actual locally linked checkout with a clean npm ci, the full production build, 18 key regression tests and 11 broader bridge checks. The previously failing sequence now remains 8A before CurrentKey, after CurrentKey and after the next beat. StageLinq also passes all 265 package tests.
+
 ### 2026-06-19 — Offline timecode simulator (TC analysis addon)
 
 **What:** Standalone read-only script at [backend/src/scripts/simulateTimecode.ts](backend/src/scripts/simulateTimecode.ts), wired as `npm run -w backend simulate-tc -- <recording.jsonl>`. Reads a Record & Replay `.jsonl`, reconstructs all four `DeckState` timelines from keyframes + diffs, then runs **one Art-Net-worker tick loop per deck in parallel** — each deck simulated as if it were continuously sACN-selected — and writes a single self-contained HTML page with an inline SVG overlay of every deck's hypothetical TC, plus a JSON analysis blob.

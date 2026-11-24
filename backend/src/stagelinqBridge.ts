@@ -1,6 +1,6 @@
 import type { DeckNumber, DeckState } from "./types.js";
 import path from "node:path";
-import { keyIndexToCamelot } from "./camelot.js";
+import { keyIndexToCamelot, keyNameToCamelot } from "./camelot.js";
 import { logBpmDebug, logDiscover, logDiscoverSpeed, logError, logLifecycle, logPlayback, logWaveform, logCues, GRN, YEL, RST } from "./logging.js";
 import { BEAT_WATCHDOG_TIMEOUT_S, DISCONNECT_DETECT_TIMEOUT_S, CONNECT_BEAT_GRACE_S, ELAPSED_THROTTLE_S } from "./constants.js";
 
@@ -45,6 +45,7 @@ import * as pkg from "@gree44/stagelinq";
 const StageLinq: any = (pkg as any).StageLinq ?? (pkg as any).default ?? pkg;
 
 const DECKS: DeckNumber[] = [1, 2, 3, 4];
+const DECK_BY_LAYER: Record<string, DeckNumber> = { A: 1, B: 2, C: 3, D: 4 };
 
 function clamp01(x: number): number {
   if (!Number.isFinite(x)) return 0;
@@ -108,6 +109,7 @@ export class StageLinqBridge {
   // Raw CurrentBPM sourced strictly from /Engine/DeckX/CurrentBPM updates.
   private currentBpmRaw: Record<DeckNumber, number | null> = { 1: null, 2: null, 3: null, 4: null };
   private speedStateRaw: Record<DeckNumber, number | string | boolean | null> = { 1: null, 2: null, 3: null, 4: null };
+  private currentKeyCamelot: Record<DeckNumber, string | null> = { 1: null, 2: null, 3: null, 4: null };
 
   // Avoid repeated [DISCOVER] speed logs when values haven't changed.
   private lastSpeedDiscoverSig: Record<DeckNumber, string | null> = {
@@ -193,8 +195,23 @@ export class StageLinqBridge {
   private captureNetPath(deck: DeckNumber, rawValue: unknown) {
     if (typeof rawValue === 'string') {
       const s = rawValue.trim();
-      if (s) this.rawNetworkPaths[deck] = s;
+      if (!s) return;
+      const previousPath = this.rawNetworkPaths[deck];
+      if (previousPath.startsWith('net://') && s === toFileName(previousPath)) return;
+      if (previousPath && previousPath !== s && (
+        toFileName(previousPath) !== toFileName(s) ||
+        (previousPath.startsWith('net://') && s.startsWith('net://'))
+      )) {
+        this.clearKey(deck);
+      }
+      this.rawNetworkPaths[deck] = s;
     }
+  }
+
+  private clearKey(deck: DeckNumber) {
+    this.currentKeyCamelot[deck] = null;
+    this.decks[deck].keyIndex = null;
+    this.decks[deck].keyCamelot = '--';
   }
 
   private maybeFireTrackChanged(deck: DeckNumber) {
@@ -215,6 +232,7 @@ export class StageLinqBridge {
   }
   private unloadDeck(deck: DeckNumber) {
     this.decks[deck].trackLoaded = false;
+    this.clearKey(deck);
   }
 
   private emitBpmDebug(deck: DeckNumber, source: string) {
@@ -235,7 +253,7 @@ export class StageLinqBridge {
     const ds = this.decks[deck];
     const bpmRaw = this.currentBpmRaw[deck];
     const bpmForCalc = Number.isFinite(bpmRaw) ? (bpmRaw as number) : ds.currentBpm;
-    ds.keyCamelot = keyIndexToCamelot(ds.keyIndex);
+    ds.keyCamelot = this.currentKeyCamelot[deck] ?? keyIndexToCamelot(ds.keyIndex);
 
     if (!this.seen.key && ds.keyIndex != null) {
       this.seen.key = true;
@@ -370,28 +388,18 @@ export class StageLinqBridge {
       (typeof obj.currentKeyIndex === "number" ? obj.currentKeyIndex : undefined) ??
       (typeof obj.keyIndex === "number" ? obj.keyIndex : undefined);
 
-    if (typeof keyIdx === "number") {
-      ds.keyIndex = keyIdx;
+    const keyNames = [obj.currentKey, obj.camelot, obj.key];
+    const hasKeyName = keyNames.some((value) => value !== undefined);
+    const namedKey = keyNames.map(keyNameToCamelot).find((value) => value !== null) ?? null;
+    if (typeof keyIdx === "number") ds.keyIndex = keyIdx;
+    if (hasKeyName) this.currentKeyCamelot[deck] = namedKey;
+
+    if (typeof keyIdx === "number" || hasKeyName) {
       this.recomputeDerived(deck);
       this.touch(deck);
       if (!this.seen.key) {
         this.seen.key = true;
-        logDiscover(deck, "[DISCOVER] keyIndex from TrackData:", deck, keyIdx, "->", ds.keyCamelot);
-      }
-      return;
-    }
-
-    // camelot string directly
-    const camelot =
-      (typeof obj.camelot === "string" ? obj.camelot : undefined) ??
-      (typeof obj.key === "string" ? obj.key : undefined);
-
-    if (typeof camelot === "string" && camelot.trim()) {
-      ds.keyCamelot = camelot.trim();
-      this.touch(deck);
-      if (!this.seen.key) {
-        this.seen.key = true;
-        logDiscover(deck, "[DISCOVER] key (string) from TrackData:", deck, ds.keyCamelot);
+        logDiscover(deck, "[DISCOVER] Key from TrackData:", deck, ds.keyCamelot);
       }
     }
   }
@@ -513,7 +521,7 @@ export class StageLinqBridge {
       }
 
       // ---- Explicit track-loaded flag (if emitted by device) ----
-      if (/TrackIsLoaded$/i.test(tail) || /IsLoaded$/i.test(tail)) {
+      if (/TrackIsLoaded$/i.test(tail) || /IsLoaded$/i.test(tail) || /SongLoaded$/i.test(tail)) {
         const loaded = this.coerceBool(rawValue);
         if (typeof loaded === "boolean") {
           if (!loaded) {
@@ -637,9 +645,9 @@ export class StageLinqBridge {
         }
       }
 
-      // Sometimes key comes as a string (already Camelot like "8A")
-      if (/(Track\/)?(Camelot|Key)$/i.test(tail) && typeof rawValue === "string" && rawValue.trim()) {
-        ds.keyCamelot = rawValue.trim();
+      if (/^(?:Track\/)?(?:CurrentKey|Camelot|Key)$/i.test(tail)) {
+        this.currentKeyCamelot[deck] = keyNameToCamelot(rawValue);
+        this.recomputeDerived(deck);
         this.touch(deck);
 
         if (!this.seen.key) {
@@ -809,9 +817,10 @@ export class StageLinqBridge {
       // status.player is the physical player number (0 for Prime 4+, varies for SC6000s).
       // status.layer is the deck letter: 'A'=deck1, 'B'=deck2, 'C'=deck3, 'D'=deck4.
       // Using player+1 always resolves to deck 1 on a single-unit setup — wrong.
-      const layerMap: Record<string, DeckNumber> = { A: 1, B: 2, C: 3, D: 4 };
-      const deck: DeckNumber | undefined = layerMap[String(status?.layer).toUpperCase()];
+      const deck: DeckNumber | undefined = DECK_BY_LAYER[String(status?.layer).toUpperCase()];
       if (!deck || !DECKS.includes(deck)) return;
+      const statusPath = typeof status?.trackNetworkPath === 'string' ? status.trackNetworkPath.trim() : '';
+      if (statusPath && this.rawNetworkPaths[deck] && statusPath !== this.rawNetworkPaths[deck]) return;
 
       const ds = this.decks[deck];
       const nowPlayingFileName =
@@ -848,6 +857,7 @@ export class StageLinqBridge {
       // Some builds include key info in nowPlaying
       if (typeof status?.currentKeyIndex === "number") ds.keyIndex = status.currentKeyIndex;
       if (typeof status?.keyIndex === "number") ds.keyIndex = status.keyIndex;
+      if (status?.key !== undefined) this.currentKeyCamelot[deck] = keyNameToCamelot(status.key);
 
 
       if (typeof status?.currentBpm === "number") {
@@ -986,6 +996,17 @@ export class StageLinqBridge {
     devices.on?.("stateChanged", (state: any) => {
       try {
       const name = String(state?.name || "");
+      if (!name) {
+        const deck = DECK_BY_LAYER[String(state?.layer).toUpperCase()];
+        const trackPath = typeof state?.trackNetworkPath === 'string' ? state.trackNetworkPath.trim() : '';
+        if (!deck || !trackPath || trackPath !== this.rawNetworkPaths[deck] ||
+          state.key === undefined || state.songLoaded === false) return;
+        // The accumulated status recovers a key received before its replacement track path.
+        this.currentKeyCamelot[deck] = keyNameToCamelot(state.key);
+        this.recomputeDerived(deck);
+        this.touch(deck);
+        return;
+      }
       const m = name.match(/^\/Engine\/Deck([1-4])\/(.*)$/);
       if (!m) return;
 
@@ -1041,6 +1062,8 @@ export class StageLinqBridge {
         }
       } else if (tail === "CurrentKeyIndex" || tail === "Track/CurrentKeyIndex") {
         if (typeof value === "number") ds.keyIndex = value;
+      } else if (/^(?:Track\/)?(?:CurrentKey|Camelot|Key)$/i.test(tail)) {
+        this.currentKeyCamelot[deck] = keyNameToCamelot(value);
       } else if (tail === "Play" || tail === "PlayState") {
         // Some builds may surface play state here too
         const playing = this.coerceBool(value);
@@ -1165,6 +1188,7 @@ export class StageLinqBridge {
   private resetState() {
     for (const d of DECKS) {
       this.decks[d] = this.blankDeck(d);
+      this.currentKeyCamelot[d] = null;
       this.lastBeatAtMs[d] = 0;
       this.lastTriggeredFileNames[d] = '';
       this.rawNetworkPaths[d] = '';

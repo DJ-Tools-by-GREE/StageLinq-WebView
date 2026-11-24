@@ -31,6 +31,25 @@ function loadEnvMap(): string[] | null {
 }
 
 const MAP = loadEnvMap() ?? DEFAULT_MAP;
+const NATURAL_PITCH_CLASSES: Record<string, number> = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+const MAJOR_CAMELOT = ['8B', '3B', '10B', '5B', '12B', '7B', '2B', '9B', '4B', '11B', '6B', '1B'];
+const MINOR_CAMELOT = ['5A', '12A', '7A', '2A', '9A', '4A', '11A', '6A', '1A', '8A', '3A', '10A'];
+
+export function keyNameToCamelot(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const key = value.trim().replaceAll('♯', '#').replaceAll('♭', 'b');
+  if (/^(?:[1-9]|1[0-2])[AB]$/i.test(key)) return key.toUpperCase();
+
+  const note = key.match(/^([A-G])([#b]?)(?:\s*(m|M|min|maj|minor|major))?$/i);
+  if (!note) return null;
+
+  const accidental = note[2].toLowerCase();
+  const offset = accidental === '#' ? 1 : accidental === 'b' ? -1 : 0;
+  const pitchClass = (NATURAL_PITCH_CLASSES[note[1].toUpperCase()] + offset + 12) % 12;
+  const mode = note[3] ?? '';
+  const minor = mode !== 'M' && ['m', 'min', 'minor'].includes(mode.toLowerCase());
+  return (minor ? MINOR_CAMELOT : MAJOR_CAMELOT)[pitchClass];
+}
 
 export function keyIndexToCamelot(keyIndex: number | null | undefined): string {
   if (keyIndex == null || !Number.isFinite(keyIndex)) return '--';

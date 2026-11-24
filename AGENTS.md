@@ -10,7 +10,11 @@ Canonical, tool-neutral project guide — read by Claude Code, Codex, and any ot
 If you are unsure about an approach, missing context, or lack information about hardware behavior, network topology, protocol details, or project intent — **stop and ask**. Never assume, infer silently, or proceed with a guess. One clarifying question is always better than a broken show.
 
 ### StageLinq Package Context
-The source ZIP of the upstream StageLinq library is at **`StageLinq-main.zip`** in the repo root (there is also a `project.zip` snapshot). When diagnosing issues with `@gree44/stagelinq` behavior — event names, payload shapes, undocumented quirks — extract and read the ZIP source first rather than guessing from type definitions alone.
+The StageLinq dependency resolves the local sibling checkout at **../StageLinq**.
+Read its source and memory.md when diagnosing package events, payloads or
+connection behavior. Run npm ci in that checkout before installing WebView,
+and rebuild the library after source edits. The project.zip archive is a
+historical snapshot.
 
 ### Maintain Project State (`memory.md`)
 Keep **`memory.md`** at the repo root up to date. It tracks:
@@ -43,7 +47,7 @@ Work on `main` by default. Only switch to or create another branch when the user
 | Backend language | TypeScript 5.x, compiled with `tsc` |
 | Backend framework | Express 4 + `ws` (WebSocketServer) |
 | Backend dev runner | `tsx watch` (no build step during dev) |
-| StageLinq protocol | `@gree44/stagelinq` (npm package; ZIP source at root) |
+| StageLinq protocol | `@gree44/stagelinq` from the local `../StageLinq` checkout |
 | Art-Net output | Raw UDP via Node `dgram` (in `artnetTimecode.ts`) |
 | sACN input | `sacn` npm package |
 | OSC output | Raw UDP (in `oscBpm.ts`) |
@@ -63,7 +67,6 @@ StageLinq-WebView/
 ├── memory.md                   # project state & decisions (maintain actively)
 ├── README.md                   # operator reference (keep in sync with changes)
 ├── config.json                 # runtime config (Art-Net, sACN, OSC, playlists)
-├── StageLinq-main.zip          # upstream StageLinq library source (reference)
 ├── project.zip                 # full project snapshot
 ├── package.json                # workspace root; top-level dev/build/start scripts
 ├── receiveSacn.js              # standalone sACN debug script (not part of the app)
@@ -203,7 +206,7 @@ Settings layer order (highest → lowest priority): **env vars → `config.json`
 - Target hardware: **Denon SC6000 / Prime 4+** running Engine DJ firmware.
 - `@gree44/stagelinq` emits both flattened (`{ deck: 0..3, ... }`) and aggregated (`{ decks: [...] }`) `beatMessage` payloads depending on firmware version — `stagelinqBridge.ts` handles both.
 - `TrackLength` may arrive in **samples** (not seconds) on some firmware builds. The bridge defers conversion until `SampleRate` is known, using `pendingTrackLengthSamples`.
-- Key index 0–23 maps to Camelot via `camelot.ts`. If a device uses a different order, override with the `KEY_MAP` env var.
+- Named CurrentKey values are normalized to Camelot and take precedence. Key index 0–23 supplies the fallback via `camelot.ts`. If a device uses a different order, override with the `KEY_MAP` env var.
 - Known non-fatal library errors: `"No broadcast targets have been found"`, `"File Transfer Unhandled message id '6'"`.
 
 ---
