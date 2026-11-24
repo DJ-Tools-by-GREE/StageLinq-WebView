@@ -84,13 +84,13 @@ Severity: P1 = can break the live display or configuration workflow; P2 = substa
 - Fix applied: revoke old URL and delete both map entries on explicit absent artwork. Positive replacements still revoke prior URLs.
 - Follow-up: broader lifetime/identity concerns are FE-11.
 
-### FE-11 — P2 — Frontend media caches grow for the browser's entire lifetime — OPEN
+### FE-11 — P2 — Frontend media caches grow for the browser's entire lifetime — FIXED
 - Location: frontend/src/App.tsx:91–102,408,423–428,264–271.
 - Trigger: leave an operator browser open through many tracks/sets.
 - Evidence: peaksByFileRef retains every file forever; artwork URLs are released only on replacement of the same name or app unmount. Deck unloads do not evict either cache. Artwork setState also spreads the entire accumulated map on each new image.
 - Impact: 300 five-minute waveforms retain ~18 million JS numbers (~144 MB for numeric storage alone), plus array/object overhead, artwork blobs and transient WS JSON strings. Browser memory pressure/GC can degrade the live display.
 - Suggested fix: bounded LRU with loaded-file pins; revoke URLs on eviction. Keep a small cache for pre-snapshot media arrival. Consider serving artwork through the existing HTTP endpoint with browser caching and a stable track identity instead of persistent base64/blob maps. Coordinate cache identity with backend media agent.
-- Question: no semantic question for bounding cache if active/pending tracks remain pinned; choose a documented memory/count budget.
+- Follow-up applied: full trackId keys, 64 MiB/24-entry browser cache, active-entry preference, bounded pre-snapshot retention and URL revocation. Rapid pending arrivals do not evict active media while inactive candidates exist. Hard limits still win when active entries alone exceed them. Collision, pending-frame, bound and URL regressions pass.
 
 ### FE-12 — P2 — Stale waveform status can erase current track's ready peaks — FIXED
 - Location: App.tsx:387–401; backend/src/index.ts:1016–1039,1047,1065.

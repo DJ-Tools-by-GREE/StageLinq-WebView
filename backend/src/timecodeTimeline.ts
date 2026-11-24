@@ -50,11 +50,12 @@ export class TimecodeTimeline {
   }
 
   tick(state: DeckState | null, timing: SourceTiming | null, nowMs: number, opts: TimelineOptions): TimelineTick {
+    const sourcePlay = timing?.transportPlay ?? state?.play ?? false;
     let newPosition = false;
     let discontinuity = false;
     // An explicit stop is authoritative even during reconnect before a new
     // sample. Reset/watchdog blanks keep the transport revision unchanged.
-    if (state && timing && this.source && this.timing && !state.play &&
+    if (state && timing && this.source && this.timing && !sourcePlay &&
       timing.transportRevision > this.timing.transportRevision) {
       this.source.play = false;
       this.explicitlyPaused = true;
@@ -71,8 +72,8 @@ export class TimecodeTimeline {
       if (changed && newer) {
         discontinuity = !!this.source && (timing.trackId !== this.timing?.trackId || state.elapsedSec < this.source.elapsedSec);
         const transportChanged = !this.timing || trackChanged || timing.transportRevision !== this.timing.transportRevision;
-        if (transportChanged) this.explicitlyPaused = !state.play;
-        const playing = transportChanged || !this.source ? state.play : this.source.play;
+        if (transportChanged) this.explicitlyPaused = !sourcePlay;
+        const playing = transportChanged || !this.source ? sourcePlay : this.source.play;
         this.source = { ...state, play: playing };
         this.awaitingResumePosition = false;
         this.timing = { ...timing };
@@ -81,9 +82,9 @@ export class TimecodeTimeline {
         // Metadata never refreshes the position clock. Only a real transport event
         // can stop freewheel; a watchdog's synthetic play=false must not stop it.
         if (timing.transportRevision !== this.timing.transportRevision) {
-          if (state.play && !this.source.play) this.awaitingResumePosition = true;
-          this.source.play = state.play;
-          this.explicitlyPaused = !state.play;
+          if (sourcePlay && !this.source.play) this.awaitingResumePosition = true;
+          this.source.play = sourcePlay;
+          this.explicitlyPaused = !sourcePlay;
           this.timing.transportRevision = timing.transportRevision;
         }
         if (!opts.reconnecting && state.fileName === this.source.fileName) {

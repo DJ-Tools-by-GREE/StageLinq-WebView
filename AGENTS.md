@@ -241,13 +241,13 @@ Port `8090` (configurable via `PORT` env). Path `/ws`.
 }
 
 // waveform_status (sent during peak analysis)
-{ "type": "waveform_status", "deck": 1, "stage": "downloading" | "analyzing" | "done" | "error", "progress": 0.0–1.0, "fileName": "..." }
+{ "type": "waveform_status", "deck": 1, "stage": "downloading" | "generating" | "ready" | "error", "progress": 0–100, "trackId": "net://device/USB/path/song.mp3", "fileName": "song.mp3" }
 
 // waveform_data (sent when peaks are ready)
-{ "type": "waveform_data", "deck": 1, "fileName": "...", "peaks": number[], "peaksPerSec": number }
+{ "type": "waveform_data", "trackId": "net://device/USB/path/song.mp3", "fileName": "song.mp3", "peaks": number[], "peaksPerSec": number }
 
 // artwork_data (sent when artwork is ready or absent)
-{ "type": "artwork_data", "deck": 1, "fileName": "...", "data": "<base64>" | null }
+{ "type": "artwork_data", "trackId": "net://device/USB/path/song.mp3", "fileName": "song.mp3", "data": "<base64>" | null }
 ```
 
 `DeckState` fields: `deck`, `trackLoaded`, `fileName`, `title`, `artist`, `elapsedSec`, `totalSec`, `currentBpm`, `trackBpm`, `speedState`, `keyIndex`, `keyCamelot`, `fader`, `play`, `updatedAt`, `hotCues`, `loopActive`, `loopInSec`, `loopOutSec`, `savedLoops`.
@@ -285,3 +285,6 @@ Port `8090` (configurable via `PORT` env). Path `/ws`.
 - Settings/config writes use jsonFile.ts serialization and propagate errors before committing cached runtime state. Existing malformed files must not be silently replaced.
 - Track deletion preserves remaining offsets/frames; deleting the active playlist clears selection.
 - Run npm run build and npm test for changes to these contracts. Tests simulate device/output behavior; live hardware validation remains separate. Full findings: docs/review-2026-11-24/README.md.
+
+- Media cache/message trackId is the full network path matching DeckState.mediaId; never fall back to basename for media identity. Playlist/replay mappings retain their basename contract. Keep media admission, bounds, cancellation and lazy cache-only replay loading together.
+- Recording v2 uses monotonic elapsed time and records applied offsets plus SourceTiming, including explicit transportPlay. Preserve v1 compatibility and line-numbered corruption errors. Resource limits live in constants.ts.

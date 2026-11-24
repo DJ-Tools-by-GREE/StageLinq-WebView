@@ -33,6 +33,7 @@ export default function RecordingControls({ recordingStatus, replayStatus }: Pro
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const visibleError = error || recordingStatus?.error;
   const recording = recordingStatus?.active ?? false;
   const replay = replayStatus?.state ?? 'idle';
   const replayActive = replay !== 'idle';
@@ -106,7 +107,7 @@ export default function RecordingControls({ recordingStatus, replayStatus }: Pro
       >
         {replayActive ? 'DISARM REPLAY' : 'ARM REPLAY'}
       </button>
-      {error && <span className="recCtrlError" title={error}>!</span>}
+      {visibleError && <span className="recCtrlError" role="alert" title={visibleError}>{visibleError}</span>}
     </div>
   );
 }

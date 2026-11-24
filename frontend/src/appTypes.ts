@@ -6,4 +6,5 @@ export interface WaveformState {
   stage: WaveformStage | null;
   progress: number;
   fileName: string;
+  trackId: string;
 }

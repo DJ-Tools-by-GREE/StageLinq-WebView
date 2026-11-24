@@ -34,7 +34,7 @@ Detailed audit, implemented fixes, remaining recommendations and validation: [20
 
 ## Record & Replay (backup show)
 
-Record bridge state during a live show, then replay it against a prerecorded audio file played on a deck. Replay uses the timecode offsets saved in the recording, even if today's playlist differs. Live sACN still selects the output deck. Output fidelity depends on the recording, audio alignment and available telemetry; legacy logs lack raw heartbeat/transport provenance.
+Record bridge state during a live show, then replay it against a prerecorded audio file played on a deck. Replay uses the timecode offsets saved in the recording, including changes applied during the show, even if today's playlist differs. Live sACN still selects the output deck. Output fidelity depends on the recording, audio alignment and available telemetry; legacy logs lack raw heartbeat/transport provenance.
 
 ### Recording
 
@@ -57,7 +57,7 @@ Anything that happened on the decks during the gap is **not** recoverable — th
 
 **Resume gating:** auto-resume only fires when the previous run died **with a recording active**. The recorder writes a small `recordings/.active-recording` lock file on `start()` (containing the active `.jsonl` basename) and deletes it on clean `stop()`. On boot, the lock's presence is the *only* signal that triggers resume — stale unfinished `.jsonl` files from older shows that no longer have a lock are intentionally ignored, no log spam.
 
-Constraints: files older than 24 h are skipped (lock cleared). If the lock points at a missing/empty/sidecar'd file, it self-heals and clears. Use `POST /api/record/resume-abort` to discard a pending resume (and clear the lock) before starting a fresh recording. Graceful shutdown (SIGINT/SIGTERM) waits for pending recording operations and flushes the footer and sidecar before exit. A failed write returns an error and retains recovery state. A torn final JSONL line is repaired before resuming.
+Constraints: files older than 24 h are skipped (lock cleared). If the lock points at a missing/empty/sidecar'd file, it self-heals and clears. Use `POST /api/record/resume-abort` to discard a pending resume (and clear the lock) before starting a fresh recording. Graceful shutdown (SIGINT/SIGTERM) waits for pending recording operations and flushes the footer and sidecar before exit. A failed write returns an error and retains recovery state. A torn final JSONL line is repaired before resuming. A completed footer with missing sidecar reconstructs the sidecar before clearing its lock. Interior corruption blocks recovery and a new recording visibly until resume-abort explicitly discards recovery selection; the original log stays intact.
 
 ### Replay
 
@@ -81,11 +81,14 @@ Replay uses the audio deck's `elapsedSec` as the master timeline (sample-accurat
 
 ### Storage
 
-Logs and sidecars live in `recordings/` at the repo root. Historical recording/log files are currently tracked; the ignore rules are commented out. One JSONL line per event, full bridge cadence, with deck-state diffs between keyframes. Header line records the playlist offset map at recording time. Size depends on event cadence and metadata; inspect disk usage before long recordings.
+Logs and sidecars live in `recordings/` at the repo root. Historical recording/log files are currently tracked; the ignore rules are commented out. One JSONL line per event, full bridge cadence, with deck-state diffs between keyframes. New logs use schema v2: the header stores initial offsets; config events store later applied offset maps and playlist references. Deck events preserve repeated position heartbeats, source identity and explicit transport state separately from watchdog display changes. Event time uses a monotonic clock; wall-clock timestamps label files and estimate crash gaps. Version 1 remains readable with inferred timing where provenance is missing.
+
+Writes honor stream backpressure with an 8 MiB accepted-data bound (1 MiB per event). Overflow or storage failure stops recording visibly in the header and /api/record/status; the incomplete log and recovery lock remain. Accepted events drain when storage permits. The loader reports malformed interior events with line numbers and only repairs an incomplete final line. Incremental parsing yields between input batches, shares duplicate mapped logs and creates checkpoints every 1,024 deck events for seeks. Parsed events remain in memory while armed. Output/freewheel settings remain the current runtime configuration; v2 records historical offsets and source timing, not every global setting. Size depends on event cadence and metadata; inspect disk usage before long recordings.
 
 ## Prerequisites
 
 - Node.js 22+
+- ffmpeg and ffprobe on PATH for waveform decoding and fallback artwork inspection (both ship with ffmpeg)
 - Denon Prime 4+ (or compatible Engine DJ device) on the same LAN as this server
 
 ## Install
@@ -285,7 +288,13 @@ Waveforms and artwork are extracted automatically when a track loads and cached 
 }
 ```
 
-**Runs in a dedicated worker thread.** ffmpeg, peak compute, JSON serialization of the peaks array, base64 encoding of the artwork, and disk-cache I/O all run off the main thread (in [backend/src/waveformWorker.ts](backend/src/waveformWorker.ts)). The main thread only forwards the StageLinq-downloaded audio bytes into the worker (zero-copy `ArrayBuffer` transfer) and fans out the pre-built WS frame strings on the way back. Artwork first uses Chris’s metadata-connect parser, with ffmpeg fallback. PCM is reduced to peaks incrementally in the worker. The independent Art-Net worker can freewheel while main is stalled, subject to its configured limits and OS scheduling.
+**Runs in a dedicated worker thread.** ffmpeg, peak compute, JSON serialization of the peaks array, base64 encoding of the artwork, and disk-cache I/O all run off the main thread (in [backend/src/waveformWorker.ts](backend/src/waveformWorker.ts)). The main thread only forwards the StageLinq-downloaded audio bytes into the worker (zero-copy `ArrayBuffer` transfer) and fans out the pre-built WS frame strings on the way back. Artwork first uses Chris’s metadata-connect parser, with ffprobe/ffmpeg fallback. Extraction failures remain retryable; absence is cached only after validated inspection. PCM is reduced to peaks incrementally in the worker. The independent Art-Net worker can freewheel while main is stalled, subject to its configured limits and OS scheduling.
+
+Media is keyed by the full network source/path (DeckState.mediaId and media-message trackId); fileName remains the display label and the existing playlist/replay mapping key. Different devices or directories with the same filename have separate caches. Disk entries are lazy, validated, atomic manifests under media-cache-v1/<SHA256(trackId)>.json. Legacy basename waveform/artwork caches remain untouched and are ignored, so tracks regenerate once as needed. Full paths cannot identify content overwritten at the exact same path without a device version/mtime signal; clear that track's manifest when replacing content in place. Disk retention remains operator-controlled.
+
+Resource defaults are in [backend/src/constants.ts](backend/src/constants.ts): two download-through-extraction jobs, one worker extraction job (at most two child processes), 256 MiB maximum input per download, 256 MiB total worker audio admission, eight pending worker callers, and a 128 MiB / 32-entry backend cache. Waveforms are capped at four hours / 200 peaks per second; artwork at 16 MiB. Media jobs have a two-minute deadline. Abandoned tracks and reconnects cancel work; per-device downloads stay serialized through cleanup. The package closes unsafe transfer streams before reuse, and TCP connection attempts have a real deadline. Worker shutdown drains child-process/temp-file cleanup, with bounded forced cleanup as a fallback.
+
+The browser cache is capped at 64 MiB / 24 entries, prefers loaded tracks and retains a small window for frames arriving before their snapshot. Eviction revokes artwork URLs. Active entries can be evicted if they alone exceed the hard budget. These bounds account for retained payloads, not total process memory, transient JSON decoding or image/GPU allocations. Replay lazily loads historical media from disk without downloading historical device paths. The mutable /api/artwork/:deck response uses no-store to avoid serving the preceding track's cover.
 
 ### Hot cue cache
 
@@ -368,7 +377,7 @@ The runtime backend does not yet load `hotcue-cache/` at boot — the script pop
 
 #### Cache layout
 
-[backend/hotcue-cache/](backend/hotcue-cache/) — one file per track, named `<md5(fileName).slice(0,16)>.json`, matching `waveformStem()` in [backend/src/waveformWorker.ts](backend/src/waveformWorker.ts) so the cue cache, the waveform cache, and the artwork cache all share a key.
+[backend/hotcue-cache/](backend/hotcue-cache/) — one file per track using the legacy basename digest. This offline cue format remains separate from runtime media full-identity manifests.
 
 ```jsonc
 {
@@ -409,7 +418,7 @@ Pass an absolute path (the workspace runs from `backend/`, so a path relative to
 |---|---|---|
 | `--out <file>` | `<input>.tc-analysis.html` | Output HTML path. |
 | `--json <file>` | (off) | Also dump per-deck stats + freewheel spans as JSON. |
-| `--config <file>` | (auto) | Use this `config.json` for track offsets. By default the recording's own header offsets are used; if absent, a `config.json` next to the cwd is auto-loaded. |
+| `--config <file>` | (auto) | Use this `config.json` for track offsets. By default the recording's historical header/config offsets are used; if absent, a `config.json` next to the cwd is auto-loaded. |
 | `--fps <n>` | `30` | TC fps (must match what the worker would use). |
 | `--latency <ms>` | `80` | Latency-comp added to every emitted frame, mirroring `latencyCompMs`. |
 | `--tickHz <n>` | `30` | Simulation tick rate. |
@@ -504,16 +513,16 @@ On connect the server sends a hello frame, then snapshot frames at 30 Hz. Additi
 { "type": "snapshot", "seq": 42, "ts": 1234567890, "selectedDeck": 1, "nextTrack": "song.mp3", "decks": { "1": DeckState, ... } }
 
 // waveform_status — progress during peak analysis (per-deck, has `deck` field)
-{ "type": "waveform_status", "deck": 1, "stage": "downloading|analyzing|done|error", "progress": 0.0, "fileName": "..." }
+{ "type": "waveform_status", "deck": 1, "stage": "downloading|generating|ready|error", "progress": 0, "trackId": "net://device/USB/path/song.mp3", "fileName": "song.mp3" }
 
-// waveform_data — peak array, keyed by fileName.
+// waveform_data — peak array, keyed by trackId (matches DeckState.mediaId).
 // The frontend applies it to every deck currently holding that file (so the
 // same track on two decks renders correctly without duplicate broadcasts).
 // Pre-serialized in the waveform worker so the broadcast path does zero CPU work.
-{ "type": "waveform_data", "fileName": "...", "peaks": [...], "peaksPerSec": 200 }
+{ "type": "waveform_data", "trackId": "net://device/USB/path/song.mp3", "fileName": "song.mp3", "peaks": [...], "peaksPerSec": 200 }
 
-// artwork_data — album art (base64) or null. Keyed by fileName, same fanout.
-{ "type": "artwork_data", "fileName": "...", "data": "<base64>" | null, "mime": "image/jpeg" | null }
+// artwork_data — album art (base64) or confirmed absence. Keyed by trackId.
+{ "type": "artwork_data", "trackId": "net://device/USB/path/song.mp3", "fileName": "song.mp3", "data": "<base64>" | null, "mime": "image/jpeg" | null }
 
 // terminal_lines — backend log lines for the in-app terminal panel.
 // Sent only to clients that opted in by sending {type:'terminal_subscribe', enabled:true}.
@@ -567,7 +576,6 @@ To make timecode-cadence problems observable, the backend logs:
 - **`[ArtNet/wk] tick stats`** — emitted every 2 s by the Art-Net worker. Shows tick count, average interval, p50, p95, max interval, max "behind" (how late the worker self-corrected from), and any hard stalls. A healthy line at 30 fps reads roughly `avg=33.33ms (30.00fps) p95<35 max<40 maxBehind<5 hardStalls=0`.
 - **`[ArtNet/wk] Late tick`** — single late tick warning, rate-limited to 1/s.
 - **`[main] event-loop lag Xms`** — main-thread event-loop lag warning. The Art-Net worker is unaffected by main-thread stalls; this log just tells you where to look when the WS UI feels sluggish (typical cause: ffmpeg-done callback or a large JSON serialization).
-- **`[WAVEFORM] track-change deck=N download=Xms ffmpeg=Yms total=Zms`** — per-track-change timing breakdown. Useful to see whether download or PCM extraction is the bottleneck.
 - **`[main] WS broadcast slow`** — WebSocket broadcast warning if a single snapshot send takes longer than `WS_BROADCAST_WARN_MS` (default 5 ms).
 
 Tunable thresholds for the diagnostics live alongside the existing tunables in [`backend/src/constants.ts`](backend/src/constants.ts): `ARTNET_TICK_STATS_LOG_INTERVAL_MS`, `MAIN_EVENT_LOOP_LAG_WARN_MS`, `WS_BROADCAST_WARN_MS`, `ARTNET_HARD_STALL_INTERVALS`.
@@ -585,3 +593,5 @@ MIT — Jan Müller (2026)
 - User settings wait for initial loading; requests are serialized/coalesced and failures are shown. Freewheel duration changes coalesce while enable/disable remains responsive.
 - A backend restart starts a new WebSocket sequence immediately. Long waveforms use bounded pixel columns rather than one draw per sample. WebSocket sends serialize and coalesce queued snapshots. Queue limits and stalled-send deadlines disconnect overloaded clients; large waveform messages can drain on healthy sockets.
 - The package supplies BeatInfo, TrackLength, CurrentKey and public instance/path APIs. WebView retains its sample conversion, key normalization, device download queue, cue extraction and output-specific logic where upstream has no equivalent contract.
+
+Selected transfer/cache/recording fixes, compatibility, tests and deliberately deferred work: [integrity follow-up](docs/review-2026-11-24/integrity-followup.md).

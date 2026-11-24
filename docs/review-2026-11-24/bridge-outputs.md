@@ -64,7 +64,7 @@ No live equipment was contacted. Reproductions used synthetic events, mocked wor
 - Reproduction: two network paths produced one onTrackChanged callback; old loop data remained. Basename metadata preservation added by the earlier key fix made the identity available but did not update this deduplication key.
 - Applied: callback deduplication uses the full captured network identity. Track-change loop clearing precedes publication, so subscribers cannot record a new filename with the previous loop state.
 - Validation: same-basename replacement triggers twice, repeated identical paths/basename nowPlaying metadata do not, and published replacement state has no old active loop.
-- Remaining scope: waveform/artwork cache and playlist matching intentionally still use basenames elsewhere. Distinct files sharing a basename can still collide there; media/frontend reports cover those caches. Changing playlist identity requires an explicit migration policy.
+- Follow-up: media now uses full source/path identity. Playlist/replay mappings retain basenames; changing those contracts requires an explicit migration policy.
 
 ### BO-08 — P2 — Missing artist/title tags can mark a playing loaded song unloaded
 
@@ -128,7 +128,7 @@ No live equipment was contacted. Reproductions used synthetic events, mocked wor
 - Reproduction: actual compiled FileTransfer with mocked response size=0 returns empty bytes; receivedFile remains non-null and _available=false; the next getFile rejects with ERR_ASSERTION. Script /private/tmp/audit-upstream-transfer-repro.mjs. No network involved.
 - Impact: a missing/streaming file can make every later waveform download for that device fail until reconnect. Timeouts can retain buffers, progress work and listeners longer than intended.
 - Suggested fix: in the package, guarantee buffer/availability/timer cleanup with a finally block on every exit, replace the async Promise executor with a cancellable transfer wait, and test missing→valid, timeout→valid and disconnect paths. Preserve the per-device queue. This is an inherited upstream bug, not evidence that adopting upstream is generally unsafe.
-- Not applied by this agent: outside the owned WebView files. Root may choose a focused library fix; report it explicitly if left for follow-up.
+- Follow-up applied: package full/range/stat/source queue, abortable waits, cleanup on every exit, pre-allocation limits, unsafe-stream closure/lazy reconnect and real TCP connection deadline. Lifecycle/TCP regressions pass; see integrity-followup.md.
 
 ### BO-16 — P2 — Download queue work survives the session and can head-of-line block new tracks
 
@@ -136,7 +136,7 @@ No live equipment was contacted. Reproductions used synthetic events, mocked wor
 - Trigger: user changes tracks rapidly while a file download is pending, then reconnects. Queued closures retain old file paths/progress handlers; reset never invalidates downloadQueues. Service polling starts when each queue item begins, so many obsolete requests can consume successive 30-second waits.
 - Impact: new track waveforms are delayed behind obsolete work; old callbacks can report progress after reconnect; one hung getFile blocks the device's entire queue.
 - Suggested fix: add a bridge session generation/cancellation token and obsolete-track checks before queued work begins and during service polling. Remove a queue entry only if it is still that device's current tail. Upstream transfer cancellation must be made safe before aborting an active shared-buffer transfer.
-- Not applied: requires coordination with the media service's in-flight cache/jobs and the upstream cleanup in BO-15. The existing serialization itself is necessary and tested, not redundant code to remove.
+- Follow-up applied: session-captured service manager, AbortSignal cancellation before/while polling, race-safe tail removal and progress cleanup. MediaCoordinator cancels obsolete tracks and bounds downloads through extraction. Tests verify prompt queued abort without overlap, reset/poll cancellation and stale suppression.
 
 ### BO-17 — P2 — QuickLoop positions received before SampleRate become permanent huge seconds
 

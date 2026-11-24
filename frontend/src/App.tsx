@@ -1,3 +1,4 @@
+import { MediaCache } from './mediaCache.js';
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import type { DeckNumber, DeckState, RecordingStatus, ReplayStatus, StageLinqStatus, TerminalLogLine, TrackNote, WaveformStatusPayload, WsPayload } from './types.js';
 import type { WaveformState } from './appTypes.js';
@@ -34,6 +35,7 @@ function makeBlankDeck(deck: DeckNumber): DeckState {
     deck,
     trackLoaded: false,
     fileName: '',
+    mediaId: '',
     title: '',
     artist: '',
     elapsedSec: 0,
@@ -55,7 +57,7 @@ function makeBlankDeck(deck: DeckNumber): DeckState {
 }
 
 function makeBlankWaveform(): WaveformState {
-  return { peaks: null, peaksPerSec: 200, stage: null, progress: 0, fileName: '' };
+  return { peaks: null, peaksPerSec: 200, stage: null, progress: 0, fileName: '', trackId: '' };
 }
 
 type DecksState = Record<DeckNumber, DeckState>;
@@ -75,16 +77,8 @@ export default function App() {
     4: makeBlankWaveform(),
   });
   const waveformStatusesRef = useRef<Partial<Record<DeckNumber, WaveformStatusPayload>>>({});
-  const artworkObjectUrlsRef = useRef<Record<string, string>>({});
+  const mediaCacheRef = useRef(new MediaCache());
   const [artworkUrls, setArtworkUrls] = useState<Record<string, string>>({});
-  // Frontend-side peaks cache, keyed by fileName. The backend `waveform_data`
-  // frame arrives keyed only by fileName (no `deck` field) — and frequently
-  // arrives BEFORE the snapshot that announces the new fileName on a deck
-  // (on initial WS connect the backend sends cached frames, then snapshots
-  // start; on a track-change `setImmediate` lands the frame ahead of the next
-  // 30 Hz tick). We cache the peaks here and apply them to whichever deck
-  // currently holds — or later loads — that file.
-  const peaksByFileRef = useRef<Record<string, { peaks: number[]; peaksPerSec: number }>>({});
   const [connected, setConnected] = useState(false);
   const [stagelinqStatus, setStagelinqStatus] = useState<StageLinqStatus>('no-device');
   const [freewheelActive, setFreewheelActive] = useState(false);
@@ -166,9 +160,7 @@ export default function App() {
 
   useEffect(() => {
     return () => {
-      for (const url of Object.values(artworkObjectUrlsRef.current)) {
-        URL.revokeObjectURL(url);
-      }
+      mediaCacheRef.current.clear();
     };
   }, []);
 
@@ -210,6 +202,8 @@ export default function App() {
         lastSeq = msg.seq;
         const nextDecks = msg.decks as DecksState;
         latestDecksRef.current = nextDecks;
+        mediaCacheRef.current.setActive(Object.values(nextDecks).filter(d => d.trackLoaded).map(d => d.mediaId));
+        setArtworkUrls(mediaCacheRef.current.artworkUrls());
         for (const d of DECK_NUMBERS) {
           elapsedRefs.current[d].current = nextDecks[d].elapsedSec;
         }
@@ -224,11 +218,11 @@ export default function App() {
         const prevFile = prevFileNameRef.current;
         for (const d of DECK_NUMBERS) {
           const unloaded = prev[d] && !nextDecks[d].trackLoaded;
-          const fileChanged = prevFile[d] !== '' && nextDecks[d].fileName !== '' && nextDecks[d].fileName !== prevFile[d];
+          const fileChanged = prevFile[d] !== (nextDecks[d].mediaId || '');
           if (unloaded || fileChanged) {
-            const newFileName = nextDecks[d].fileName;
+            const newTrackId = nextDecks[d].mediaId;
             setWaveforms((w) => {
-              if (w[d].fileName === newFileName && newFileName !== '') return w;
+              if (!unloaded && w[d].trackId === newTrackId && newTrackId) return w;
               return { ...w, [d]: makeBlankWaveform() };
             });
             // Cancel any pending/shown note popup for this deck — the song changed.
@@ -238,25 +232,22 @@ export default function App() {
             setPopupQueue((q) => q.filter((p) => p.deck !== d));
           }
 
-          // If we already have peaks cached for this deck's current file (e.g.
-          // the waveform_data frame arrived before this snapshot announced the
-          // fileName), bind them now. Cheap no-op when the deck already shows
-          // the same fileName as last tick.
-          const fnNow = nextDecks[d].fileName;
-          if (fnNow && (prevFile[d] !== fnNow || (!prev[d] && nextDecks[d].trackLoaded))) {
-            const cached = peaksByFileRef.current[fnNow];
-            const pendingStatus = waveformStatusesRef.current[d];
-            if (cached) {
-              setWaveforms((w) => (
-                w[d].fileName === fnNow && w[d].peaks
-                  ? w
-                  : { ...w, [d]: { peaks: cached.peaks, peaksPerSec: cached.peaksPerSec, stage: 'ready', progress: 100, fileName: fnNow } }
-              ));
-            } else if (pendingStatus?.fileName === fnNow) {
-              setWaveforms((w) => ({ ...w, [d]: { ...makeBlankWaveform(),
-                stage: pendingStatus.stage, progress: pendingStatus.progress, fileName: fnNow } }));
+          const trackId = nextDecks[d].trackLoaded ? nextDecks[d].mediaId : '';
+          const cached = mediaCacheRef.current.get(trackId);
+          const pendingStatus = waveformStatusesRef.current[d];
+          setWaveforms(w => {
+            if (cached?.peaks) {
+              if (w[d].trackId === trackId && w[d].peaks === cached.peaks) return w;
+              return { ...w, [d]: { peaks: cached.peaks, peaksPerSec: cached.peaksPerSec!,
+                stage: 'ready', progress: 100, fileName: nextDecks[d].fileName, trackId } };
             }
-          }
+            if (pendingStatus?.trackId === trackId && trackId) {
+              if (!w[d].peaks && w[d].trackId === trackId && w[d].stage === pendingStatus.stage && w[d].progress === pendingStatus.progress) return w;
+              return { ...w, [d]: { ...makeBlankWaveform(), stage: pendingStatus.stage,
+                progress: pendingStatus.progress, fileName: nextDecks[d].fileName, trackId } };
+            }
+            return w[d].trackId || w[d].peaks ? { ...w, [d]: makeBlankWaveform() } : w;
+          });
 
           // Schedule the note popup once per (deck, fileName). Re-evaluating on
           // every snapshot is cheap; the seenNoteForFile guard ensures the
@@ -294,60 +285,42 @@ export default function App() {
           }
 
           prev[d] = nextDecks[d].trackLoaded;
-          prevFile[d] = nextDecks[d].fileName;
+          prevFile[d] = nextDecks[d].mediaId || '';
         }
       } else if (msg.type === 'waveform_status') {
-        const { deck, stage, progress, fileName } = msg;
+        const { deck, stage, progress, fileName, trackId } = msg;
+        if (!trackId || !DECK_NUMBERS.includes(deck)) return;
         waveformStatusesRef.current[deck] = msg;
-        if (latestDecksRef.current[deck].fileName !== fileName || !latestDecksRef.current[deck].trackLoaded) return;
-        setWaveforms((prev) => {
-          const changed = prev[deck].fileName !== fileName;
-          return {
-            ...prev,
-            [deck]: {
-              peaks: changed ? null : prev[deck].peaks,
-              peaksPerSec: prev[deck].peaksPerSec,
-              stage,
-              progress,
-              fileName,
-            },
-          };
-        });
+        if (latestDecksRef.current[deck].mediaId !== trackId || !latestDecksRef.current[deck].trackLoaded) return;
+        setWaveforms(prev => ({ ...prev, [deck]: {
+          peaks: prev[deck].trackId === trackId ? prev[deck].peaks : null,
+          peaksPerSec: prev[deck].peaksPerSec, stage, progress, fileName, trackId,
+        } }));
       } else if (msg.type === 'waveform_data') {
-        const { peaks, peaksPerSec, fileName } = msg;
-        // Cache by fileName so a frame that lands before the matching snapshot
-        // (initial connect + setImmediate-deferred track-change broadcasts both
-        // race the next 30 Hz snapshot) still gets bound when the deck reports
-        // the file. Then apply to every deck currently holding it.
-        peaksByFileRef.current[fileName] = { peaks, peaksPerSec };
-        setWaveforms((prev) => {
-          let changed = false;
+        const { peaks, peaksPerSec, trackId, fileName } = msg;
+        if (!trackId || !Array.isArray(peaks)) return;
+        const cache = mediaCacheRef.current;
+        cache.setPeaks(trackId, peaks, peaksPerSec);
+        setArtworkUrls(cache.artworkUrls());
+        setWaveforms(prev => {
           const next = { ...prev };
           for (const d of DECK_NUMBERS) {
-            if (latestDecksRef.current[d].fileName === fileName) {
-              next[d] = { peaks, peaksPerSec, stage: 'ready', progress: 100, fileName };
-              changed = true;
-            }
+            const live = latestDecksRef.current[d];
+            const entry = live.trackLoaded ? cache.get(live.mediaId) : undefined;
+            if (entry?.peaks) next[d] = { peaks: entry.peaks, peaksPerSec: entry.peaksPerSec!,
+              stage: 'ready', progress: 100, fileName: live.fileName, trackId: live.mediaId };
+            else if (prev[d].peaks) next[d] = makeBlankWaveform();
           }
-          return changed ? next : prev;
+          return next;
         });
       } else if (msg.type === 'artwork_data') {
-        const { fileName, data, mime } = msg;
-        const prev = artworkObjectUrlsRef.current[fileName];
-        if (prev) URL.revokeObjectURL(prev);
-        if (!data || !mime) {
-          delete artworkObjectUrlsRef.current[fileName];
-          setArtworkUrls((urls) => {
-            const next = { ...urls };
-            delete next[fileName];
-            return next;
-          });
-          return;
-        }
-        const blob = new Blob([Uint8Array.from(atob(data), (c) => c.charCodeAt(0))], { type: mime });
-        const url = URL.createObjectURL(blob);
-        artworkObjectUrlsRef.current[fileName] = url;
-        setArtworkUrls((m) => ({ ...m, [fileName]: url }));
+        const { trackId, data, mime } = msg;
+        if (!trackId) return;
+        try {
+          const blob = data && mime ? new Blob([Uint8Array.from(atob(data), c => c.charCodeAt(0))], { type: mime }) : null;
+          mediaCacheRef.current.setArtwork(trackId, blob);
+          setArtworkUrls(mediaCacheRef.current.artworkUrls());
+        } catch { return; }
       } else if (msg.type === 'terminal_lines') {
         const incoming = msg.lines;
         if (msg.mode === 'replace') {
@@ -465,7 +438,7 @@ export default function App() {
             state={decks[d]}
             waveform={waveforms[d]}
             selected={selectedDeck === d}
-            artworkUrl={artworkUrls[decks[d].fileName] ?? null}
+            artworkUrl={artworkUrls[decks[d].mediaId] ?? null}
             elapsedSecRef={elapsedRefs.current[d]}
             detailZoomSec={detailZoomSec}
           />

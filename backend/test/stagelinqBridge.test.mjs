@@ -485,3 +485,15 @@ test('explicit unload stops transport, but empty or delayed title tags cannot ov
   raw('Track/SongName', 'Delayed old title');
   assert.equal(bridge.getDeck(1).trackLoaded, false);
 });
+
+test('transport provenance preserves explicit play through watchdog display changes and reset', t => {
+  const { bridge, raw } = setupBridge(t);
+  raw('Play', true);
+  assert.equal(bridge.getDeckTiming(1).transportPlay, true);
+  bridge.decks[1].play = false;
+  assert.equal(bridge.getDeckTiming(1).transportPlay, true);
+  bridge.resetState();
+  assert.equal(bridge.getDeckTiming(1).transportPlay, true);
+  raw('Play', false);
+  assert.equal(bridge.getDeckTiming(1).transportPlay, false);
+});

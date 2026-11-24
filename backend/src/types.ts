@@ -1,6 +1,7 @@
 export type DeckNumber = 1 | 2 | 3 | 4;
 
 export interface SourceTiming {
+  transportPlay?: boolean;
   positionAtMs: number | null;
   positionRevision: number;
   transportRevision: number;
@@ -28,6 +29,7 @@ export interface DeckState {
   deck: DeckNumber;
   trackLoaded: boolean;
   fileName: string;
+  mediaId: string;
   title: string;
   artist: string;
   elapsedSec: number; // BeatInfo timeline (seconds)
@@ -53,6 +55,7 @@ export interface DeckState {
 export type StageLinqStatus = 'connected' | 'no-device' | 'reconnecting';
 
 export interface RecordingStatus {
+  error?: string | null;
   active: boolean;
   file: string | null;       // basename of the active jsonl, or last-completed
   startedAt: number | null;  // ms epoch
@@ -104,6 +107,7 @@ export interface HelloPayload {
 export type WaveformStage = 'downloading' | 'generating' | 'ready' | 'error';
 
 export interface WaveformStatusPayload {
+  trackId: string;
   type: 'waveform_status';
   deck: DeckNumber;
   stage: WaveformStage;
@@ -112,6 +116,7 @@ export interface WaveformStatusPayload {
 }
 
 export interface ArtworkDataPayload {
+  trackId: string;
   type: 'artwork_data';
   fileName: string;
   data: string | null; // base64-encoded image, null if no artwork
@@ -119,10 +124,9 @@ export interface ArtworkDataPayload {
 }
 
 export interface WaveformDataPayload {
+  trackId: string;
   type: 'waveform_data';
-  // Keyed by fileName — clients fan it out to whichever deck(s) currently hold
-  // this file. Lets the worker pre-build one frame per file in cache instead of
-  // restamping it per deck on every broadcast.
+  // trackId identifies the source/path; fileName is only the display label.
   fileName: string;
   peaks: number[];
   peaksPerSec: number;

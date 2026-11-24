@@ -59,8 +59,8 @@ function socketEnvironment(t) {
     send() {}
     close() { this.readyState = 3; }
     open() { this.readyState = 1; this.onopen?.(); }
-    snapshot(seq, fileName) {
-      this.onmessage?.({ data: JSON.stringify({ type: 'snapshot', seq, selectedDeck: 1, stagelinqStatus: 'connected', decks: Object.fromEntries([1, 2, 3, 4].map(deck => [deck, { trackLoaded: true, fileName, elapsedSec: seq }])) }) });
+    snapshot(seq, fileName, mediaId = "net://device/USB/" + fileName) {
+      this.onmessage?.({ data: JSON.stringify({ type: 'snapshot', seq, selectedDeck: 1, stagelinqStatus: 'connected', decks: Object.fromEntries([1, 2, 3, 4].map(deck => [deck, { trackLoaded: true, fileName, mediaId, elapsedSec: seq }])) }) });
     }
   };
   t.mock.method(globalThis, 'fetch', async url => ({ ok: true, json: async () => url === '/api/users' ? { users: [] } : { freewheel: { enable_freewheeling: true, max_duration_sec: 30 } } }));
@@ -274,12 +274,12 @@ test('waveform status belongs to its file and valid early status survives until 
   const app = hookHarness('App.tsx'); app.render(); app.effects();
   const socket = env.sockets[0]; socket.open();
   const frame = message => socket.onmessage({ data: JSON.stringify(message) });
-  frame({ type: 'waveform_data', fileName: 'B.mp3', peaks: [0.5], peaksPerSec: 200 });
+  frame({ type: 'waveform_data', fileName: 'B.mp3', trackId: 'net://device/USB/B.mp3', peaks: [0.5], peaksPerSec: 200 });
   socket.snapshot(1, 'B.mp3');
-  frame({ type: 'waveform_status', deck: 1, fileName: 'A.mp3', stage: 'error', progress: 0 });
+  frame({ type: 'waveform_status', deck: 1, fileName: 'A.mp3', trackId: 'net://device/USB/A.mp3', stage: 'error', progress: 0 });
   const waveform = () => elements(app.render(), node => node.type?.name === 'DeckCard')[0].props.waveform;
   assert.equal(waveform().fileName, 'B.mp3'); assert.equal(waveform().stage, 'ready');
-  frame({ type: 'waveform_status', deck: 1, fileName: 'C.mp3', stage: 'generating', progress: 40 });
+  frame({ type: 'waveform_status', deck: 1, fileName: 'C.mp3', trackId: 'net://device/USB/C.mp3', stage: 'generating', progress: 40 });
   socket.snapshot(2, 'C.mp3');
   assert.equal(waveform().fileName, 'C.mp3'); assert.equal(waveform().progress, 40);
   app.cleanup();
@@ -323,4 +323,60 @@ test('playlist deletion clears active selection or preserves the surviving activ
     assert.equal(changed.current_playlist, expected);
     if (expected >= 0) assert.equal(changed.playlists[expected].name, playlists[active].name);
   }
+});
+
+test('same-basename media frames never cross source paths, including before snapshots', t => {
+  const env = socketEnvironment(t);
+  const app = hookHarness('App.tsx'); app.render(); app.effects();
+  const socket = env.sockets[0]; socket.open();
+  const frame = message => socket.onmessage({ data: JSON.stringify(message) });
+  const first = 'net://device/USB/one/same.mp3', second = 'net://device/USB/two/same.mp3';
+  frame({ type: 'waveform_data', fileName: 'same.mp3', trackId: first, peaks: [0.25], peaksPerSec: 200 });
+  socket.snapshot(1, 'same.mp3', first);
+  const waveform = () => elements(app.render(), node => node.type?.name === 'DeckCard')[0].props.waveform;
+  assert.deepEqual(waveform().peaks, [0.25]);
+  socket.snapshot(2, 'same.mp3', second);
+  assert.equal(waveform().peaks, null);
+  frame({ type: 'waveform_status', deck: 1, fileName: 'same.mp3', trackId: first, stage: 'error', progress: 0 });
+  assert.equal(waveform().stage, null);
+  frame({ type: 'waveform_data', fileName: 'same.mp3', trackId: second, peaks: [0.75], peaksPerSec: 200 });
+  assert.deepEqual(waveform().peaks, [0.75]);
+  app.cleanup();
+});
+
+test('browser media LRU bounds peaks and blobs, protects active tracks and revokes URLs', t => {
+  const { MediaCache } = loadSource('mediaCache.ts');
+  const revoked = []; let sequence = 0; let now = 0;
+  t.mock.method(URL, 'createObjectURL', () => 'blob:' + ++sequence);
+  t.mock.method(URL, 'revokeObjectURL', url => revoked.push(url));
+  t.mock.method(Date, 'now', () => now);
+  const cache = new MediaCache(1024, 2);
+  cache.setPeaks('active', [0.2], 200); cache.setActive(['active']);
+  cache.setArtwork('old', new Blob(['abc']));
+  now = 4000;
+  cache.setPeaks('next', [0.4], 200);
+  assert.ok(cache.get('active')); assert.ok(cache.get('next')); assert.equal(cache.get('old'), undefined);
+  assert.deepEqual(revoked, ['blob:1']);
+  cache.setArtwork('next', new Blob(['def'])); cache.setArtwork('next', null);
+  assert.deepEqual(revoked, ['blob:1', 'blob:2']);
+  cache.setPeaks('oversize', Array(200).fill(0.2), 200);
+  assert.equal(cache.get('oversize'), undefined); assert.ok(cache.byteLength <= 1024);
+  cache.setPeaks('invalid', [NaN], 200); assert.equal(cache.get('invalid'), undefined);
+  cache.setArtwork('active', new Blob(['ghi'])); cache.clear();
+  assert.equal(cache.size, 0); assert.deepEqual(revoked, ['blob:1', 'blob:2', 'blob:3']);
+});
+
+test('persistent recorder failures are visible without an operator request', () => {
+  const Controls = loadSource('RecordingControls.tsx').default;
+  const html = renderToStaticMarkup(React.createElement(Controls, { recordingStatus: { active: false, error: 'Recording stopped: storage queue exceeded limit' }, replayStatus: null }));
+  assert.match(html, /role="alert"/); assert.match(html, /storage queue exceeded limit/);
+});
+
+test('rapid pending media never evicts active media while an inactive entry can be dropped', () => {
+  const { MediaCache } = loadSource('mediaCache.ts');
+  const cache = new MediaCache(1024, 2);
+  cache.setPeaks('active', [0.2], 200); cache.setActive(['active']);
+  cache.setPeaks('pending1', [0.4], 200); cache.setPeaks('pending2', [0.6], 200);
+  assert.ok(cache.get('active')); assert.ok(cache.get('pending2'));
+  assert.equal(cache.get('pending1'), undefined); assert.equal(cache.size, 2);
 });

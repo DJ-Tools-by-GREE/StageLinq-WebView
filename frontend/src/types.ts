@@ -16,6 +16,7 @@ export interface DeckState {
   deck: DeckNumber;
   trackLoaded: boolean;
   fileName: string;
+  mediaId: string;
   title: string;
   artist: string;
   elapsedSec: number;
@@ -50,6 +51,7 @@ export interface HelloPayload {
 }
 
 export interface RecordingStatus {
+  error?: string | null;
   active: boolean;
   file: string | null;
   startedAt: number | null;
@@ -86,6 +88,7 @@ export interface SnapshotPayload {
 export type WaveformStage = 'downloading' | 'generating' | 'ready' | 'error';
 
 export interface WaveformStatusPayload {
+  trackId: string;
   type: 'waveform_status';
   deck: DeckNumber;
   stage: WaveformStage;
@@ -94,6 +97,7 @@ export interface WaveformStatusPayload {
 }
 
 export interface ArtworkDataPayload {
+  trackId: string;
   type: 'artwork_data';
   fileName: string;
   data: string | null;
@@ -101,6 +105,7 @@ export interface ArtworkDataPayload {
 }
 
 export interface WaveformDataPayload {
+  trackId: string;
   type: 'waveform_data';
   // Keyed by fileName — apply to whichever deck(s) currently hold this file.
   fileName: string;

@@ -24,6 +24,7 @@ import path from 'node:path';
 import { TimecodeTimeline } from '../timecodeTimeline.js';
 import type { DeckNumber, DeckState, SourceTiming } from '../types.js';
 import { parseConfig } from '../jsonFile.js';
+import { parseRecording, blankRecordedDeck as blankDeck, type DeckEvent, type ParsedLog } from '../recordingLog.js';
 
 const DECKS: DeckNumber[] = [1, 2, 3, 4];
 
@@ -88,76 +89,6 @@ function parseArgs(argv: string[]): Args {
 }
 
 // ── Log parser ─────────────────────────────────────────────────────────────
-interface DeckEvent {
-  t: number;
-  n: DeckNumber;
-  state?: DeckState;
-  diff?: Partial<Omit<DeckState, 'deck'>>;
-}
-interface SelectedEvent { t: number; deck: DeckNumber | null }
-interface GapEvent { t: number; lastEventT: number; gapMs: number }
-
-interface ParsedLog {
-  startedAt: number;
-  durationMs: number;
-  trackOffsetsFromHeader: TrackOffsetMap | null;
-  deckEvents: DeckEvent[];
-  selectedEvents: SelectedEvent[];
-  gaps: GapEvent[];
-}
-
-function blankDeck(d: DeckNumber): DeckState {
-  return {
-    deck: d, trackLoaded: false, fileName: '', title: '—', artist: '—',
-    elapsedSec: 0, totalSec: 0, currentBpm: 0, trackBpm: 0, speedState: 0,
-    keyIndex: null, keyCamelot: '--', fader: 0, play: false, updatedAt: 0,
-    hotCues: [], loopActive: false, loopInSec: null, loopOutSec: null, savedLoops: [],
-  };
-}
-
-function parseLog(filePath: string): ParsedLog {
-  const raw = fs.readFileSync(filePath, 'utf8');
-  const lines = raw.split('\n');
-  let startedAt = 0;
-  let stoppedAt = 0;
-  let trackOffsetsFromHeader: TrackOffsetMap | null = null;
-  const deckEvents: DeckEvent[] = [];
-  const selectedEvents: SelectedEvent[] = [];
-  const gaps: GapEvent[] = [];
-  let maxT = 0;
-
-  for (const line of lines) {
-    const s = line.trim();
-    if (!s) continue;
-    let ev: any;
-    try { ev = JSON.parse(s); } catch { continue; }
-    if (!ev || typeof ev !== 'object') continue;
-    if (ev.type === 'header') {
-      startedAt = Number(ev.startedAt ?? 0);
-      if (ev.trackOffsets && typeof ev.trackOffsets === 'object') {
-        trackOffsetsFromHeader = ev.trackOffsets as TrackOffsetMap;
-      }
-      continue;
-    }
-    if (ev.type === 'footer') { stoppedAt = Number(ev.stoppedAt ?? 0); continue; }
-    const t = Number(ev.t ?? 0);
-    if (t > maxT) maxT = t;
-    if (ev.type === 'deck') {
-      const n = Number(ev.n) as DeckNumber;
-      if (![1, 2, 3, 4].includes(n)) continue;
-      if (ev.state) deckEvents.push({ t, n, state: ev.state });
-      else if (ev.diff) deckEvents.push({ t, n, diff: ev.diff });
-    } else if (ev.type === 'selected') {
-      const deck = ev.deck === null || ev.deck === undefined ? null : (Number(ev.deck) as DeckNumber);
-      selectedEvents.push({ t, deck });
-    } else if (ev.type === 'gap') {
-      gaps.push({ t, lastEventT: Number(ev.lastEventT ?? t), gapMs: Number(ev.gapMs ?? 0) });
-    }
-  }
-  const durationMs = stoppedAt && startedAt ? Math.max(stoppedAt - startedAt, maxT) : maxT;
-  return { startedAt, durationMs, trackOffsetsFromHeader, deckEvents, selectedEvents, gaps };
-}
-
 // ── Track-offset resolution (mirrors index.ts → buildTrackOffsetMap) ──────
 function normalizeTrackName(name: string): string {
   return path.basename(String(name ?? '').trim());
@@ -204,11 +135,18 @@ class DeckTimeline {
     while (this.cursor < this.events.length && this.events[this.cursor].t <= tMs) {
       const ev = this.events[this.cursor++];
       const update = ev.state ?? ev.diff;
-      if (update && Object.hasOwn(update, 'elapsedSec') && Number.isFinite(update.elapsedSec)) {
-        this.timing.positionAtMs = ev.t;
-        this.timing.positionRevision++;
+      if (ev.timing) {
+        this.timing = { positionAtMs: ev.timing.positionT, positionRevision: ev.timing.positionRevision,
+          transportRevision: ev.timing.transportRevision, trackId: ev.timing.trackId,
+          transportPlay: ev.timing.transportPlay ?? ((ev.timing.transportRevision !== this.timing.transportRevision || this.timing.transportPlay === undefined) ? update?.play ?? this.state.play : this.timing.transportPlay) };
+      } else {
+        if (update && Object.hasOwn(update, 'elapsedSec') && Number.isFinite(update.elapsedSec)) {
+          this.timing.positionAtMs = ev.t;
+          this.timing.positionRevision++;
+        }
+        if (update && Object.hasOwn(update, 'play')) { this.timing.transportRevision++; this.timing.transportPlay = update.play; }
+        this.timing.trackId = String(update?.mediaId || update?.fileName || this.state.mediaId || this.state.fileName);
       }
-      if (update && Object.hasOwn(update, 'play')) this.timing.transportRevision++;
       if (ev.state) {
         // Keyframe — replace the whole state but preserve deck #.
         this.state = { ...ev.state, deck: this.state.deck };
@@ -216,7 +154,6 @@ class DeckTimeline {
         for (const k of Object.keys(ev.diff)) (this.state as any)[k] = (ev.diff as any)[k];
       }
     }
-    this.timing.trackId = this.state.fileName;
     return this.state;
   }
   getTiming(): SourceTiming { return this.timing; }
@@ -351,14 +288,14 @@ const DECK_COLORS: Record<DeckNumber, string> = {
   4: '#f87171', // red
 };
 
-function main() {
+async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (!fs.existsSync(args.input)) {
     console.error(`Recording not found: ${args.input}`);
     process.exit(1);
   }
   console.log(`[simulate-tc] reading ${path.basename(args.input)}`);
-  const log = parseLog(args.input);
+  const log = await parseRecording(args.input);
   console.log(`[simulate-tc] events: ${log.deckEvents.length} deck, ${log.selectedEvents.length} selected, ${log.gaps.length} gaps`);
   console.log(`[simulate-tc] duration: ${(log.durationMs / 1000).toFixed(1)}s`);
 
@@ -424,8 +361,12 @@ function main() {
   // Per-deck stats accumulators (filename change list, etc.)
   const fileTimelinePerDeck: Record<DeckNumber, { tMs: number; fileKey: string }[]> = { 1: [], 2: [], 3: [], 4: [] };
 
+  let configCursor = 0;
   for (let tick = 0; tick < totalTicks; tick++) {
     const tMs = Math.min(log.durationMs, tick * tickStepMs);
+    while (configCursor < log.configEvents.length && log.configEvents[configCursor].t <= tMs) {
+      env.trackOffsets = log.configEvents[configCursor++].trackOffsets;
+    }
     const emitChart = (tick % decimateEvery) === 0 || tick === totalTicks - 1;
     for (const d of DECKS) {
       const raw = timelines[d].advanceTo(tMs);
@@ -497,7 +438,8 @@ function main() {
       args,
       durationMs: log.durationMs,
       offsetsSource,
-      timingSource: 'inferred from recorded positions and play events; raw BeatInfo provenance unavailable',
+      timingSource: log.timingSource,
+      configChanges: log.configEvents.length,
       trackOffsetsCount: Object.keys(trackOffsets).length,
       gaps: log.gaps,
       perDeckStats,
@@ -667,7 +609,7 @@ function renderHtml(r: RenderInput): string {
     input: path.basename(args.input),
     durationMs: log.durationMs,
     durationSec: log.durationMs / 1000,
-    timingSource: 'inferred from recorded positions and play events; raw BeatInfo provenance unavailable',
+    timingSource: log.timingSource,
     fps: args.fps,
     latencyMs: args.latencyMs,
     tickHz: args.tickHz,
@@ -775,7 +717,8 @@ function renderHtml(r: RenderInput): string {
 <details>
 <summary>Algorithm — TC mirror of the live Art-Net worker</summary>
 <pre class="json">Uses the same TimecodeTimeline class as the live Art-Net worker.
-For each deck, position freshness comes from elapsedSec/keyframe events;
+Timing source: ${escapeHtml(log.timingSource)}.
+For each deck, freshness follows recorded source timing (v2) or position events (v1);
 metadata on this or another deck never refreshes its position clock.
 The timeline extrapolates each source from its capture timestamp, follows
 explicit pause/seek/loop events, and freewheels a stale running source
@@ -893,4 +836,4 @@ function escapeHtml(s: string): string {
     .replace(/'/g, '&#39;');
 }
 
-main();
+main().catch(error => { console.error(error instanceof Error ? error.message : error); process.exitCode = 1; });

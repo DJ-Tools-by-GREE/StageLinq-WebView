@@ -1,3 +1,4 @@
+import { MediaCoordinator } from './mediaCoordinator.js';
 import express, { type Request, type Response, type NextFunction } from 'express';
 import cors from 'cors';
 import fs from 'node:fs/promises';
@@ -17,7 +18,6 @@ import { States, StageLinqValue } from "@gree44/stagelinq";
 import { logError, logLifecycle, logWarn, logWaveform, logUiOut, LOG_ENABLED, applyLoggingConfig, applyDisplayConfig, DISPLAY_ENABLED, logDashboard, deckColor, getStatusSlot, DIM, R, GRN, YEL, RED, RST, subscribeTerminalLines, getTerminalRing } from './logging.js';
 import {
   initWaveformCache,
-  requestExtraction,
   shutdownWaveformWorker,
   peaksFrameCache,
   artworkFrameCache,
@@ -422,6 +422,7 @@ async function main() {
         if (config?.logging) applyLoggingConfig(config.logging);
         if (config?.display) applyDisplayConfig(config.display);
         trackOffsets = buildTrackOffsetMap(config);
+        recorder?.recordConfig();
         trackNotes = buildTrackNoteMap(config);
         activePlaylistFiles = buildActivePlaylistFileSet(config);
         waveformAllTracks = config?.waveform?.all_tracks ?? true;
@@ -651,12 +652,13 @@ async function main() {
 
   app.get('/api/artwork/:deck', (req, res) => {
     const deck = Number(req.params.deck) as DeckNumber;
-    const fileName = stateProvider.getDeck(deck)?.fileName;
-    if (!fileName) { res.status(404).end(); return; }
-    const entry = artworkCache.get(fileName);
+    if (![1, 2, 3, 4].includes(deck)) { res.status(404).end(); return; }
+    const state = stateProvider.getDeck(deck);
+    if (!state.trackLoaded || !state.mediaId) { res.status(404).end(); return; }
+    const entry = artworkCache.get(state.mediaId);
     if (!entry) { res.status(404).end(); return; }
     res.setHeader('Content-Type', entry.mime);
-    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.setHeader('Cache-Control', 'no-store');
     res.send(entry.data);
   });
 
@@ -848,7 +850,7 @@ async function main() {
   let spinnerFrame = 0;
   const SPINNER = ['⡿', '⣟', '⣯', '⣷', '⣾', '⣽', '⣻', '⢿'];
   const clients = new Set<any>();
-  const waveformTaskIds: Record<DeckNumber, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
+  let media: MediaCoordinator;
 
   // Live terminal stream: clients opt in by sending {type:'terminal_subscribe', enabled:true}.
   // We keep one global tap on the logger and fan out only to the opted-in WS set,
@@ -893,20 +895,6 @@ async function main() {
     }
   }
 
-  function broadcastWaveformStatus(deck: DeckNumber, stage: WaveformStatusPayload['stage'], progress: number, fileName: string) {
-    broadcastMsg({ type: 'waveform_status', deck, stage, progress, fileName });
-  }
-
-  function broadcastWaveformFrame(fileName: string) {
-    const raw = peaksFrameCache.get(fileName);
-    if (raw) broadcastFrame(raw);
-  }
-
-  function broadcastArtworkFrame(fileName: string) {
-    const raw = artworkFrameCache.get(fileName);
-    if (raw) broadcastFrame(raw);
-  }
-
   const connectWithRetry = async () => {
     while (!shuttingDown) {
       try {
@@ -940,85 +928,18 @@ async function main() {
       reconnecting = false;
       artnet.setReconnecting(false);
     },
-    onTrackChanged: (deck, fileName, rawNetworkPath) => {
-      const taskId = ++waveformTaskIds[deck];
-      const t0 = Date.now();
-      // Notify the replay engine first so it can attach/detach before any heavy I/O.
+    onTrackChanged: (deck, fileName) => {
       replay.onTrackChanged(deck, fileName);
       syncArtNetSource();
-      // Mapped backup-audio files are large and useless to scan — skip waveform/artwork.
-      if (replay.shouldSuppressWaveformExtraction(fileName)) {
-        logLifecycle(`[REPLAY] suppressing waveform extraction for mapped file "${fileName}"`);
-        return;
-      }
-      logLifecycle(`[WAVEFORM] onTrackChanged deck=${deck} file="${fileName}" inPlaylist=${activePlaylistFiles.has(fileName)}`);
-      if (!waveformAllTracks && !activePlaylistFiles.has(fileName)) return;
-
-      const havePeaksFrame = peaksFrameCache.has(fileName);
-      const haveArtworkFrame = artworkFrameCache.has(fileName);
-
-      if (havePeaksFrame && haveArtworkFrame) {
-        // Pure cache hit — frames are pre-serialized in the worker, broadcast is
-        // just a string lookup + ws.send fanout. Defer past the current microtask
-        // so the Art-Net poll pump can fire in between.
-        setImmediate(() => broadcastWaveformFrame(fileName));
-        setImmediate(() => broadcastArtworkFrame(fileName));
-        logLifecycle(`[WAVEFORM] track-change deck=${deck} cache-hit (peaks+artwork) total=${Date.now() - t0}ms`);
-        return;
-      }
-
-      // Cache miss for at least one of the two. Download once and ask the
-      // worker to extract whatever's missing — the audio bytes are transferred
-      // (zero-copy) into the worker; main thread does no ffmpeg / JSON work.
-      logWaveform(`[WAVEFORM] Deck ${deck}: queuing "${fileName}" peaksOnly=${havePeaksFrame ? false : true} (artworkOnly=${havePeaksFrame})`);
-
-      (async () => {
-        try {
-          if (!havePeaksFrame) broadcastWaveformStatus(deck, 'downloading', 0, fileName);
-          const tDlStart = Date.now();
-          const audioBytes = await bridge.downloadFile(rawNetworkPath, (pct) => {
-            if (waveformTaskIds[deck] !== taskId) return;
-            if (!havePeaksFrame) broadcastWaveformStatus(deck, 'downloading', pct, fileName);
-          });
-          const tDlDone = Date.now();
-
-          if (waveformTaskIds[deck] !== taskId) {
-            // Stale — but the worker will still finish and populate the cache for
-            // a future load of the same file. Nothing to clean up here.
-            return;
-          }
-          if (!havePeaksFrame) broadcastWaveformStatus(deck, 'generating', 0, fileName);
-
-          await requestExtraction(
-            fileName,
-            bridge.getDeck(deck).totalSec,
-            audioBytes,
-            havePeaksFrame, // artworkOnly
-            (stage, progress) => {
-              if (waveformTaskIds[deck] !== taskId) return;
-              if (stage === 'generating' && !havePeaksFrame) {
-                broadcastWaveformStatus(deck, 'generating', progress, fileName);
-              }
-            },
-          );
-          const tFfDone = Date.now();
-
-          if (waveformTaskIds[deck] !== taskId) return;
-          // setImmediate keeps consistency with the cache-hit path — broadcast lands
-          // in the next I/O phase, not this microtask tail.
-          if (!havePeaksFrame) setImmediate(() => broadcastWaveformFrame(fileName));
-          setImmediate(() => broadcastArtworkFrame(fileName));
-          logLifecycle(
-            `[WAVEFORM] track-change deck=${deck} download=${tDlDone - tDlStart}ms ` +
-            `extract=${tFfDone - tDlDone}ms total=${tFfDone - t0}ms`
-          );
-        } catch (e: any) {
-          if (waveformTaskIds[deck] !== taskId) return;
-          logError(`[WAVEFORM] Deck ${deck} failed:`, e?.message || e);
-          if (!havePeaksFrame) broadcastWaveformStatus(deck, 'error', 0, fileName);
-        }
-      })();
     },
+  });
+  media = new MediaCoordinator({
+    download: (id, progress, signal) => bridge.downloadFile(id, progress, signal),
+    eligible: fileName => !replay.shouldSuppressWaveformExtraction(fileName) &&
+      (waveformAllTracks || activePlaylistFiles.has(fileName)),
+    status: (deck, trackId, fileName, stage, progress) =>
+      broadcastMsg({ type: 'waveform_status', deck, trackId, fileName, stage, progress }),
+    frame: broadcastFrame,
   });
   const require = createRequire(import.meta.url);
 
@@ -1143,6 +1064,7 @@ async function main() {
       failed = true;
       logError('[REC] Shutdown failed:', error);
     }
+    await media.shutdown();
     const results = await Promise.allSettled([bridge.disconnect(), artnet.stop(), shutdownWaveformWorker()]);
     for (const result of results) {
       if (result.status === 'rejected') { failed = true; logError('[SHUTDOWN]', result.reason); }
@@ -1292,7 +1214,7 @@ async function main() {
     const currentDecks = stateProvider.getDecks();
     const sentFiles = new Set<string>();
     for (const [, deckState] of Object.entries(currentDecks)) {
-      const fn = deckState.fileName;
+      const fn = deckState.trackLoaded ? deckState.mediaId : "";
       if (!fn || sentFiles.has(fn)) continue;
       sentFiles.add(fn);
       const peaksFrame = peaksFrameCache.get(fn);
@@ -1339,6 +1261,7 @@ async function main() {
   let lastBroadcastWarnAt = 0;
   intervals.push(setInterval(() => {
     const decks = stateProvider.getDecks();
+    media.update(bridge.getDecks(), decks);
     const sourceSwitched = syncArtNetSource(decks);
 
     // Preserve the audio clock's source timestamps through replay; snapshot delivery

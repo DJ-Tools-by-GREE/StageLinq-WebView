@@ -1,3 +1,5 @@
+import { setTimeout as delay } from 'node:timers/promises';
+import { DOWNLOAD_SERVICE_POLL_MS, DOWNLOAD_SERVICE_WAIT_MS, MEDIA_MAX_AUDIO_BYTES } from './constants.js';
 import type { DeckNumber, DeckState, SourceTiming } from "./types.js";
 import path from "node:path";
 import { monotonicNowMs } from "./timecodeTimeline.js";
@@ -135,6 +137,7 @@ export class StageLinqBridge {
   private positionTrackId: Record<DeckNumber, string> = { 1: '', 2: '', 3: '', 4: '' };
   private positionRevision: Record<DeckNumber, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
   private transportRevision: Record<DeckNumber, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
+  private transportPlay: Partial<Record<DeckNumber, boolean>> = {};
   private watchdogInterval: NodeJS.Timeout | null = null;
 
   // Captured full net:// paths (before basename stripping) and change-tracking for onTrackChanged.
@@ -145,6 +148,7 @@ export class StageLinqBridge {
   private stageLinqDevices: any = null;
   // Serialize downloads per device: FileTransfer has a single shared buffer and cannot handle concurrent getFile() calls.
   private downloadQueues = new Map<string, Promise<void>>();
+  private downloadSession = new AbortController();
 
   // Subscribers fired synchronously from inside touch(). Used by the Recorder to capture
   // every state mutation at full bridge cadence.
@@ -164,6 +168,7 @@ export class StageLinqBridge {
       deck,
       trackLoaded: false,
       fileName: "",
+      mediaId: "",
       title: "—",
       artist: "—",
       elapsedSec: 0,
@@ -207,6 +212,7 @@ export class StageLinqBridge {
         this.clearKey(deck);
       }
       this.rawNetworkPaths[deck] = s;
+      this.decks[deck].mediaId = parseNetworkPath(s) ? s : "";
     }
   }
 
@@ -220,6 +226,7 @@ export class StageLinqBridge {
     const fn = this.decks[deck].fileName;
     const netPath = this.rawNetworkPaths[deck];
     if (!fn || !netPath) return;
+    this.decks[deck].mediaId = parseNetworkPath(netPath) ? netPath : "";
     if (netPath !== this.lastTriggeredTrackPaths[deck]) {
       this.lastTriggeredTrackPaths[deck] = netPath;
       this.decks[deck].hotCues = [];
@@ -235,8 +242,11 @@ export class StageLinqBridge {
   private unloadDeck(deck: DeckNumber) {
     this.explicitTrackLoaded[deck] = false;
     this.decks[deck].trackLoaded = false;
+    this.decks[deck].mediaId = "";
+    this.lastTriggeredTrackPaths[deck] = "";
     this.decks[deck].play = false;
     this.transportRevision[deck]++;
+    this.transportPlay[deck] = this.decks[deck].play;
     this.clearKey(deck);
   }
 
@@ -721,6 +731,7 @@ export class StageLinqBridge {
         if (typeof playing2 === "boolean") {
           ds.play = playing2;
           this.transportRevision[deck]++;
+          this.transportPlay[deck] = this.decks[deck].play;
           this.touch(deck);
           this.maybeLogPlayChange(deck, playing2);
         }
@@ -1063,6 +1074,7 @@ export class StageLinqBridge {
         if (typeof playing === "boolean") {
           ds.play = playing;
           this.transportRevision[deck]++;
+          this.transportPlay[deck] = this.decks[deck].play;
           this.maybeLogPlayChange(deck, playing);
         }
       }
@@ -1185,6 +1197,9 @@ export class StageLinqBridge {
   }
 
   private resetState() {
+    this.downloadSession.abort(new Error("StageLinq session ended"));
+    this.downloadSession = new AbortController();
+    this.downloadQueues.clear();
     for (const d of DECKS) {
       this.decks[d] = this.blankDeck(d);
       this.currentKeyCamelot[d] = null;
@@ -1257,6 +1272,7 @@ export class StageLinqBridge {
       positionAtMs: this.positionAtMs[deck],
       positionRevision: this.positionRevision[deck],
       transportRevision: this.transportRevision[deck],
+      transportPlay: this.transportPlay[deck],
       trackId: this.positionTrackId[deck],
     };
   }
@@ -1288,6 +1304,7 @@ export class StageLinqBridge {
   async downloadFile(
     netPath: string,
     onProgress: (pct: number) => void,
+    signal?: AbortSignal,
   ): Promise<Uint8Array> {
     const parsedPath = parseNetworkPath(netPath);
     if (!parsedPath || !parsedPath.sourceName || !parsedPath.folderPath) {
@@ -1295,42 +1312,46 @@ export class StageLinqBridge {
     }
     const deviceId = 'net://' + parsedPath.deviceUuid;
     const filePath = '/' + parsedPath.sourceName + '/' + parsedPath.folderPath;
-
-    logWaveform(`[WAVEFORM] downloadFile deviceId="${deviceId}" filePath="${filePath}"`);
-
-    // FileTransfer has a single shared buffer per device — concurrent getFile() calls corrupt
-    // each other's data. Serialize all downloads for the same device via a promise chain.
-    let result!: Uint8Array;
+    const sessionSignal = this.downloadSession.signal;
+    const combined = signal ? AbortSignal.any([signal, sessionSignal]) : sessionSignal;
+    combined.throwIfAborted();
+    const devices = this.stageLinqDevices;
     const prev = this.downloadQueues.get(deviceId) ?? Promise.resolve();
     const next = prev.then(async () => {
-      const POLL_MS = 500;
-      const TIMEOUT_MS = 30_000;
-      const deadline = Date.now() + TIMEOUT_MS;
-
+      combined.throwIfAborted();
+      const deadline = monotonicNowMs() + DOWNLOAD_SERVICE_WAIT_MS;
       while (true) {
-        const ft = this.stageLinqDevices?.getFileTransferService?.(deviceId);
+        combined.throwIfAborted();
+        const ft = devices?.getFileTransferService?.(deviceId);
         if (ft) {
           const handler = (progress: { percentComplete: number }) => {
-            onProgress(Math.round(progress.percentComplete));
+            if (!combined.aborted) onProgress(Math.round(progress.percentComplete));
           };
           ft.on('fileTransferProgress', handler);
           try {
-            result = await ft.getFile(filePath);
-            return;
+            return await ft.getFile(filePath, combined, MEDIA_MAX_AUDIO_BYTES);
           } finally {
             ft.off('fileTransferProgress', handler);
           }
         }
-
-        if (Date.now() >= deadline) {
-          throw new Error(`FileTransfer service not available for ${deviceId} after ${TIMEOUT_MS / 1000}s`);
+        if (monotonicNowMs() >= deadline) {
+          throw new Error('FileTransfer service not available for ' + deviceId + ' after ' + DOWNLOAD_SERVICE_WAIT_MS / 1000 + 's');
         }
-        logWaveform(`${YEL}[WAVEFORM] FileTransfer not ready yet for ${deviceId}, retrying in ${POLL_MS}ms…${RST}`);
-        await new Promise((r) => setTimeout(r, POLL_MS));
+        await delay(DOWNLOAD_SERVICE_POLL_MS, undefined, { signal: combined });
       }
     });
-    this.downloadQueues.set(deviceId, next.catch(() => {}));
-    await next;
-    return result;
+    const tail = next.then(() => {}, () => {});
+    this.downloadQueues.set(deviceId, tail);
+    void tail.then(() => {
+      if (this.downloadQueues.get(deviceId) === tail) this.downloadQueues.delete(deviceId);
+    });
+    // A queued abort settles promptly, but its tail still waits for the active
+    // transfer's cleanup before the next caller can enter shared protocol state.
+    return new Promise<Uint8Array>((resolve, reject) => {
+      const abort = () => reject(combined.reason);
+      combined.addEventListener('abort', abort, { once: true });
+      if (combined.aborted) abort();
+      void next.then(resolve, reject).finally(() => combined.removeEventListener('abort', abort));
+    });
   }
 }

@@ -168,3 +168,12 @@ test('a fresh position recovers from watchdog stop without requiring another tra
   close(resumed.frames, 318);
   assert.equal(resumed.freewheelActive, false);
 });
+
+test('recorded explicit transport survives starting at a watchdog display state', () => {
+  const engine = new TimecodeTimeline();
+  const state = deck(10, { play: false });
+  const source = timing(1000, 1, { transportPlay: true });
+  assert.equal(engine.tick(state, source, 1000, options).source.play, true);
+  close(engine.tick(state, source, 1100, options).frames, 303);
+  assert.equal(engine.tick(state, timing(1000, 1, { transportPlay: false, transportRevision: 2 }), 1200, options).frames, null);
+});

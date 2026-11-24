@@ -90,47 +90,47 @@ Original replay.ts initialized mappedAudioFiles empty and clears it on disarm, d
 
 Original replay.parseLog silently skipped malformed lines and arm accepted zero deck events/duration 0. A file containing only 'not a recording' returned ok=true and could replace outputs with blanks. Parser now requires a valid header and usable keyframe, checks finite event timestamps/keyframe positions and recorded offsets, supports version 1, and sorts deck events by time. Regression rejects the invalid log. More complete per-diff validation remains recommended in MR-29.
 
-## Remaining findings and suggested fixes
+## Follow-up findings and implementation status
 
-### MR-21 — Media cache identity is still only the basename (P2, proposed)
+### MR-21 — Media cache identity is still only the basename (P2, applied follow-up)
 
-worker waveformStem:45, inFlight:76, main frame maps:18-20 and index track hook use fileName. Different directories/devices can contain different files named track.mp3; caches and concurrent-job dedup then return the wrong artwork/peaks. Bridge agent fixes missing onTrackChanged for same-basename replacement, but cache identity and frontend filename-only payloads still need coordinated changes. Proposed fix: carry a stable full track identity (network/source/path plus size/version if available) through cache IPC and WS, separate from human filename; migrate/invalidate legacy basename cache entries. User judgment: confirm whether identical filenames across different media are intentionally treated as identical; default should be distinct identities. No evidence that the user's current library actually contains collisions.
+Full network identity flows through DeckState.mediaId, jobs, manifests, IPC, WS trackId and browser maps. Basenames remain display/playlist/replay keys. Legacy caches are ignored; same-path replacement still requires version/mtime metadata or manual invalidation. Collision/cold-replay tests cover this.
 
-### MR-22 — Artwork disk keys can exceed filesystem filename limits (P2, proposed)
+### MR-22 — Artwork disk keys can exceed filesystem filename limits (P2, applied follow-up)
 
-Original/current artworkStem hex-encodes the entire UTF-8 filename. A filename around 126 bytes becomes more than 255 bytes after hex plus extension, even though the audio filename itself is valid. Cache writes fail and artwork must be extracted again after every restart. Proposed fix: use a fixed digest, as waveformStem already does, and store the original identity in a manifest; read legacy hex keys during migration. No hardware/user-policy uncertainty.
+SHA256 identity names have fixed length even for long Unicode paths. Validated manifests retain the original identity. Long-name tests cover filesystem limits.
 
-### MR-23 — Stale artwork sentinel/extension siblings can win nondeterministically (P2, proposed)
+### MR-23 — Stale artwork sentinel/extension siblings can win nondeterministically (P2, applied follow-up)
 
-writeArtworkFile writes .none or .jpg/.png without deleting an old alternate. init reads all files concurrently into one key Map, so a stale .none can overwrite valid new artwork or vice versa depending on completion order. Proposed fix: atomically replace one versioned artwork manifest/blob reference, or remove alternate representations on successful replacement and impose deterministic precedence when reading legacy caches. Source-level proof; no runtime reproduction needed. No judgment required.
+One atomic versioned manifest stores positive/absent/missing artwork state with peaks. Legacy extension/sentinel siblings cannot override it. Transition/corruption tests cover deterministic replacement.
 
-### MR-24 — Media work and caches remain unbounded (P2, proposed)
+### MR-24 — Media work and caches remain unbounded (P2, applied follow-up)
 
-worker.init loads all disk cache entries via Promise.all; main retains serialized peaks, base64 artwork frames and raw artwork indefinitely. Each distinct extraction launches its own ffmpeg processes and retains input audio; per-file dedup is not a global concurrency limit. Large libraries/rapid uncached loads can exhaust file descriptors, RAM or CPU, and the boot path waits for all cache work before serving UI. Proposed fixes: bound extraction concurrency and startup I/O, make disk cache lazy with a byte-bounded in-memory LRU, and evict by track identity. The streaming PCM fix reduces per-job memory but does not solve these bounds. User judgment: choose an appropriate memory/disk budget for the show machine; do not invent unlimited retention as policy.
+Lazy startup avoids bulk reads. Backend/browser LRUs and count/byte admission limits bound retained media/work. MediaCoordinator bounds downloads before extraction and cancels obsolete tracks. Budgets are documented in README/integrity-followup.md; disk retention remains operator-controlled.
 
-### MR-25 — Recording does not capture config changes or complete timing provenance (P2, proposed)
+### MR-25 — Recording does not capture config changes or complete timing provenance (P2, applied follow-up)
 
-Recorder's header captures offsets once; hot reload may change offsets mid-show without recording an event. It records DeckState diffs only, so identical raw position heartbeats are absent and explicit transport messages cannot always be distinguished from watchdog-generated play=false. Applying the saved initial offsets fixes the common case, but cannot guarantee byte-identical reconstruction when config changes during the show or explain every legacy dropout. Proposed fix: version the log schema with offset/config-change events and source-timing/transport provenance, carrying enough heartbeat information without recording redundant full states; teach replay/simulator both schemas. User judgment: confirm whether replay follows historical configuration changes (recommended for faithful replay) or deliberately fixes offsets to the header.
+Schema v2 records monotonic event time, applied offsets/playlist references and position/explicit transport provenance, including equal-position heartbeats and transportPlay. Replay/simulator support v1/v2 and historical offset changes. Global output/freewheel settings remain live; missing legacy provenance cannot be reconstructed.
 
-### MR-26 — Recorder ignores backpressure and whole-log parsing can block show work (P2, proposed)
+### MR-26 — Recorder ignores backpressure and whole-log parsing can block show work (P2, applied follow-up)
 
-recorder.write:484 ignores WriteStream.write's false result, so slow/full external storage can grow its queued state data without a bound until the new error path finally triggers. findOrphan:147 and replay.parseLog:49 read/split complete logs; arm parses every mapping separately, even duplicate log references. Backward replay rewind:319 replays the entire prefix, which becomes O(prefix length) on every scrub update. Proposed fixes: a bounded recording queue that stops visibly rather than silently dropping show events, incremental/worker parsing with shared parsed logs, and indexed keyframes/checkpoints for seek. The 11MB/159k-event local sample completed quickly on this machine; these are scaling risks, not measured show stalls in this review. User judgment only for resource limits/overflow policy.
+Accepted writes honor drain/backpressure with an 8 MiB bound; overflow stops visibly and retains recovery state. Incremental cooperative parsing replaces whole-file text/split; duplicate mappings share parsed logs. Checkpoints every 1,024 deck events bound seek reconstruction. Parsed events remain in memory while armed.
 
-### MR-27 — Recording timestamps use an adjustable wall clock (P2, proposed)
+### MR-27 — Recording timestamps use an adjustable wall clock (P2, applied follow-up)
 
-recorder.tNow:459 and started/stopped durations use Date.now. A manual clock correction/NTP step can make event times go backward or insert a false gap; sorting replay events cannot restore the original order/elapsed semantics. Proposed fix: monotonic elapsed time within each process, retain wall-clock epoch only for labels and crash-gap estimation, and resume with a fixed offset plus monotonic elapsed time. No judgment required.
+Event elapsed time uses a monotonic clock with a fixed resume offset. Wall time labels files and estimates crash gaps from mtime. Clock-jump regression verifies order/duration remain stable.
 
-### MR-28 — Worker shutdown is still a timer, not a drain/cancel protocol (P2, proposed)
+### MR-28 — Worker shutdown is still a timer, not a drain/cancel protocol (P2, applied follow-up)
 
-waveformWorker shutdown:477-479 calls process.exit after 50ms; waveformService forces termination after 1s. Active ffmpeg processes/temporary writes are not tracked or explicitly cancelled, so a shutdown during long extraction may leave child processes/temp files or truncated cache artifacts. Root now awaiting shutdown improves orchestration, but does not make a 50ms delay a guaranteed flush. Proposed fix: stop accepting work, cancel/await tracked ffmpeg children and in-flight jobs, then acknowledge shutdown; keep a bounded final termination fallback. Also add ffmpeg execution deadlines so corrupt inputs cannot pin jobs indefinitely. No hardware uncertainty.
+Child-aware cancellation/shutdown tracks processes and temporary inputs, stops admission and drains cleanup. Two-minute deadlines and bounded worker termination have main-thread child/temp cleanup. Tests cover cancellation, stalled children and shutdown/restart.
 
-### MR-29 — Corrupt interior log diffs and caches are only partially validated (P2, proposed)
+### MR-29 — Corrupt interior log diffs and caches are only partially validated (P2, applied follow-up)
 
-Replay still silently skips malformed JSON lines and directly applies arbitrary diff values; a valid header/keyframe followed by malformed elapsed/play diff can poison output or conceal a damaged interval. Cache init accepts any array and does not validate key, finite peaks or sampling/version metadata. Proposed fix: validate at these file boundaries; allow known optional events/fields and a recoverable incomplete trailing line, but reject/report corrupt interior core events with line numbers. Version waveform cache format and reject non-finite/out-of-range peaks or sampling-density mismatch. No need to defensively revalidate all internal calls.
+The shared loader validates core deck/config/timing events and reports interior corruption with line numbers. Only a torn final line is recoverable; deliberately optional future events are allowed. Manifests validate version/identity/density, finite ranged peaks, artwork encoding/digest/MIME and sizes.
 
-### MR-30 — Artwork-only failures can persist a false no-artwork result (P2, proposed)
+### MR-30 — Artwork-only failures can persist a false no-artwork result (P2, applied follow-up)
 
-The ffmpeg fallback interprets any empty output as no artwork while discarding exit status/stderr. A valid container with no cover and a corrupt/unreadable/unsupported file can both become a persistent .none entry, especially on artwork-only jobs where no successful PCM decode validates the file. Proposed fix: preserve structured extraction outcome (present / confirmed absent / failed or unsupported) and cache absence only for a validated no-cover result. The parser-first replacement reduces dependence on this path but does not eliminate the distinction.
+metadata-connect remains first choice; parser rejection reaches ffprobe/ffmpeg fallback. Only validated no-cover inspection persists absence. Unsupported/broken artwork remains retryable; valid peaks can still return. Tests cover fallback and artwork-only failures.
 
 ### MR-31 — Cue extraction leaves stale cache entries when cues disappear (P2, proposed)
 

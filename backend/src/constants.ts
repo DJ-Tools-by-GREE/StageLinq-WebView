@@ -129,3 +129,28 @@ export const SHUTDOWN_TIMEOUT_MS = 10_000;
 export const WS_MAX_QUEUED_BYTES = 128 * 1024 * 1024;
 export const WS_MAX_QUEUED_FRAMES = 128;
 export const WS_SEND_TIMEOUT_MS = 30_000;
+
+// Full download-through-extraction jobs, including retained audio bytes.
+export const MEDIA_PIPELINE_CONCURRENCY = 2;
+export const DOWNLOAD_SERVICE_POLL_MS = 250;
+export const DOWNLOAD_SERVICE_WAIT_MS = 30_000;
+
+export const MEDIA_CACHE_MAX_BYTES = 128 * 1024 * 1024;
+export const MEDIA_CACHE_MAX_ENTRIES = 32;
+export const MEDIA_MAX_AUDIO_BYTES = 256 * 1024 * 1024;
+export const MEDIA_MAX_QUEUED_AUDIO_BYTES = 256 * 1024 * 1024;
+export const MEDIA_MAX_PENDING_JOBS = 8;
+export const MEDIA_EXTRACTION_CONCURRENCY = 1;
+export const MEDIA_MAX_PEAKS = 4 * 60 * 60 * WAVEFORM_PEAKS_PER_SEC;
+export const MEDIA_MAX_ARTWORK_BYTES = 16 * 1024 * 1024;
+export const MEDIA_MAX_MANIFEST_BYTES = 96 * 1024 * 1024;
+export const MEDIA_JOB_TIMEOUT_MS = 120_000;
+export const MEDIA_CHILD_KILL_GRACE_MS = 500;
+export const MEDIA_CANCEL_TIMEOUT_MS = 2_000;
+export const MEDIA_SHUTDOWN_TIMEOUT_MS = 5_000;
+
+export const RECORDING_MAX_PENDING_BYTES = 8 * 1024 * 1024;
+export const RECORDING_MAX_LINE_BYTES = 1024 * 1024;
+export const RECORDING_CHECKPOINT_EVENTS = 1024;
+export const MEDIA_PROCESS_STDERR_BYTES = 4 * 1024;
+export const MEDIA_MAX_PROBE_BYTES = 1024 * 1024;
