@@ -1,0 +1,146 @@
+VIDEO/AUDIO ALIGNMENT — 2026-11-26
+
+25 verified mappings and video.offsets_sec entries were prepared from 66 audio/video pairs.
+40 audio variants remain unmapped for review; one rejected Penny Lane AIFF source disappeared after analysis. Eleven of the 76 videos have no corresponding audio.
+The two original MP4s omitted from the MKV copy (Torfrock and Robin Schulz) were copied into videos/ and SHA-256 verified.
+
+USAGE
+videos/mappings.json contains only the verified filename pairs. config.json video.directory is videos, and video.offsets_sec holds the measured offsets.
+Positive offsets seek forward in the video: video position = audio position + offset. Video output remains disabled until enabled by the operator.
+Use Reload config for configuration changes, then Rescan videos if filenames/mappings change. Copy mappings.json with the media collection to another machine.
+
+VERIFIED PAIRS (seconds)
++0.386250  1966 06 Get Off Of My Cloud.flac
++2.843625  1967 09 Penny Lane.flac
++6.846125  1968 02 Judy in Disguise (with Glasses).flac
++0.690875  1971 02 My Sweet Lord.aiff; video unavailable for audio start 0.000 s / end 6.919 s
++4.681375  1975 0612 - Udo Jürgens - Griechischer Wein.flac; video unavailable for audio start 0.000 s / end 1.182 s
++1.745125  1976 ABBA - Arrival - 02 - Dancing Queen.flac; video unavailable for audio start 0.000 s / end 1.905 s
+-0.053375  1977 17 Smokie - Living Next Door to Alice.flac; video unavailable for audio start 0.053 s / end 2.013 s
+-0.283625  1989 01 - Lambada.flac; video unavailable for audio start 0.284 s / end 1.676 s
++0.296813  1994 Magic Affair - Omen III (single edit).flac; video unavailable for audio start 0.000 s / end 3.721 s
++1.814938  1995 Take That - Nobody Else - 02 - Back for Good (radio mix).flac; video unavailable for audio start 0.000 s / end 5.613 s
+-0.155375  1997 02 - Candle in the Wind 1997.flac; video unavailable for audio start 0.155 s / end 0.849 s
+-0.178750  1999 04 Eiffel 65 - Blue (Da Ba Dee).flac; video unavailable for audio start 0.179 s / end 0.000 s
++0.980250  2001 01. Can't Get You out of My Head.flac; video unavailable for audio start 0.000 s / end 2.455 s
++0.404500  2002 03 - Whenever, Wherever.flac; video unavailable for audio start 0.000 s / end 1.010 s
++6.001188  2004 01 Call on Me (radio edit).flac; video unavailable for audio start 0.000 s / end 3.068 s
++12.266000  2005 07. Juanes - La Camisa Negra.flac
++0.363250  2006 Sportfreunde Stiller - You Have to Win Zweikampf - 03 - '54, '74, '90, 2006.flac
++3.272125  2010 01 Satellite.aif
++2.092875  2015 577. Robin Schulz - Sugar (feat. Francesco Yates).flac
++2.430875  2016 14 - Don't Be So Shy (Filatov & Karas Remix).flac
++8.596250  2018 13. Calvin Harris - One Kiss.flac; video unavailable for audio start 0.000 s / end 0.363 s
++2.338375  2021 01 - Enter Sandman.flac; video unavailable for audio start 0.000 s / end 3.008 s
++0.024625  2022 25.DJ Robin & Schürze - Layla.flac
++23.239125  2023 01. Komet [Udo Lindenberg X Apache 207] [2m48s] [16bit 44.1KHz 2ch].flac
++3.331250  2025 4-12. Golden.flac
+
+UNMAPPED — REVIEW REQUIRED
+1966 229 - Dave Dee, Dozy, Beaky, Mick & Tich - Bend It.flac
+  No reliable waveform correspondence
+1966 8. Roy Black - Ganz in weiß.flac
+  No reliable waveform correspondence
+1967 01 - Let's Spend the Night Together-459b5e58f31b.flac
+  Video covers less than 95% of audio duration
+1967 penny lane-90ec92112e34.aiff
+  SOURCE NOW MISSING. No reliable waveform correspondence
+1968 01 - Those Were the Days.flac
+  No reliable waveform correspondence
+1968 06 - Bee Gees - Words.flac
+  No reliable waveform correspondence
+1969 (18) [Zager And Evans] In The Year 2525.flac
+  Interior windows disagree or do not match (different edit/recording); Window offsets vary by more than 75 ms; Measured timing drift exceeds 60 ms; Waveform match is too weak
+1969 10 - The Ballad of John and Yoko.flac
+  No reliable waveform correspondence
+1970 01 Whole Lotta Love-3d1fab2421ee.flac
+  Interior windows disagree or do not match (different edit/recording); Video covers less than 95% of audio duration; Matching evidence spans too little of the track; Window offsets vary by more than 75 ms; Measured timing drift exceeds 60 ms; Waveform match is too weak
+1970 09 - Soulful Dynamics, The - Mademoiselle Ninette.flac
+  Fewer than six independent matching windows; Interior windows disagree or do not match (different edit/recording); Matching evidence spans too little of the track
+1970 Mungo Jerry - Electronically Tested - 03 - In the Summertime.flac
+  No reliable waveform correspondence
+1972 43 Tony Christie - (Is This the Way to) Amarillo.flac
+  No reliable waveform correspondence
+1973 1-10 Ballroom Blitz.aif
+  No reliable waveform correspondence
+1973 15 - Les Humphries Singers - Mama Loo.flac
+  No reliable waveform correspondence
+1974 16 - Michael Holm - Tränen lügen nicht.flac
+  No reliable waveform correspondence
+1975 149 - Jean-Claude Borelly - Dolannes Melodie.flac
+  No reliable waveform correspondence
+1978 1-04 John Travolta & Olivia Newton‐John - You’re the One That I Want.flac
+  No reliable waveform correspondence
+1979 Blondie_Greatest Hits_04_Heart of Glass.flac
+  No reliable waveform correspondence
+1980 10 Xanadu.flac
+  No reliable waveform correspondence
+1981 01 Fade to Grey (original version).flac
+  No reliable waveform correspondence
+1981 06 Urgent.flac
+  No reliable waveform correspondence
+1982 13 - F.R. David - Words Don't Come Easy.mp3
+  No reliable waveform correspondence
+1983 02. Peter Schilling - Major Tom (völlig losgelöst).flac
+  No reliable waveform correspondence
+1984 01-12. The Wild Boys.flac
+  Interior windows disagree or do not match (different edit/recording); Window offsets vary by more than 75 ms; Measured timing drift exceeds 60 ms; Waveform match is too weak
+1984 Frankie Goes to Hollywood - Welcome to the Pleasuredome - 07-05 - Relax (Come Fighting).flac
+  No reliable waveform correspondence
+1985 Modern Talking - The Greatest Hits 1984-2002 - 01-01 - You're My Heart, You're My Soul.flac
+  Fewer than six independent matching windows; Interior windows disagree or do not match (different edit/recording); Video covers less than 95% of audio duration; Matching evidence spans too little of the track; Waveform match is too weak
+1986 18 Europe - The Final Countdown.flac
+  No reliable waveform correspondence
+1987 20. You Win Again.flac
+  No reliable waveform correspondence
+1988 17 Fat Boys _ Chubby Checker - The Twist (Yo, Twist).flac
+  Dense waveform validation found interior sections inconsistent with one offset
+1990 209-matthias_reim-verdammt_ich_lieb_dich.flac
+  No reliable waveform correspondence
+1991 01 - Beinhart - Torfrock.flac
+  No reliable waveform correspondence
+1992 Snap! - The Madman’s Return - 06 - Rhythm Is a Dancer.flac
+  Fewer than six independent matching windows; Interior windows disagree or do not match (different edit/recording); Video covers less than 95% of audio duration; Matching evidence spans too little of the track; Waveform match is too weak
+1993 Meat Loaf - Bat Out of Hell II - Back Into Hell… - 01 - I’d Do Anything for Love (but I Won’t Do That).flac
+  No reliable waveform correspondence
+1996 12 - Los del Rio - Macarena (Bayside Boys remix).flac
+  Window offsets vary by more than 75 ms; Measured timing drift exceeds 60 ms
+2000 02 - Anton aus Tirol.flac
+  Interior windows disagree or do not match (different edit/recording); Video covers less than 95% of audio duration; Waveform match is too weak
+2003 09 - No Angel (It's All In Your Mind).flac
+  Interior windows disagree or do not match (different edit/recording); Matching evidence spans too little of the track; Waveform match is too weak
+2009 2.4.Poker Face.flac
+  Video covers less than 95% of audio duration
+2014 04 Lovers on the Sun.flac
+  Interior windows disagree or do not match (different edit/recording); Window offsets vary by more than 75 ms; Measured timing drift exceeds 60 ms; Waveform match is too weak
+2017 Ed Sheeran_songs I wrote that almost didn’t make it_01_Shape of You.flac
+  Interior windows disagree or do not match (different edit/recording)
+2020 09. Blinding Lights.flac
+  Interior windows disagree or do not match (different edit/recording); Matching evidence spans too little of the track
+2026 03 Opalite.flac
+  Interior windows disagree or do not match (different edit/recording); Matching evidence spans too little of the track
+
+MISSING AUDIO
+1982 Spider Murphy Gang - Skandal Im Sperrbezirk • TopPop (via DW YouTube Downloader).mp4
+1984 Van Halen - Jump - Remastered 4K 60FPS (via DW YouTube Downloader).mp4
+1991 Scorpions - Wind Of Change (Official Music Video) (via DW YouTube Downloader).mp4
+1998 Aerosmith - I Don't Want to Miss a Thing (Official HD Video) (via DW YouTube Downloader).mp4
+2007 Wenn nicht jetzt, wann dann- (Weltmeister Version) (via DW YouTube Downloader).mp4
+2008 Kid Rock - All Summer Long [Official Music Video] (via DW YouTube Downloader).mp4
+2011 LMFAO - Party Rock Anthem ft. Lauren Bennett, GoonRock -- Lyrics + E (via DW YouTube Downloader).mp4
+2012 Die Toten Hosen -- „Tage wie diese [Offizielles Musikvideo] (via DW YouTube Downloader).mp4
+2013 Avicii - Wake Me Up (Official Video) (via DW YouTube Downloader).mp4
+2019 Mariah Carey - All I Want For Christmas Is You (Official Video) (via DW YouTube Downloader).mp4
+2024 The Emptiness Machine (Official Music Video) - Linkin Park (via DW YouTube Downloader).mp4
+
+METHOD AND LIMITS
+The first pass searches 19 independent 12-second spectral windows across each track, then refines matched positions using 3-second waveform correlation.
+Accepted candidates undergo a second pass of 3-second waveform windows every 2.5 seconds. At least 95% must match; consecutive interior failures reject a candidate.
+Constant-offset spread must stay within 75 ms and fitted drift within 60 ms. Reported offsets are best-fit constants; some analog/mastering differences leave residual timing errors.
+At least 95% of the audio duration must overlap the available video. Short fades/tails may be uncovered and produce black at video end; those ranges are listed above and in alignment.csv.
+Penny Lane FLAC passed; the AIFF copy drifts and stays unmapped. Fat Boys initially appeared constant but failed dense checks around audio 188–206 s.
+Different edits were detected in tracks including Shape of You, Blinding Lights and Opalite. Candidate offsets in the report are diagnostic and are never applied for rejected pairs.
+These measurements align the video soundtrack with the deck audio. Final NDI/display latency is separate and needs on-site calibration.
+The native macOS decoder/NDI output was not run here; AVFoundation compatibility, particularly VP9-in-MP4, needs the target Mac.
+alignment.json retains hashes, window matches, confidence metrics, decisions and method thresholds. alignment.csv is the spreadsheet summary. waveform-verified-*.png and waveform-review-*.png show the comparisons.
+The temporary analysis scripts and PCM caches are at C:\Users\Jan\AppData\Local\Temp\stagelinq-waveform-align-20261126.

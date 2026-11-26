@@ -1,0 +1,10 @@
+{
+    "videos_indexed": 76,
+    "mappings_verified": 25,
+    "offsets_verified": 25,
+    "unmapped_audio_variants": 41,
+    "configured_directory": "videos",
+    "video_enabled": false,
+    "native_output_started": false,
+    "offset_formula": "video position = audio position + offset"
+}

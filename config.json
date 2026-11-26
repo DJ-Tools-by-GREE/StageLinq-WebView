@@ -2,11 +2,37 @@
     "current_playlist": 0,
     "video": {
         "enabled": false,
-        "directory": "",
+        "directory": "videos",
         "ndi_name_prefix": "StageLinq",
         "output_format": "source",
         "latency_comp_ms": 0,
-        "offsets_sec": {}
+        "offsets_sec": {
+            "1966 06 Get Off Of My Cloud.flac": 0.38625,
+            "1967 09 Penny Lane.flac": 2.843625,
+            "1968 02 Judy in Disguise (with Glasses).flac": 6.846125,
+            "1971 02 My Sweet Lord.aiff": 0.690875,
+            "1975 0612 - Udo Jürgens - Griechischer Wein.flac": 4.681375,
+            "1976 ABBA - Arrival - 02 - Dancing Queen.flac": 1.745125,
+            "1977 17 Smokie - Living Next Door to Alice.flac": -0.053375,
+            "1989 01 - Lambada.flac": -0.283625,
+            "1994 Magic Affair - Omen III (single edit).flac": 0.296813,
+            "1995 Take That - Nobody Else - 02 - Back for Good (radio mix).flac": 1.814938,
+            "1997 02 - Candle in the Wind 1997.flac": -0.155375,
+            "1999 04 Eiffel 65 - Blue (Da Ba Dee).flac": -0.17875,
+            "2001 01. Can't Get You out of My Head.flac": 0.98025,
+            "2002 03 - Whenever, Wherever.flac": 0.4045,
+            "2004 01 Call on Me (radio edit).flac": 6.001188,
+            "2005 07. Juanes - La Camisa Negra.flac": 12.266,
+            "2006 Sportfreunde Stiller - You Have to Win Zweikampf - 03 - '54, '74, '90, 2006.flac": 0.36325,
+            "2010 01 Satellite.aif": 3.272125,
+            "2015 577. Robin Schulz - Sugar (feat. Francesco Yates).flac": 2.092875,
+            "2016 14 - Don't Be So Shy (Filatov & Karas Remix).flac": 2.430875,
+            "2018 13. Calvin Harris - One Kiss.flac": 8.59625,
+            "2021 01 - Enter Sandman.flac": 2.338375,
+            "2022 25.DJ Robin & Schürze - Layla.flac": 0.024625,
+            "2023 01. Komet [Udo Lindenberg X Apache 207] [2m48s] [16bit 44.1KHz 2ch].flac": 23.239125,
+            "2025 4-12. Golden.flac": 3.33125
+        }
     },
     "waveform": {
         "all_tracks": true

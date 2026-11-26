@@ -71,7 +71,8 @@ headers and runtime binaries are not included in this repository.
 
 ### Configuration and matching
 
-The checked-in configuration has video disabled with an empty folder. All
+The repository configuration has video disabled and points at the local
+`videos/` folder, with measured offsets for the prepared collection. All
 video fields are optional; this is an enabled example:
 
 ~~~json
@@ -90,8 +91,9 @@ video fields are optional; this is an enabled example:
 - **directory:** root folder plus every subfolder. Relative paths resolve
   against the configuration file's directory. Nested symbolic links are skipped
   to avoid cycles and unintended traversal. The repository-root `videos/`
-  folder is ignored by Git for local media; set `directory` to `videos` when
-  using that folder with a configuration file at the repository root.
+  folder keeps video media ignored by Git while allowing `mappings.json` to be
+  tracked; set `directory` to `videos` when using that folder with a
+  configuration file at the repository root.
 - **Matching:** optional `mappings.json` entries select explicit video paths.
   Otherwise Artist - Song.mp3 matches Artist - Song (Music Video).mp4.
   Automatic matching removes the audio extension; video stems and the suffix are case-sensitive.
@@ -141,6 +143,16 @@ segments and symbolic-link targets are rejected. The mapping file itself must
 be a regular file. Limits are 4 MiB and 10,000 entries, set in
 `backend/src/constants.ts`. Existing `offsets_sec` settings remain keyed by
 audio filename; mapping a video does not alter its alignment offset.
+
+The prepared collection contains **25 waveform-verified mappings**. Pairs with
+different edits, timing drift or an unconfirmed match remain unmapped. See the
+[alignment report](docs/video-alignment-2026-11-26/report.txt),
+[spreadsheet summary](docs/video-alignment-2026-11-26/alignment.csv) and
+[waveform plots](docs/video-alignment-2026-11-26/). Some short fades/tails extend
+beyond the video's duration and produce black; the report lists those ranges.
+Copy `mappings.json` with the complete video collection and retain the matching
+`video.offsets_sec` settings when moving to another computer. Content alignment
+is separate from final NDI/display latency calibration.
 
 MKV files are not indexed. For H.264/AAC sources, remux the primary video and
 audio into MP4 without re-encoding:

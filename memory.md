@@ -21,6 +21,48 @@ the player used filename matching only; MP4/M4V/MOV restrictions still apply.
 
 ## Architectural decisions
 
+### 2026-11-26 — Waveform-based video alignment
+
+The user requested commit/push of the mappings feature; commit `6bb7e21` is
+pushed to origin/main. They then requested a real `videos/mappings.json` and
+offsets measured from the video soundtrack against the prepared Soulseek audio.
+Only pairs that stay synchronized with one constant offset are to be mapped;
+the user explicitly chose to leave different edits/recordings unmapped for
+review. Preserve the source audio/video files. Offsets use the existing
+`video.offsets_sec` contract: video position = audio position + offset.
+The Torfrock and Robin Schulz source MP4s had not been included in the earlier
+MKV copy/remux operation. Both were copied into `videos/` without changing the
+originals and passed SHA-256 comparison, bringing the collection to 76 videos.
+
+Analyzed 66 audio variants. Wrote 25 verified filename pairs to
+`videos/mappings.json` and their measured offsets to `config.json` under
+`video.offsets_sec`; directory is now `videos` and output remains disabled.
+40 variants require review, one rejected Penny Lane AIFF disappeared from the
+audio folder during report generation, and 11 videos have no corresponding
+audio. The surviving Penny Lane FLAC is verified. Do not reinstate mappings for
+the rejected versions without resolving their edit/speed differences.
+
+Analysis uses timestamp-preserving 8 kHz PCM, 19 distributed spectral windows,
+waveform correlation refinement and dense 3-second checks every 2.5 seconds.
+Limits include 75 ms offset spread, 60 ms fitted drift and at least 95% matching
+dense windows. Synthetic positive/negative delays, an edited middle section,
+clock drift and a known +2 s AAC/MP4 timestamp delay validated the method/sign.
+ABBA is +1.745125 s, Juanes +12.266 s and Komet +23.239125 s, for example.
+Fat Boys failed dense checks near audio 188–206 s; Shape of You, Blinding Lights
+and Opalite have offset changes within the track. Other rejected recordings
+show drift, different structure or insufficient correspondence.
+
+`docs/video-alignment-2026-11-26/` contains report.txt, CSV/JSON confidence and
+per-window data, input hashes and eight waveform plot pages. The report records
+uncovered fades/tails and residual drift; final display/NDI latency and native
+Mac decoding remain separate deployment checks. Temporary scripts/PCM caches
+are in `%TEMP%/stagelinq-waveform-align-20261126`, with analysis dependencies in
+`%TEMP%/stagelinq-alignment-python`. No Python runtime dependency was added to
+WebView. Actual runtime-library checks index all 76 videos, resolve exactly 25
+mappings, apply all 25 offsets with the documented sign and leave rejected audio
+variants unmatched, without starting native output. The existing transfer ZIP
+predates alignment and remains a 74-video snapshot without these mappings.
+
 ### 2026-11-26 — Explicit video mappings
 
 The user authorized `mappings.json` support. An optional file at the configured

@@ -146,8 +146,9 @@ waveform-cache/
 artwork-cache/
 hotcue-cache/
 
-# Local video library and source files
-/videos/
+# Local video media; keep the portable filename mappings
+/videos/*
+!/videos/mappings.json
 
 # Recorded show logs (Record & Replay feature)
 #recordings/
