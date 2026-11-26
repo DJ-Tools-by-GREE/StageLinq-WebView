@@ -111,7 +111,8 @@ export default function VideoStatusPanel({ onOpenConfigEditor }: Props) {
       </div>
       <p className="settingHint">
         Each deck has its own silent NDI source and follows live or replayed tracks.
-        Changes in the config editor take effect after Save and Reload config. Rescan uses the active folder.
+        Changes in the config editor take effect after Save and Reload config. Rescan uses the active folder
+        and reloads its mappings.json file.
       </p>
       {loadError && <p role="alert" className="videoStatusError">Status unavailable: {loadError}</p>}
       {scanError && <p role="alert" className="videoStatusError">Rescan failed: {scanError}</p>}
@@ -125,8 +126,8 @@ export default function VideoStatusPanel({ onOpenConfigEditor }: Props) {
           {status.error && <p role="alert" className="videoStatusError">{status.error}</p>}
           {status.ambiguousMatches.length > 0 && (
             <details className="videoMatchConflicts">
-              <summary>{status.ambiguousMatches.length} tracks have duplicate video matches</summary>
-              <p className="settingHint">Keep one matching video per track, then rescan. These tracks remain black until the duplicate is resolved.</p>
+              <summary>{status.ambiguousMatches.length} filenames have duplicate automatic matches</summary>
+              <p className="settingHint">Select a video for each audio filename in mappings.json, or keep one matching video, then rescan. Tracks without an explicit mapping remain black when their automatic match is ambiguous.</p>
               <ul>{status.ambiguousMatches.map(name => <li key={name}>{name}</li>)}</ul>
             </details>
           )}

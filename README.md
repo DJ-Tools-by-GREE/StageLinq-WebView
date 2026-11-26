@@ -89,9 +89,12 @@ video fields are optional; this is an enabled example:
 
 - **directory:** root folder plus every subfolder. Relative paths resolve
   against the configuration file's directory. Nested symbolic links are skipped
-  to avoid cycles and unintended traversal.
-- **Matching:** Artist - Song.mp3 matches Artist - Song (Music Video).mp4.
-  Audio extensions are removed; video stems and the suffix are case-sensitive.
+  to avoid cycles and unintended traversal. The repository-root `videos/`
+  folder is ignored by Git for local media; set `directory` to `videos` when
+  using that folder with a configuration file at the repository root.
+- **Matching:** optional `mappings.json` entries select explicit video paths.
+  Otherwise Artist - Song.mp3 matches Artist - Song (Music Video).mp4.
+  Automatic matching removes the audio extension; video stems and the suffix are case-sensitive.
   MP4, M4V and MOV extensions are accepted case-insensitively; codecs must be
   supported by macOS AVFoundation. Multiple matches remain black and are
   reported for resolution, rather than selecting an arbitrary file.
@@ -109,6 +112,48 @@ video fields are optional; this is an enabled example:
 - **latency_comp_ms:** positive values advance the video to compensate for
   NDI receiver, rendering and display delay. Calibrate against the final
   display; this is separate from the content alignment offset.
+
+To use different audio and video filenames, create `mappings.json` at the
+root of the configured video folder:
+
+~~~json
+{
+  "2021 01 - Enter Sandman.flac": "Metallica video.mp4",
+  "Artist - Song.mp3": "Concerts/Alternate edit.mov",
+  "Artist - Song.flac": "Original clip.mp4"
+}
+~~~
+
+Keys are exact, case-sensitive audio basenames **including extensions**.
+Values are exact, case-sensitive paths relative to the video folder; use forward
+slashes for subfolders on both Windows and macOS. Mapped videos can have any
+filename and do not need the ` (Music Video)` suffix. Multiple audio filenames
+may map to the same video. All supported video files are indexed; unmapped
+tracks retain automatic filename matching, including duplicate-match detection.
+Explicit entries override automatic matches, including ambiguous ones.
+
+Use **Settings → Video / NDI → Rescan videos** after editing, adding or removing
+`mappings.json`; config reload also reads it. A missing mapping file or `{}`
+enables automatic matching alone. Invalid JSON, duplicate keys, invalid audio
+filenames, missing videos and unsupported containers reject the entire rescan
+or reload and preserve the previous working catalog. Absolute paths, `..` path
+segments and symbolic-link targets are rejected. The mapping file itself must
+be a regular file. Limits are 4 MiB and 10,000 entries, set in
+`backend/src/constants.ts`. Existing `offsets_sec` settings remain keyed by
+audio filename; mapping a video does not alter its alignment offset.
+
+MKV files are not indexed. For H.264/AAC sources, remux the primary video and
+audio into MP4 without re-encoding:
+
+~~~sh
+ffmpeg -n -i "input.mkv" -map 0:v:0 -map "0:a:0?" -c copy -movflags +faststart "Artist - Song (Music Video).mp4"
+~~~
+
+This preserves video/audio quality and omits attached cover images. Other
+codecs, including VP9, still need playback validation with the native helper's
+`--probe <file> [positionSec]` on the target Mac; MP4 remuxing alone does not
+establish decoder compatibility. Select the converted file with `mappings.json`
+or use the automatic filename convention above.
 
 The helper follows play/pause, normal pitch changes, cue jumps and loops.
 Scratching and reverse are not supported. Pause, missing/ambiguous files,
@@ -130,7 +175,7 @@ provides a fixed-format alternative. The existing unpitched-backup guidance
 for Record & Replay still applies.
 
 **REST:** GET /api/video/status returns runtime/library and per-deck status.
-POST /api/video/rescan rescans the active folder and returns
+POST /api/video/rescan rescans the active folder, reloads its `mappings.json` and returns
 { ok: true, status: VideoStatus }; errors preserve the previous active catalog.
 
 **Validation:** run npm test for backend/frontend regressions. On macOS, run
@@ -208,9 +253,11 @@ Writes honor stream backpressure with an 8 MiB accepted-data bound (1 MiB per ev
 
 ## Install
 
-Keep this repository beside the StageLinq checkout. Both WebView workspaces
-resolve @gree44/stagelinq from ../StageLinq. Install and build that package
-first, then install WebView from its lockfile.
+Keep this repository beside the [DJ-Tools-by-GREE/StageLinq](https://github.com/DJ-Tools-by-GREE/StageLinq)
+checkout, named `StageLinq`. Both WebView workspaces resolve `@gree44/stagelinq`
+from `../StageLinq`, including unpublished local source changes. No npm release
+of the fork is needed. Install and build that package first, then install WebView
+from its lockfile.
 
 ```bash
 npm ci --prefix ../StageLinq

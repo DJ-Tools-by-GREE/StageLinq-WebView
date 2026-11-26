@@ -28,6 +28,7 @@ export interface VideoLibraryIssue {
 export interface VideoLibrary {
   directory: string | null;
   files: VideoFile[];
+  byAudioFile: Map<string, VideoFile>;
   byStem: Map<string, VideoFile>;
   ambiguous: Map<string, VideoFile[]>;
   issues: VideoLibraryIssue[];

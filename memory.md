@@ -5,7 +5,89 @@ decision/bug-confirmation/direction change (per CLAUDE.md).
 
 ---
 
+## Media preparation — 2026-11-26
+
+The user confirmed all 76 year-prefixed videos in
+`C:\Users\Jan\OneDrive\60\musik` as the scope, excluding `Timeline 1.mov`.
+Moved 66 matching top-level Soulseek audio files (65 video songs, two Penny Lane
+copies) into `C:\Users\Jan\OneDrive\DJing\Soulseek\60 Video Audio`, prefixing
+each original audio filename with the year from its video. SHA-256 hashes before
+and after the moves match. The folder contains `audio-video-manifest.csv`,
+`missing-audio-and-notes.txt` (11 missing songs), and `move-verification.json`.
+The existing `Wrong versions` subfolder and all video files were left untouched.
+Song associations do not establish matching edits or timing; the manifest
+includes available durations and video probe failures. At preparation time,
+the player used filename matching only; MP4/M4V/MOV restrictions still apply.
+
 ## Architectural decisions
+
+### 2026-11-26 — Explicit video mappings
+
+The user authorized `mappings.json` support. An optional file at the configured
+video-folder root maps exact, case-sensitive audio basenames including extensions
+to relative video paths using forward slashes. Explicit entries take priority;
+unmapped tracks retain the existing audio-stem plus ` (Music Video)` convention.
+Index supported videos regardless of naming. Validate bounded input, duplicate
+keys and targets against the scanned catalog; reject malformed mappings, missing
+targets, unsupported containers and paths outside the folder or through symlinks.
+Rescan/config reload must prepare the entire catalog and mappings before replacing
+the working snapshot. No video config schema or native decoding/timing changes
+are needed. Implemented the loader, exact lookup and scan integration, operator
+hints and README format/reload instructions. Invalid mappings preserve playing
+generations; changing a target invalidates only the affected video generations.
+
+Validation: strict type-check of the backend video dependency graph passed in
+`%TEMP%/stagelinq-video-mappings-validation` with the declared jsonc-parser and
+Node types. The two changed UI components also passed a focused strict check.
+29 library/service tests passed there, including directory-junction rejection.
+Two file-symlink tests could not create fixtures (Windows EPERM) and were excluded
+from that successful run after confirming the permission failures.
+Initial full `npm run build` and `npm test` attempts failed on stale installed
+dependencies and the sibling checkout then containing upstream 3.0.4. The user
+confirmed use of the local DJ-Tools-by-GREE repository because the latest fork
+cannot currently be published. `../StageLinq` now contains that fork at 3.5.7,
+with its expected transfer-integrity changes. Restore dependencies in the sibling
+first, then WebView, and validate against the local link. No registry publication
+is needed for the StageLinq dependency.
+
+Restored both dependency trees with `npm ci` in that order. WebView now resolves
+`node_modules/@gree44/stagelinq` as a junction to `../StageLinq`, version 3.5.7.
+The full root production build passes (StageLinq, frontend type-check/Vite and
+backend); the native macOS helper build is intentionally skipped on Windows.
+32 focused video-library/service/frontend-config tests pass in the actual
+checkout, excluding the two permission-blocked file-symlink fixtures. The full
+`npm test` run has 163 passes and 25 failures on Windows: POSIX executable
+FFmpeg/helper fixtures cannot be spawned, symlink creation fails with EPERM,
+and the HTTP shutdown test expects POSIX SIGTERM handling. These platform
+limitations remain; no runtime/test changes were made to suppress them. The
+local dependency manifests and lockfile already matched and were not changed.
+
+### 2026-11-26 — Local video source collection
+
+The repository-root `videos/` directory is ignored by Git for local video media.
+The user requested copies of all MKV files from
+`C:\Users\Jan\OneDrive\60\musik`, retaining the source files and filenames.
+All 74 files (2,443,433,418 bytes) were copied and each source/copy pair passed
+SHA256 verification. The user then requested MP4 conversion and removal of the
+MKV copies from `videos/`. All 74 were losslessly remuxed into MP4
+(2,446,315,887 bytes total), preserving basenames and changing only the extension.
+Each primary video/audio stream passed SHA256, packet-count and codec/property
+comparison before its local MKV was removed. No MKV copies remain in `videos/`;
+the OneDrive originals are untouched. Verification details are in the temporary
+local artifact `C:\Users\Jan\AppData\Local\Temp\stagelinq-remux-2Z29ax\verification.json`.
+
+The user requested a transfer archive for another machine. Created
+`C:\Users\Jan\Downloads\StageLinq-videos.zip` (2,446,708,870 bytes), containing
+all 74 MP4s under `videos/`, with UTF-8 filenames and forward-slash ZIP paths.
+Each archived file passed SHA256 comparison with its local MP4; the ZIP's final
+SHA256 is `531486F7B2A8F8F8C03C1FF88EFB8E698F20CDDF14C1F98E865C6AF91FDB8BAD`.
+
+ffprobe found 37 H.264 and 37 VP9 primary video streams, all
+with AAC audio; 48 files also have MJPEG cover images. H.264/AAC can be remuxed
+into MP4 without re-encoding the primary video or audio. VP9-in-MP4 requires
+validation using the native helper's `--probe` on the target Mac; changing the
+container does not establish AVFoundation compatibility. The converted video
+basenames can be referenced directly by the player's explicit video mappings.
 
 ### 2026-11-24 — Local StageLinq dependency
 

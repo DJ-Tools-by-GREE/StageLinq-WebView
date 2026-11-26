@@ -59,8 +59,9 @@ export function VideoEditor({ config, onChange }: Props) {
               <input type="text" value={video.directory} placeholder="/Volumes/Show/Videos" onChange={event => update({ directory: event.target.value })} />
             </label>
             <p className="hint">
-              Includes every subfolder. <code>Artist - Song.mp3</code> matches <code>Artist - Song (Music Video).mp4</code>,
-              or another supported video extension. Duplicate matches are reported for review.
+              Includes every subfolder. Put <code>mappings.json</code> in this folder to map exact audio filenames,
+              including extensions, to relative video paths. Unmapped tracks use <code>Artist - Song.mp3</code> →{' '}
+              <code>Artist - Song (Music Video).mp4</code>, or another supported video extension.
             </p>
           </div>
           <div className="settings-card">

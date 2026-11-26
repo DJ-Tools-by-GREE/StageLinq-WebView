@@ -148,6 +148,59 @@ test('failed folder reload preserves the running renderer and successful rescan 
   assert.equal(service.getStatus().decks[1].state, 'unmatched');
 });
 
+test('mapping rescans preserve active playback on errors and switch only affected deck generations', async t => {
+  const { directory, config } = await fixture(t);
+  const alternate = path.join(directory, 'alternate.mp4');
+  const mappingPath = path.join(directory, 'mappings.json');
+  await fs.writeFile(alternate, 'alternate edit');
+  const mock = renderers();
+  const service = new VideoService(mock.factory);
+  t.after(() => service.shutdown());
+  config.offsets_sec['Song.mp3'] = 2;
+  await service.configure(config, directory);
+  const states = allDecks(), timings = allTimings();
+  states[2] = deck(2, { fileName: 'Song.wav', mediaId: 'net://device/USB/Song.wav' });
+  timings[2] = timing({ trackId: states[2].mediaId });
+  const renderer = mock.instances[0];
+  service.update(states, timings, false, 1000);
+  const original = renderer.sent.at(-1).commands;
+  await fs.writeFile(mappingPath, JSON.stringify({ 'Song.mp3': 'alternate.mp4' }));
+  await service.rescan();
+  service.update(states, timings, false, 1000);
+  const mapped = renderer.sent.at(-1).commands;
+  assert.equal(mapped[0].path, alternate);
+  assert.notEqual(mapped[0].generation, original[0].generation);
+  assert.equal(mapped[0].positionSec, 12);
+  assert.deepEqual(mapped[1], original[1]);
+  assert.equal(service.getStatus().decks[1].video, 'alternate.mp4');
+  assert.equal(mock.instances.length, 1);
+  renderer.callbacks.status({ deck: 1, generation: original[0].generation, state: 'error', error: 'obsolete decoder' });
+  service.update(states, timings, false, 1000);
+  assert.equal(service.getStatus().decks[1].state, 'loading');
+  renderer.callbacks.status({ deck: 1, generation: mapped[0].generation, state: 'playing' });
+  for (const content of ['{', JSON.stringify({ 'Song.mp3': 'missing.mp4' })]) {
+    await fs.writeFile(mappingPath, content);
+    await assert.rejects(service.rescan(), /mappings\.json/);
+    await assert.rejects(service.configure(config, directory), /mappings\.json/);
+    service.update(states, timings, false, 1000);
+    assert.deepEqual(renderer.sent.at(-1).commands, mapped);
+    assert.equal(service.getStatus().decks[1].state, 'playing');
+    assert.equal(renderer.stops, 0);
+  }
+  await fs.writeFile(mappingPath, JSON.stringify({ 'Song.mp3': 'alternate.mp4' }));
+  await service.rescan();
+  service.update(states, timings, false, 1000);
+  assert.deepEqual(renderer.sent.at(-1).commands, mapped);
+  service.update(states, timings, true, 1000);
+  const replay = renderer.sent.at(-1).commands;
+  assert.equal(replay[0].path, alternate);
+  assert.notEqual(replay[0].generation, mapped[0].generation);
+  await fs.unlink(mappingPath);
+  await service.rescan();
+  service.update(states, timings, false, 1000);
+  assert.deepEqual(renderer.sent.at(-1).commands, original);
+});
+
 test('resume waits for a new source position, while a fresh position can follow a hot cue or loop jump', async t => {
   const { directory, config } = await fixture(t);
   const mock = renderers();

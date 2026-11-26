@@ -4,6 +4,7 @@ import {
   VIDEO_LIBRARY_MAX_DEPTH, VIDEO_LIBRARY_MAX_ENTRIES, VIDEO_LIBRARY_MAX_FILES, VIDEO_LIBRARY_MAX_ISSUES,
 } from './constants.js';
 import type { VideoConfig, VideoFile, VideoLibrary, VideoLibraryIssue, VideoMatch } from './videoTypes.js';
+import { readVideoMappings } from './videoMappings.js';
 
 const suffix = ' (Music Video)';
 const extensions = new Set(['.mp4', '.m4v', '.mov']);
@@ -11,7 +12,7 @@ const compare = (a: string, b: string): number => a < b ? -1 : a > b ? 1 : 0;
 const compareIssue = (a: VideoLibraryIssue, b: VideoLibraryIssue): number => compare(a.paths[0] ?? '', b.paths[0] ?? '') || compare(a.code, b.code);
 
 export function emptyVideoLibrary(): VideoLibrary {
-  return { directory: null, files: [], byStem: new Map(), ambiguous: new Map(), issues: [], issueCount: 0, scannedEntries: 0, scannedAt: Date.now() };
+  return { directory: null, files: [], byAudioFile: new Map(), byStem: new Map(), ambiguous: new Map(), issues: [], issueCount: 0, scannedEntries: 0, scannedAt: Date.now() };
 }
 
 export function audioVideoStem(audioFileName: string): string {
@@ -19,6 +20,8 @@ export function audioVideoStem(audioFileName: string): string {
 }
 
 export function findVideo(library: VideoLibrary, audioFileName: string): VideoMatch {
+  const mapped = library.byAudioFile.get(path.basename(audioFileName.trim()));
+  if (mapped) return { kind: 'matched', file: mapped };
   const stem = audioVideoStem(audioFileName);
   const ambiguous = library.ambiguous.get(stem);
   if (ambiguous) return { kind: 'ambiguous', files: ambiguous };
@@ -41,6 +44,7 @@ export async function scanVideoLibrary(config: VideoConfig, baseDir: string, sig
     const root = await fs.realpath(configuredDirectory);
     if (!(await fs.stat(root)).isDirectory()) throw new Error('not a directory');
     library.directory = root;
+    const mappings = await readVideoMappings(root, signal);
     const pending = [{ directory: root, depth: 0 }];
     while (pending.length) {
       signal?.throwIfAborted();
@@ -72,12 +76,12 @@ export async function scanVideoLibrary(config: VideoConfig, baseDir: string, sig
         }
         if (!entry.isFile()) continue;
         const parsed = path.parse(entry.name);
-        if (!parsed.name.endsWith(suffix) || parsed.name.length === suffix.length) continue;
+        const automatic = parsed.name.endsWith(suffix) && parsed.name.length > suffix.length;
         if (!extensions.has(parsed.ext.toLowerCase())) {
-          report({ code: 'unsupported', message: 'Video container is unsupported; use MP4, M4V, or MOV', paths: [relative] });
+          if (automatic) report({ code: 'unsupported', message: 'Video container is unsupported; use MP4, M4V, or MOV', paths: [relative] });
           continue;
         }
-        if (library.files.length >= VIDEO_LIBRARY_MAX_FILES) throw new Error(`scan exceeds ${VIDEO_LIBRARY_MAX_FILES} matching video files`);
+        if (library.files.length >= VIDEO_LIBRARY_MAX_FILES) throw new Error(`scan exceeds ${VIDEO_LIBRARY_MAX_FILES} video files`);
         const stat = await fs.lstat(absolute);
         if (stat.isSymbolicLink()) {
           report({ code: 'symlink', message: 'Symbolic link skipped', paths: [relative] });
@@ -85,13 +89,25 @@ export async function scanVideoLibrary(config: VideoConfig, baseDir: string, sig
         }
         if (!stat.isFile()) throw new Error(`video changed during scan: ${relative}`);
         library.files.push({
-          stem: parsed.name.slice(0, -suffix.length), fileName: entry.name, path: absolute, relativePath: relative,
+          stem: automatic ? parsed.name.slice(0, -suffix.length) : parsed.name, fileName: entry.name, path: absolute, relativePath: relative,
           sizeBytes: stat.size, modifiedAtMs: stat.mtimeMs, version: `${stat.dev}:${stat.ino}:${stat.size}:${stat.mtimeMs}`,
         });
       }
     }
     library.files.sort((a, b) => compare(a.relativePath, b.relativePath));
+    const byRelativePath = new Map(library.files.map(file => [file.relativePath.split(path.sep).join('/'), file]));
+    for (const [audio, relative] of mappings) {
+      signal?.throwIfAborted();
+      if (!extensions.has(path.posix.extname(relative).toLowerCase())) {
+        throw new Error(`mappings.json[${JSON.stringify(audio)}] uses an unsupported video container; use MP4, M4V, or MOV`);
+      }
+      const file = byRelativePath.get(relative);
+      if (!file) throw new Error(`mappings.json[${JSON.stringify(audio)}] video was not found in the scanned folder: ${relative}`);
+      library.byAudioFile.set(audio, file);
+    }
     for (const file of library.files) {
+      const name = path.parse(file.fileName).name;
+      if (!name.endsWith(suffix) || name.length === suffix.length) continue;
       const ambiguous = library.ambiguous.get(file.stem);
       if (ambiguous) {
         ambiguous.push(file);
@@ -106,7 +122,7 @@ export async function scanVideoLibrary(config: VideoConfig, baseDir: string, sig
       }
     }
     for (const [stem, files] of library.ambiguous) {
-      report({ code: 'ambiguous', message: `Multiple videos match ${stem}; no video will be selected`, paths: files.map(file => file.relativePath) });
+      report({ code: 'ambiguous', message: `Multiple videos automatically match ${stem}; select a video with mappings.json`, paths: files.map(file => file.relativePath) });
     }
     library.scannedAt = Date.now();
     return library;

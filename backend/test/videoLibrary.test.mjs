@@ -6,7 +6,10 @@ import test from 'node:test';
 import { parseVideoConfig } from '../dist/videoConfig.js';
 import { emptyVideoLibrary, findVideo, scanVideoLibrary } from '../dist/videoLibrary.js';
 import { parseConfig, validateConfig } from '../dist/jsonFile.js';
-import { VIDEO_LIBRARY_MAX_DEPTH, VIDEO_LIBRARY_MAX_ISSUES, VIDEO_MAX_NDI_PREFIX_BYTES, VIDEO_MAX_OFFSET_ENTRIES } from '../dist/constants.js';
+import {
+  VIDEO_LIBRARY_MAX_DEPTH, VIDEO_LIBRARY_MAX_ISSUES, VIDEO_MAX_NDI_PREFIX_BYTES, VIDEO_MAX_OFFSET_ENTRIES,
+  VIDEO_MAPPINGS_MAX_BYTES, VIDEO_MAPPINGS_MAX_ENTRIES,
+} from '../dist/constants.js';
 
 async function fixture(t) {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'slwv-video-library-'));
@@ -72,7 +75,7 @@ test('recursive matching removes only the audio extension and keeps stems case-s
   await file('videos/readme.txt');
   const library = await scanVideoLibrary(config('videos'), directory);
   assert.equal(library.directory, await fs.realpath(path.join(directory, 'videos')));
-  assert.equal(library.files.length, 5);
+  assert.equal(library.files.length, 7);
   assert.deepEqual(library.files.map(v => v.relativePath), [...library.files.map(v => v.relativePath)].sort());
   assert.equal(findVideo(library, 'Artist - Song.mp3').kind, 'matched');
   assert.equal(findVideo(library, 'net://device/USB/Music/Track.v2.flac').file.stem, 'Track.v2');
@@ -81,6 +84,7 @@ test('recursive matching removes only the audio extension and keeps stems case-s
   assert.equal(findVideo(library, 'song.mp3').kind, 'matched');
   assert.equal(findVideo(library, 'Song.mp3').kind, 'missing');
   assert.equal(findVideo(library, 'Unsupported.mp3').kind, 'missing');
+  assert.equal(findVideo(library, 'No match (music video).mp3').kind, 'missing');
   assert.equal(findVideo(library, '').kind, 'missing');
   assert.deepEqual(library.issues.map(issue => issue.code), ['unsupported']);
   assert.equal(library.issueCount, 1);
@@ -95,7 +99,7 @@ test('same-stem video files in different folders or formats stay explicitly ambi
   assert.equal(library.byStem.has('Song'), false);
   const result = findVideo(library, 'Song.mp3');
   assert.equal(result.kind, 'ambiguous');
-  assert.deepEqual(result.files.map(f => f.relativePath), ['a/Song (Music Video).m4v', 'a/Song (Music Video).mov', 'z/Song (Music Video).mp4']);
+  assert.deepEqual(result.files.map(f => f.relativePath), [path.join('a', 'Song (Music Video).m4v'), path.join('a', 'Song (Music Video).mov'), path.join('z', 'Song (Music Video).mp4')]);
   assert.equal(library.issues[0].code, 'ambiguous');
   assert.equal(library.issues[0].paths.length, 3);
 });
@@ -165,4 +169,130 @@ test('scan cancellation rejects before returning a partial catalog', async t => 
   const scanning = scanVideoLibrary(config(directory), directory, controller.signal);
   controller.abort();
   await assert.rejects(scanning, { name: 'AbortError' });
+});
+
+test('explicit mappings select arbitrary video paths by exact audio basename and extension', async t => {
+  const { directory, file } = await fixture(t);
+  const chosen = await file('videos/nested/曲🎵 Live.MP4');
+  const alternate = await file('videos/other edit.mov');
+  await file('videos/Fallback (Music Video).mp4');
+  await file('videos/Song (Music Video).mp4');
+  await file('videos/Song (Music Video).mov');
+  await file('videos/nested/mappings.json', 'ignored: only the root mapping file is used');
+  await file('videos/mappings.json', '\uFEFF' + JSON.stringify({
+    'Song.mp3': 'nested/曲🎵 Live.MP4',
+    'Song.wav': 'other edit.mov',
+    'Only.flac': 'nested/曲🎵 Live.MP4',
+    'Fallback.mp3': 'other edit.mov',
+    '__proto__.mp3': 'other edit.mov',
+  }));
+  const library = await scanVideoLibrary(config('videos'), directory);
+  assert.equal(library.files.length, 5);
+  assert.equal(findVideo(library, 'net://device/USB/Song.mp3').file.path, chosen);
+  assert.equal(findVideo(library, 'Song.wav').file.path, alternate);
+  assert.equal(findVideo(library, 'Song.flac').kind, 'ambiguous');
+  assert.equal(findVideo(library, 'Only.flac').file, findVideo(library, 'Song.mp3').file);
+  assert.equal(findVideo(library, 'Only.FLAC').kind, 'missing');
+  assert.equal(findVideo(library, 'only.flac').kind, 'missing');
+  assert.equal(findVideo(library, 'Fallback.mp3').file.path, alternate);
+  assert.equal(findVideo(library, 'Fallback.flac').file.stem, 'Fallback');
+  assert.equal(findVideo(library, '__proto__.mp3').file.path, alternate);
+});
+
+test('malformed mappings and duplicate audio keys fail with an actionable mapping error', async t => {
+  const { directory, file } = await fixture(t);
+  await file('clip.mp4');
+  const invalid = ['', '{', 'null', '[]', 'true', '"mapping"',
+    '{"Song.mp3":"clip.mp4",}',
+    '{/* comment */ "Song.mp3":"clip.mp4"}',
+    '{"Song.mp3":"clip.mp4","Song.mp3":"clip.mp4"}',
+    '{"Song.mp3":"clip.mp4","Song\\u002emp3":"clip.mp4"}',
+    ...[null, false, 2, [], {}].map(value => JSON.stringify({ 'Song.mp3': value })),
+  ];
+  for (const content of invalid) {
+    await file('mappings.json', content);
+    await assert.rejects(scanVideoLibrary(config(directory), directory), /mappings\.json/, `accepted ${content}`);
+  }
+  await file('mappings.json', '{"Song.mp3":"clip.mp4","Song.mp3":"clip.mp4"}');
+  await assert.rejects(scanVideoLibrary(config(directory), directory), /Duplicate audio filename/);
+  await file('mappings.json', '{}');
+  const empty = await scanVideoLibrary(config(directory), directory);
+  assert.equal(empty.byAudioFile.size, 0);
+});
+
+test('mapping keys and target paths cannot escape their basename and video-folder contracts', async t => {
+  const { directory, file } = await fixture(t);
+  await file('clip.mp4');
+  const keys = ['', 'Song', 'Song.', '.mp3', ' Song.mp3', 'Song.mp3 ',
+    'folder/Song.mp3', 'folder\\Song.mp3', 'C:Song.mp3', 'Song\0.mp3'];
+  for (const key of keys) {
+    await file('mappings.json', JSON.stringify({ [key]: 'clip.mp4' }));
+    await assert.rejects(scanVideoLibrary(config(directory), directory), /keys must be audio basenames/);
+  }
+  const targets = ['', ' ', '../clip.mp4', '/clip.mp4', 'nested/../../clip.mp4', './clip.mp4',
+    'nested/../clip.mp4', 'nested//clip.mp4', 'nested/clip.mp4/', 'C:/clip.mp4', 'C:clip.mp4',
+    '\\\\server\\share\\clip.mp4', 'nested\\clip.mp4', 'net://host/clip.mp4', 'clip\0.mp4'];
+  for (const target of targets) {
+    await file('mappings.json', JSON.stringify({ 'Song.mp3': target }));
+    await assert.rejects(scanVideoLibrary(config(directory), directory), /relative video path inside the video folder/);
+  }
+});
+
+test('mapping targets must exist in the catalog with exact case and supported containers', async t => {
+  const { directory, file } = await fixture(t);
+  await file('clip.mp4');
+  await file('Unsupported.mkv');
+  await file('Song (Music Video).mp4');
+  for (const missing of ['missing.mp4', 'Clip.mp4', 'nested/clip.mp4']) {
+    await file('mappings.json', JSON.stringify({ 'Song.mp3': missing }));
+    await assert.rejects(scanVideoLibrary(config(directory), directory), /mappings\.json.*video was not found/);
+  }
+  await file('mappings.json', JSON.stringify({ 'Song.mp3': 'Unsupported.mkv' }));
+  await assert.rejects(scanVideoLibrary(config(directory), directory), /mappings\.json.*unsupported video container/);
+});
+
+test('mappings cannot select files through a linked directory', async t => {
+  const { directory, file } = await fixture(t);
+  await file('outside/clip.mp4');
+  await file('videos/mappings.json', JSON.stringify({ 'Song.mp3': 'linked-folder/clip.mp4' }));
+  await fs.symlink(path.join(directory, 'outside'), path.join(directory, 'videos', 'linked-folder'), 'junction');
+  await assert.rejects(scanVideoLibrary(config('videos'), directory), /video was not found/);
+});
+
+test('mappings cannot select symlinked files or load a symlinked mapping file', async t => {
+  const { directory, file } = await fixture(t);
+  await file('outside/clip.mp4');
+  await file('videos/inside.mp4');
+  await fs.symlink('../outside/clip.mp4', path.join(directory, 'videos', 'linked.mp4'));
+  await file('videos/mappings.json', JSON.stringify({ 'Song.mp3': 'linked.mp4' }));
+  await assert.rejects(scanVideoLibrary(config('videos'), directory), /video was not found/);
+  await fs.unlink(path.join(directory, 'videos', 'mappings.json'));
+  await file('outside/mappings.json', JSON.stringify({ 'Song.mp3': 'inside.mp4' }));
+  await fs.symlink('../outside/mappings.json', path.join(directory, 'videos', 'mappings.json'));
+  await assert.rejects(scanVideoLibrary(config('videos'), directory), /mappings\.json must be a regular file/);
+});
+
+test('mapping file size and entry count are bounded', async t => {
+  const { directory, file } = await fixture(t);
+  await file('clip.mp4');
+  await file('mappings.json', Buffer.alloc(VIDEO_MAPPINGS_MAX_BYTES + 1, ' '));
+  await assert.rejects(scanVideoLibrary(config(directory), directory), /mappings\.json exceeds .* bytes/);
+  const entries = Object.fromEntries(Array.from({ length: VIDEO_MAPPINGS_MAX_ENTRIES + 1 }, (_, i) => [`${i}.mp3`, 'clip.mp4']));
+  await file('mappings.json', JSON.stringify(entries));
+  await assert.rejects(scanVideoLibrary(config(directory), directory), /mappings\.json exceeds .* entries/);
+});
+
+test('mapping rescans are independent snapshots and removing the file restores automatic matching', async t => {
+  const { directory, file } = await fixture(t);
+  await file('Song (Music Video).mp4');
+  const alternate = await file('alternate.mp4');
+  const first = await scanVideoLibrary(config(directory), directory);
+  await file('mappings.json', JSON.stringify({ 'Song.mp3': 'alternate.mp4' }));
+  const second = await scanVideoLibrary(config(directory), directory);
+  assert.equal(findVideo(first, 'Song.mp3').file.stem, 'Song');
+  assert.equal(findVideo(second, 'Song.mp3').file.path, alternate);
+  await fs.unlink(path.join(directory, 'mappings.json'));
+  const third = await scanVideoLibrary(config(directory), directory);
+  assert.equal(findVideo(third, 'Song.mp3').file.stem, 'Song');
+  assert.equal(findVideo(second, 'Song.mp3').file.path, alternate);
 });

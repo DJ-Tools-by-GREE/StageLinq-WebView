@@ -146,6 +146,9 @@ waveform-cache/
 artwork-cache/
 hotcue-cache/
 
+# Local video library and source files
+/videos/
+
 # Recorded show logs (Record & Replay feature)
 #recordings/
 .DS_Store

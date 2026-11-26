@@ -11,6 +11,9 @@ If you are unsure about an approach, missing context, or lack information about 
 
 ### StageLinq Package Context
 The StageLinq dependency resolves the local sibling checkout at **../StageLinq**.
+Use the **DJ-Tools-by-GREE/StageLinq** fork (`@gree44/stagelinq`), including its
+unpublished local changes. Keep the local file dependencies; npm publication is
+not required to build or run WebView.
 Read its source and memory.md when diagnosing package events, payloads or
 connection behavior. Run npm ci in that checkout before installing WebView,
 and rebuild the library after source edits (root npm run build does this automatically). The project.zip archive is a
@@ -294,4 +297,5 @@ Port `8090` (configurable via `PORT` env). Path `/ws`.
 - Four independent NDI outputs consume StateProvider deck state and SourceTiming; sACN selection and faders do not choose a video deck. Video alignment offsets are separate from lighting offsets.
 - Native macOS code in native/video-ndi owns video decoding and NDI frames. Node/native IPC carries only bounded control, timing and status messages. Preserve source identity, clock mapping, generation cancellation and blackout on stale input.
 - Video config changes must update backend validation and frontend config migration/serialization together. Await catalog/native preparation before committing a reload.
+- Video lookup gives the configured folder's optional `mappings.json` priority over automatic filename matching. Keys are exact audio basenames including extensions; values are relative video paths using forward slashes. Preserve bounded validation and the previous working catalog when mappings fail to load or resolve.
 - Official NDI SDK headers/runtime stay outside the repository. Native self-tests, probes and test mode must not initialize NDI or announce network sources. A build without the SDK is explicitly limited to decoder/test operation.
