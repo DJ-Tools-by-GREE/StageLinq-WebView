@@ -284,6 +284,12 @@ Start the backend (serves the UI on port 8090, connects to StageLinq, streams We
 npm run -w backend dev
 ```
 
+The root `npm run dev` runs the same command. Development loads the Art-Net
+and waveform workers through an explicit tsx bootstrap so their `.js` imports
+resolve to TypeScript source files, including on Node versions with native
+TypeScript support. No backend build is needed for development; production
+loads compiled JavaScript workers after `npm run build`.
+
 Open `http://<this-pc-ip>:8090/`
 
 Optionally run the frontend dev server with Vite HMR in a second terminal (proxies `/ws` and `/api` to the backend):

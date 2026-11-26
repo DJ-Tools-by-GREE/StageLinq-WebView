@@ -1,4 +1,5 @@
-import { Worker } from 'node:worker_threads';
+import type { Worker } from 'node:worker_threads';
+import { createModuleWorker } from './moduleWorker.js';
 import fs from 'node:fs/promises';
 import { logError, logLifecycle, logWarn } from './logging.js';
 import { MediaMemoryCache } from './mediaMemoryCache.js';
@@ -70,7 +71,7 @@ export async function initWaveformCache(directory: string): Promise<void> {
   accepting = true;
   memory.clear();
   const extension = import.meta.url.endsWith('.ts') ? 'ts' : 'js';
-  const current = new Worker(new URL(`./waveformWorker.${extension}`, import.meta.url));
+  const current = createModuleWorker(new URL(`./waveformWorker.${extension}`, import.meta.url));
   const owned = { children: new Set<number>(), directories: new Set<string>() };
   resources.set(current, owned);
   worker = current;

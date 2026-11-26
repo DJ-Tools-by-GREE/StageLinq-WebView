@@ -1,4 +1,5 @@
-import { Worker } from 'node:worker_threads';
+import type { Worker } from 'node:worker_threads';
+import { createModuleWorker } from './moduleWorker.js';
 import { ARTNET_WORKER_READY_TIMEOUT_MS } from './constants.js';
 import type { DeckNumber, DeckState, SourceTiming } from './types.js';
 import type {
@@ -82,13 +83,10 @@ export class ArtNetTimecodeBroadcaster {
   async start(): Promise<void> {
     if (!this.opts.enabled) return;
 
-    // tsx propagates its loader to worker_threads automatically (tsx 4.x), so we can resolve
-    // both the .ts (dev under tsx watch) and the .js (compiled dist) source from the same path
-    // by switching extensions at runtime.
     const isTs = import.meta.url.endsWith('.ts');
     const workerUrl = new URL(`./artnetWorker.${isTs ? 'ts' : 'js'}`, import.meta.url);
 
-    const worker = new Worker(workerUrl);
+    const worker = createModuleWorker(workerUrl);
     this.worker = worker;
 
     worker.on('message', (m: WorkerToMain) => this.handleWorkerMessage(m));

@@ -184,6 +184,7 @@ Settings layer order (highest → lowest priority): **env vars → `config.json`
 ## Coding Conventions
 
 - **ESM throughout** — always use `.js` extensions in import paths (TypeScript resolves them to `.ts` during dev via `tsx`).
+- **Worker loading** — use `backend/src/moduleWorker.ts` to spawn module workers. Development must explicitly load tsx inside each worker; inherited loader arguments do not register its ESM resolver. Production loads compiled JavaScript directly.
 - **No barrel files** — import directly from the source module.
 - **All tunable constants in `constants.ts`** — never hardcode timing thresholds or magic numbers elsewhere.
 - **Logging via `logging.ts` channels** — never use `console.log` directly. Use `logLifecycle`, `logError`, `logPlayback`, `logDiscover`, etc.

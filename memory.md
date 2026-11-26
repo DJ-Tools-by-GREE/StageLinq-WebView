@@ -21,6 +21,28 @@ the player used filename matching only; MP4/M4V/MOV restrictions still apply.
 
 ## Architectural decisions
 
+### 2026-11-26 — Explicit TypeScript worker loading in development
+
+Confirmed the reported macOS startup failure with an isolated Node 24.13.0 /
+tsx 4.21.0 probe on Windows: the Art-Net worker cannot resolve its
+`./timecodeTimeline.js` import to the TypeScript source. Native type stripping
+can load the worker entry point without tsx's ESM resolver; inheriting the
+parent's loader arguments does not register that resolver in the worker.
+The failure occurs without importing StageLinq. The waveform worker uses the
+same affected startup pattern. Both workers now use a shared bootstrap that
+explicitly loads TypeScript through `tsx/esm/api` inside the worker. Compiled
+production workers continue to load JavaScript directly. The isolated source
+worker startup/shutdown probe and full sibling/frontend/backend build pass.
+Regression tests exercise both modes without StageLinq discovery or Art-Net
+destinations, including development with native type stripping disabled.
+All 31 focused worker/lifecycle/shared-timeline tests pass, including tsx CLI,
+Node's tsx preload and compiled production startup. Full `npm test`: 167 pass,
+25 fail, matching the previously documented Windows POSIX-executable,
+symlink-permission and SIGTERM fixture limitations. No macOS/live hardware
+validation was performed in this Windows session. README and the previous
+worker-loader note now describe explicit registration instead of automatic
+loader inheritance.
+
 ### 2026-11-26 — Waveform-based video alignment
 
 The user requested commit/push of the mappings feature; commit `6bb7e21` is
@@ -778,8 +800,9 @@ intervals and log it).
 **How the harness reaches the worker source:** dev under `tsx watch` resolves
 `./artnetWorker.ts`, prod under `node dist/index.js` resolves `./artnetWorker.js`.
 The harness picks the extension at runtime by checking whether
-`import.meta.url` ends in `.ts`. tsx 4.x propagates its loader to
-`worker_threads` automatically.
+`import.meta.url` ends in `.ts`. Since the 2026-11-26 fix, `moduleWorker.ts`
+explicitly loads TypeScript through `tsx/esm/api` inside each development
+worker; inherited loader arguments alone do not register its ESM resolver.
 
 **Diagnostic logs added at the same time** (so any remaining cadence loss is
 observable):

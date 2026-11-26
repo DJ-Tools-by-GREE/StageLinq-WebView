@@ -25,7 +25,7 @@ function harness(outcome) {
   source = source.replace(/^import[\s\S]*?;$/gm, '').replaceAll('import.meta.url', "'file:///test/artnetTimecode.js'").replace('export class ', 'class ');
   source += '\nglobalThis.Broadcaster = ArtNetTimecodeBroadcaster;';
   const noop = () => {};
-  const context = vm.createContext({ Worker: FakeWorker, URL, setTimeout, clearTimeout, ARTNET_WORKER_READY_TIMEOUT_MS: 15, logError: noop, logWarn: noop, logLifecycle: noop, logStatus: noop, setArtnetTcHms: noop, LOG_ENABLED: {}, GRN: '', RST: '' });
+  const context = vm.createContext({ createModuleWorker: url => new FakeWorker(url), URL, setTimeout, clearTimeout, ARTNET_WORKER_READY_TIMEOUT_MS: 15, logError: noop, logWarn: noop, logLifecycle: noop, logStatus: noop, setArtnetTcHms: noop, LOG_ENABLED: {}, GRN: '', RST: '' });
   vm.runInContext(source, context);
   return { broadcaster: new context.Broadcaster({ enabled: true, targetIps: [], port: 6454, fps: 30, fpsType: 3, deck: 1, freewheelStaleThresholdMs: 250 }), workers };
 }
