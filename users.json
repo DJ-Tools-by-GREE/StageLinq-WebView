@@ -1,14 +1,16 @@
 {
-  "users": {
-    "Default User": {},
-    "Jan": {
-      "role": "DJ",
-      "detailZoomSec": 15
-    },
-    "Dennis": {
-      "role": "Lighting & Tech",
-      "detailZoomSec": 20,
-      "deckLayout": 4
+    "users": {
+        "Default User": {
+            "role": "DJ"
+        },
+        "Jan": {
+            "role": "DJ",
+            "detailZoomSec": 15
+        },
+        "Dennis": {
+            "role": "Lighting & Tech",
+            "detailZoomSec": 20,
+            "deckLayout": 4
+        }
     }
-  }
 }

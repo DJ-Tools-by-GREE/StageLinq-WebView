@@ -1,0 +1,46 @@
+--- session start 2026-11-26T16:24:07.603Z ---
+[16:24:07.601] [WARN] [ArtNet/wk] tick stats: 59 ticks/2000.275146484375ms avg=33.31ms (29.50fps) p50=33.3 p95=34.1 max=34.3 maxBehind=1.1ms hardStalls=0 target=33.33ms
+[16:25:51.962] [WARN] [ArtNet/wk] Late tick: 59.2ms (target 33.3ms, behind 26.6ms)
+[16:26:17.695] [WARN] [ArtNet/wk] Late tick: 58.9ms (target 33.3ms, behind 24.7ms)
+[16:26:51.907] [ERROR] [main] WS broadcast slow: 6ms (clients=2)
+[16:26:57.471] [ERROR] [main] WS broadcast slow: 9ms (clients=2)
+[16:27:33.588] [ERROR] [main] WS broadcast slow: 7ms (clients=2)
+[16:28:10.459] [ERROR] [main] WS broadcast slow: 7ms (clients=2)
+[16:28:34.340] [ERROR] [main] WS broadcast slow: 8ms (clients=2)
+[16:28:35.441] [ERROR] [main] WS broadcast slow: 11ms (clients=2)
+[16:28:46.557] [ERROR] [main] WS broadcast slow: 8ms (clients=2)
+[16:30:01.161] [WARN] [ArtNet/wk] Late tick: 53.9ms (target 33.3ms, behind 21.1ms)
+[16:30:14.825] [ERROR] [main] WS broadcast slow: 18ms (clients=2)
+[16:30:35.199] [WARN] [ArtNet/wk] Late tick: 64.2ms (target 33.3ms, behind 31.4ms)
+[16:31:16.540] [ERROR] [WAVEFORM] 01. The Pointer Sisters - I’m So Excited.flac failed: Error: ffmpeg exited with code 183: [in#0 @ 0x7acac10000] Error opening input: Invalid data found when processing input
+Error opening input file /var/folders/f_/jrgy_w8s2sv3gw1gkrsk_mzh0000gn/T/slwv-7mPjAi/input.
+Error opening input files: Invalid data found when processing input
+    at handleWorkerMessage (file:///Users/janmuller/Git%20Repos/StageLinq-WebView/backend/dist/waveformService.js:211:23)
+    at Worker.<anonymous> (file:///Users/janmuller/Git%20Repos/StageLinq-WebView/backend/dist/waveformService.js:84:17)
+    at Worker.emit (node:events:519:28)
+    at MessagePort.<anonymous> (node:internal/worker:269:53)
+    at [nodejs.internal.kHybridDispatch] (node:internal/event_target:827:20)
+    at MessagePort.<anonymous> (node:internal/per_context/messageport:23:28)
+[16:32:05.766] [WARN] [ArtNet/wk] tick stats: 59 ticks/2000.385986328125ms avg=33.34ms (29.49fps) p50=33.3 p95=34.7 max=35.7 maxBehind=1.6ms hardStalls=0 target=33.33ms
+[16:32:17.155] [ERROR] [main] WS broadcast slow: 8ms (clients=2)
+[16:34:19.362] [ERROR] [main] WS broadcast slow: 6ms (clients=2)
+[16:35:56.431] [WARN] [ArtNet/wk] Late tick: 64.1ms (target 33.3ms, behind 31.9ms)
+[16:37:39.805] [ERROR] [main] WS broadcast slow: 15ms (clients=2)
+[16:39:19.861] [ERROR] [main] WS broadcast slow: 12ms (clients=2)
+[16:40:37.443] [ERROR] [main] WS broadcast slow: 14ms (clients=2)
+[16:41:05.998] [WARN] [ArtNet/wk] tick stats: 59 ticks/2002.16845703125ms avg=33.37ms (29.47fps) p50=33.3 p95=35.1 max=35.3 maxBehind=2.4ms hardStalls=0 target=33.33ms
+[16:46:47.229] [ERROR] [main] WS broadcast slow: 10ms (clients=2)
+[16:47:06.066] [ERROR] [main] WS broadcast slow: 6ms (clients=2)
+[16:47:06.087] [WARN] [ArtNet/wk] Late tick: 54.0ms (target 33.3ms, behind 22.3ms)
+[16:47:10.683] [ERROR] [main] WS broadcast slow: 8ms (clients=2)
+[16:51:53.636] [ERROR] [main] WS broadcast slow: 21ms (clients=2)
+[16:53:38.790] [ERROR] [main] WS broadcast slow: 16ms (clients=2)
+[16:54:44.330] [WARN] [ArtNet/wk] tick stats: 59 ticks/2000.803955078125ms avg=33.35ms (29.49fps) p50=33.4 p95=34.8 max=35.8 maxBehind=1.8ms hardStalls=0 target=33.33ms
+[16:55:59.087] [ERROR] [main] WS broadcast slow: 7ms (clients=2)
+[16:56:24.363] [WARN] [ArtNet/wk] tick stats: 59 ticks/2000.203125ms avg=33.33ms (29.50fps) p50=33.3 p95=34.6 max=35.0 maxBehind=1.6ms hardStalls=0 target=33.33ms
+[16:57:33.738] [ERROR] [main] WS broadcast slow: 18ms (clients=2)
+[17:00:45.857] [ERROR] [main] WS broadcast slow: 14ms (clients=2)
+[17:04:23.069] [ERROR] [main] WS broadcast slow: 21ms (clients=2)
+[17:05:00.186] [WARN] [ArtNet/wk] Late tick: 54.7ms (target 33.3ms, behind 22.9ms)
+[17:06:23.331] [ERROR] [main] WS broadcast slow: 12ms (clients=2)
+[17:07:12.131] [ERROR] [main] WS broadcast slow: 7ms (clients=2)

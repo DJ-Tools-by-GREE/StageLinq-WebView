@@ -1,7 +1,7 @@
 {
     "current_playlist": 0,
     "video": {
-        "enabled": false,
+        "enabled": true,
         "directory": "videos",
         "ndi_name_prefix": "StageLinq",
         "output_format": "source",

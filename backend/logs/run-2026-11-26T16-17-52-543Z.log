@@ -1,0 +1,7 @@
+--- session start 2026-11-26T16:17:52.543Z ---
+[16:17:52.543] [ERROR] [VIDEO] Cannot scan video directory /Users/janmuller/Git Repos/StageLinq-WebView/videos: mappings.json["1975 0612 - Udo Jürgens - Griechischer Wein.flac"] video was not found in the scanned folder: 1975 Udo Jürgens - Griechischer Wein TEXT (via DW YouTube Downloader).mp4
+[16:17:54.723] [WARN] [ArtNet/wk] tick stats: 58 ticks/2001.567138671875ms avg=33.33ms (28.98fps) p50=33.1 p95=34.3 max=34.6 maxBehind=1.6ms hardStalls=0 target=33.33ms
+[16:18:47.284] [ERROR] [main] WS broadcast slow: 9ms (clients=2)
+[16:19:45.557] [ERROR] [main] WS broadcast slow: 20ms (clients=2)
+[16:19:56.896] [ERROR] [main] WS broadcast slow: 9ms (clients=2)
+[16:20:11.014] [ERROR] [main] WS broadcast slow: 6ms (clients=2)

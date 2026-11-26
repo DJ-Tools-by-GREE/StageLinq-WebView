@@ -1,0 +1,3 @@
+--- session start 2026-11-26T16:17:12.242Z ---
+[16:17:12.241] [WARN] [ArtNet/wk] tick stats: 58 ticks/2000.939453125ms avg=33.34ms (28.99fps) p50=33.2 p95=35.1 max=36.1 maxBehind=2.0ms hardStalls=0 target=33.33ms
+[16:17:32.251] [ERROR] [main] WS broadcast slow: 14ms (clients=2)
