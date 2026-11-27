@@ -1,0 +1,7 @@
+--- session start 2026-11-26T19:02:59.294Z ---
+[19:02:59.292] [WARN] [ArtNet/wk] tick stats: 59 ticks/2000.453125ms avg=33.31ms (29.49fps) p50=33.1 p95=34.3 max=35.2 maxBehind=1.2ms hardStalls=0 target=33.33ms
+[19:04:35.325] [WARN] [ArtNet/wk] tick stats: 59 ticks/2000.6240234375ms avg=33.34ms (29.49fps) p50=33.3 p95=34.6 max=35.2 maxBehind=1.5ms hardStalls=0 target=33.33ms
+[19:04:45.325] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001.5439453125ms avg=33.34ms (29.48fps) p50=33.3 p95=34.8 max=35.2 maxBehind=1.3ms hardStalls=0 target=33.33ms
+[19:11:19.489] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001.033203125ms avg=33.36ms (29.48fps) p50=33.4 p95=34.9 max=35.4 maxBehind=1.8ms hardStalls=0 target=33.33ms
+[19:20:33.720] [WARN] [ArtNet/wk] tick stats: 59 ticks/2002.011474609375ms avg=33.40ms (29.47fps) p50=33.4 p95=35.2 max=35.4 maxBehind=2.7ms hardStalls=0 target=33.33ms
+[19:32:51.303] [ERROR] [Watchdog] No beat for 2.5s — triggering reconnect

@@ -2,6 +2,7 @@ export type VideoOutputFormat = 'source' | '1080p30';
 
 export interface VideoConfig {
   enabled: boolean;
+  multi_ndi_stream: boolean;
   directory: string;
   ndi_name_prefix: string;
   output_format: VideoOutputFormat;

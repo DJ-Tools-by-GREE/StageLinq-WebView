@@ -1,6 +1,6 @@
 # StageLinq WebView
 
-Real-time DJ deck visualizer for Denon Prime 4+ (Engine DJ / StageLinq). Displays all 4 decks in a browser, broadcasts Art-Net SMPTE timecode, accepts DMX/sACN control input, and optionally sends synchronized music videos over four NDI outputs on macOS.
+Real-time DJ deck visualizer for Denon Prime 4+ (Engine DJ / StageLinq). Displays all 4 decks in a browser, broadcasts Art-Net SMPTE timecode, accepts DMX/sACN control input, and optionally sends synchronized music videos over NDI on macOS.
 
 Detailed audit, implemented fixes, remaining recommendations and validation: [2026-11-24 review](docs/review-2026-11-24/README.md).
 
@@ -34,12 +34,10 @@ Detailed audit, implemented fixes, remaining recommendations and validation: [20
 
 ## Video / NDI output (macOS, optional)
 
-Play matching music videos in sync with each deck and send four independent,
-video-only NDI sources to another computer over Ethernet. A native macOS helper
-owns decoding and NDI encoding; Node exchanges timing and status with it. Video
-does not depend on sACN deck selection or channel faders. During Record & Replay,
-it follows the four reconstructed tracks through the same state provider as the
-other outputs, using the current video configuration.
+Send synchronized, video-only NDI to another computer over Ethernet. By default,
+one source follows the playing deck with the highest channel fader, including
+tracks outside a playlist. The native macOS helper decodes and sends video using
+timing from WebView. During Record & Replay, it follows the reconstructed decks.
 
 ### Setup
 
@@ -60,9 +58,9 @@ other outputs, using the current video configuration.
 3. Set the video folder and enable output in Config Editor → Video / NDI,
    then Save and Reload config. Settings → Video / NDI shows active output
    status and provides **Rescan videos** after files are added or replaced.
-4. In TouchDesigner, create four [NDI In TOPs](https://docs.derivative.ca/NDI_In_TOP)
-   and select **StageLinq Deck 1** through **StageLinq Deck 4** under this Mac's
-   hostname. Source names remain available and send black while idle.
+4. In TouchDesigner, create one NDI In TOP and select **StageLinq** under this Mac's
+   hostname. With **Send one stream per deck** enabled, use four TOPs and select
+   **StageLinq Deck 1** through **StageLinq Deck 4**. [TouchDesigner NDI In TOP](https://docs.derivative.ca/NDI_In_TOP)
 
 Without the SDK, the macOS build creates an explicitly limited decoder/test
 helper; enabling network output reports a setup error. Other platforms skip the
@@ -71,13 +69,14 @@ headers and runtime binaries are not included in this repository.
 
 ### Configuration and matching
 
-The repository configuration has video disabled and points at the local
-`videos/` folder, with measured offsets for the prepared collection. All
-video fields are optional; this is an enabled example:
+The repository configuration points at the local `videos/` folder and includes
+measured offsets for the prepared collection. All video fields are optional.
+This example enables single-stream output.
 
 ~~~json
 "video": {
   "enabled": true,
+  "multi_ndi_stream": false,
   "directory": "/Volumes/Show/Videos",
   "ndi_name_prefix": "StageLinq",
   "output_format": "source",
@@ -94,6 +93,14 @@ video fields are optional; this is an enabled example:
   folder keeps video media ignored by Git while allowing `mappings.json` to be
   tracked; set `directory` to `videos` when using that folder with a
   configuration file at the repository root.
+- **multi_ndi_stream** defaults to `false`. The source keeps its name as decks
+  change. Only loaded, playing decks are eligible. Equal faders keep the
+  current deck when possible, otherwise the lowest deck number wins. The
+  stream sends black when no deck is playing or the selected deck cannot
+  supply a video frame. Set `true` for four independent deck sources. Both modes
+  select video independently of sACN control input.
+- **ndi_name_prefix** names the single source directly and supplies the prefix
+  for `Deck 1` through `Deck 4` in four-stream mode. Defaults to `StageLinq`.
 - **Matching:** optional `mappings.json` entries select explicit video paths.
   Otherwise Artist - Song.mp3 matches Artist - Song (Music Video).mp4.
   Automatic matching removes the audio extension; video stems and the suffix are case-sensitive.
@@ -186,13 +193,14 @@ simultaneous streams on the actual Mac, Ethernet link and receiver; 1080p30
 provides a fixed-format alternative. The existing unpitched-backup guidance
 for Record & Replay still applies.
 
-**REST:** GET /api/video/status returns runtime/library and per-deck status.
+**REST:** GET /api/video/status returns runtime/library and per-deck status,
+including `multiNdiStream` and the single stream's `activeDeck`.
 POST /api/video/rescan rescans the active folder, reloads its `mappings.json` and returns
 { ok: true, status: VideoStatus }; errors preserve the previous active catalog.
 
 **Validation:** run npm test for backend/frontend regressions. On macOS, run
 npm run build:video followed by npm run test:video for real decoding, format,
-transport and four-deck tests. These native tests use synthetic clips and an
+transport, single-stream handoffs and four-deck tests. These native tests use synthetic clips and an
 in-process sink; they never initialize NDI or announce network sources.
 Testing actual NDI transmission and TouchDesigner display sync is a separate
 deployment check with the SDK/runtime installed.

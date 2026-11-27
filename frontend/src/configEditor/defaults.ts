@@ -24,6 +24,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   recordings: [],
   video: {
     enabled: false,
+    multi_ndi_stream: false,
     directory: '',
     ndi_name_prefix: 'StageLinq',
     output_format: 'source',

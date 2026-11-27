@@ -12,7 +12,7 @@ import {
 } from '../dist/constants.js';
 
 async function fixture(t) {
-  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'slwv-video-library-'));
+  const directory = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'slwv-video-library-')));
   t.after(() => fs.rm(directory, { recursive: true, force: true }));
   return {
     directory,
@@ -28,7 +28,7 @@ async function fixture(t) {
 const config = (directory, extra = {}) => parseVideoConfig({ enabled: true, directory, ...extra });
 
 test('optional video configuration defaults to disabled and preserves explicit input offsets', () => {
-  const defaults = { enabled: false, directory: '', ndi_name_prefix: 'StageLinq', output_format: 'source', latency_comp_ms: 0, offsets_sec: {} };
+  const defaults = { enabled: false, multi_ndi_stream: false, directory: '', ndi_name_prefix: 'StageLinq', output_format: 'source', latency_comp_ms: 0, offsets_sec: {} };
   assert.deepEqual(parseVideoConfig(undefined), defaults);
   assert.deepEqual(parseVideoConfig({}), defaults);
   assert.deepEqual(parseConfig('{}'), {});
@@ -44,6 +44,7 @@ test('optional video configuration defaults to disabled and preserves explicit i
 test('video validation rejects invalid values at both direct and root-config boundaries', () => {
   const invalid = [null, false, [], 'video', 1,
     { enabled: 'true' }, { enabled: null }, { enabled: true }, { enabled: true, directory: '   ' },
+    { multi_ndi_stream: 'false' }, { multi_ndi_stream: null },
     { directory: 3 }, { directory: 'bad\0path' }, { output_format: 'auto' }, { output_format: null },
     { latency_comp_ms: NaN }, { latency_comp_ms: Infinity }, { latency_comp_ms: null }, { latency_comp_ms: '25' },
     { offsets_sec: null }, { offsets_sec: [] }, { offsets_sec: { 'Song.mp3': '2' } },

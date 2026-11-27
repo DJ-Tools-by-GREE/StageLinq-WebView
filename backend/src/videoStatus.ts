@@ -5,7 +5,7 @@ export interface VideoDeckStatus {
   deck: DeckNumber;
   track: string;
   video: string | null;
-  sourceName: string;
+  sourceName: string | null;
   state: 'idle' | 'unmatched' | 'ambiguous' | 'loading' | 'playing' | 'black' | 'error';
   message: string | null;
   positionSec: number | null;
@@ -20,6 +20,8 @@ export interface VideoStatus {
   directory: string;
   outputFormat: VideoOutputFormat;
   sourcePrefix: string;
+  multiNdiStream: boolean;
+  activeDeck: DeckNumber | null;
   indexedVideos: number;
   ambiguousMatches: string[];
   error: string | null;

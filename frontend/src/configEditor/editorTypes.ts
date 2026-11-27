@@ -85,6 +85,7 @@ export interface RecordingMapping {
 
 export interface VideoConfig {
   enabled: boolean;
+  multi_ndi_stream: boolean;
   directory: string;
   ndi_name_prefix: string;
   output_format: 'source' | '1080p30';

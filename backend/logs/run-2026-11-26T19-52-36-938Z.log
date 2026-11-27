@@ -1,0 +1,756 @@
+--- session start 2026-11-26T19:52:36.938Z ---
+[19:52:36.936] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001.248046875ms avg=33.34ms (29.48fps) p50=33.1 p95=34.3 max=35.2 maxBehind=1.2ms hardStalls=0 target=33.33ms
+[19:56:18.133] [ERROR] [main] WS broadcast slow: 9ms (clients=1)
+[19:56:42.900] [WARN] [ArtNet/wk] Late tick: 66.3ms (target 33.3ms, behind 32.9ms)
+[19:56:58.636] [ERROR] [main] WS broadcast slow: 7ms (clients=1)
+[19:57:07.871] [ERROR] [main] WS broadcast slow: 6ms (clients=1)
+[20:03:03.390] [ERROR] [main] WS broadcast slow: 9ms (clients=1)
+[20:05:51.314] [ERROR] [main] WS broadcast slow: 9ms (clients=1)
+[20:09:53.958] [ERROR] [main] WS broadcast slow: 10ms (clients=1)
+[20:11:35.861] [WARN] [ArtNet/wk] Late tick: 125.5ms (target 33.3ms, behind 92.5ms)
+[20:11:37.329] [WARN] [ArtNet/wk] Late tick: 97.7ms (target 33.3ms, behind 64.6ms)
+[20:11:37.436] [WARN] [ArtNet/wk] tick stats: 60 ticks/2000.786376953125ms avg=33.33ms (29.99fps) p50=33.3 p95=36.5 max=125.5 maxBehind=92.5ms hardStalls=0 target=33.33ms
+[20:21:17.765] [WARN] [ArtNet/wk] tick stats: 59 ticks/2002.067626953125ms avg=33.36ms (29.47fps) p50=33.3 p95=35.5 max=36.4 maxBehind=2.7ms hardStalls=0 target=33.33ms
+[20:26:17.826] [ERROR] [main] WS broadcast slow: 10ms (clients=1)
+[20:34:23.452] [ERROR] [main] WS broadcast slow: 18ms (clients=1)
+[20:34:23.453] [WARN] [ArtNet/wk] Late tick: 60.3ms (target 33.3ms, behind 26.4ms)
+[20:40:10.982] [WARN] [ArtNet/wk] Late tick: 54.3ms (target 33.3ms, behind 22.3ms)
+[20:48:39.290] [WARN] [ArtNet/wk] Late tick: 59.5ms (target 33.3ms, behind 25.9ms)
+[20:52:20.449] [ERROR] [main] WS broadcast slow: 7ms (clients=1)
+[20:55:48.722] [WARN] [ArtNet/wk] tick stats: 59 ticks/2000.55078125ms avg=33.36ms (29.49fps) p50=33.4 p95=34.6 max=36.5 maxBehind=3.4ms hardStalls=0 target=33.33ms
+[20:55:52.723] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001.606201171875ms avg=33.36ms (29.48fps) p50=33.4 p95=35.0 max=37.5 maxBehind=3.4ms hardStalls=0 target=33.33ms
+[20:57:41.657] [WARN] [ArtNet/wk] Late tick: 65.6ms (target 33.3ms, behind 35.8ms)
+[20:57:42.752] [WARN] [ArtNet/wk] tick stats: 60 ticks/2001.2783203125ms avg=33.34ms (29.98fps) p50=33.2 p95=36.8 max=65.6 maxBehind=35.8ms hardStalls=0 target=33.33ms
+[20:57:47.619] [WARN] [ArtNet/wk] Late tick: 58.6ms (target 33.3ms, behind 28.5ms)
+[20:57:51.049] [WARN] [ArtNet/wk] Late tick: 55.7ms (target 33.3ms, behind 23.1ms)
+[20:57:52.403] [ERROR] [main] WS broadcast slow: 24ms (clients=1)
+[20:57:52.407] [WARN] [ArtNet/wk] Late tick: 80.0ms (target 33.3ms, behind 47.7ms)
+[20:57:52.755] [WARN] [ArtNet/wk] tick stats: 61 ticks/2000.18896484375ms avg=33.31ms (30.50fps) p50=33.3 p95=41.3 max=80.0 maxBehind=47.7ms hardStalls=0 target=33.33ms
+[20:58:04.875] [ERROR] [main] WS broadcast slow: 33ms (clients=1)
+[20:58:04.876] [WARN] [ArtNet/wk] Late tick: 54.1ms (target 33.3ms, behind 20.9ms)
+[20:58:47.373] [ERROR] [main] WS broadcast slow: 6ms (clients=1)
+[20:58:50.070] [ERROR] [main] WS broadcast slow: 52ms (clients=1)
+[20:58:50.072] [WARN] [ArtNet/wk] Late tick: 82.7ms (target 33.3ms, behind 50.1ms)
+[20:58:50.784] [WARN] [ArtNet/wk] tick stats: 60 ticks/2001.44189453125ms avg=33.32ms (29.98fps) p50=33.4 p95=35.4 max=82.7 maxBehind=50.1ms hardStalls=0 target=33.33ms
+[20:58:53.054] [ERROR] [main] WS broadcast slow: 6ms (clients=1)
+[20:58:53.121] [WARN] [ArtNet/wk] Late tick: 63.2ms (target 33.3ms, behind 32.6ms)
+[20:59:07.948] [WARN] [ArtNet/wk] Late tick: 58.8ms (target 33.3ms, behind 26.6ms)
+[20:59:12.534] [WARN] [ArtNet/wk] Late tick: 76.7ms (target 33.3ms, behind 44.5ms)
+[20:59:12.792] [WARN] [ArtNet/wk] tick stats: 60 ticks/2000.976806640625ms avg=33.31ms (29.99fps) p50=33.4 p95=34.9 max=76.7 maxBehind=44.5ms hardStalls=0 target=33.33ms
+[21:00:50.006] [ERROR] [main] WS broadcast slow: 6ms (clients=1)
+[21:02:36.526] [ERROR] [main] WS broadcast slow: 9ms (clients=1)
+[21:04:09.368] [ERROR] [main] WS broadcast slow: 10ms (clients=1)
+[21:06:40.234] [ERROR] [main] WS broadcast slow: 7ms (clients=1)
+[21:06:54.955] [WARN] [ArtNet/wk] tick stats: 59 ticks/2000.899169921875ms avg=33.35ms (29.49fps) p50=33.4 p95=34.9 max=35.4 maxBehind=1.5ms hardStalls=0 target=33.33ms
+[21:11:37.932] [ERROR] [main] event-loop lag 113ms (probe 250ms)
+[21:11:37.933] [WARN] [ArtNet/wk] Hard stall: behind by 112.0ms (>3 intervals); resyncing deadline.
+[21:11:37.933] [WARN] [ArtNet/wk] Late tick: 143.2ms (target 33.3ms, behind 112.0ms)
+[21:11:39.093] [WARN] [ArtNet/wk] tick stats: 56 ticks/2001.281494140625ms avg=35.34ms (27.98fps) p50=33.5 p95=35.1 max=143.2 maxBehind=112.0ms hardStalls=1 target=33.33ms
+[21:11:39.375] [WARN] [ArtNet/wk] Late tick: 75.5ms (target 33.3ms, behind 43.4ms)
+[21:11:40.934] [WARN] [ArtNet/wk] Late tick: 102.7ms (target 33.3ms, behind 69.5ms)
+[21:11:41.094] [WARN] [ArtNet/wk] tick stats: 60 ticks/2001.3427734375ms avg=33.33ms (29.98fps) p50=33.3 p95=35.7 max=102.7 maxBehind=69.5ms hardStalls=0 target=33.33ms
+[21:13:28.774] [ERROR] [main] WS broadcast slow: 6ms (clients=1)
+[21:14:40.148] [ERROR] [Watchdog] No beat for 2.2s — triggering reconnect
+[21:15:00.172] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:15:04.689] [ERROR] [main] WS broadcast slow: 6ms (clients=1)
+[21:15:20.189] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:15:40.206] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:16:00.223] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:16:20.239] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:16:40.253] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:17:00.267] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:17:20.282] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:17:40.299] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:18:00.313] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:18:20.331] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:18:40.344] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:19:00.361] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:19:20.378] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:19:40.394] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:29:44.578] [ERROR] [main] event-loop lag 593456ms (probe 250ms)
+[21:29:44.585] [ERROR] [Watchdog] No beat for 604.2s — triggering reconnect
+[21:29:44.586] [WARN] [ArtNet/wk] Hard stall: behind by 593681.1ms (>3 intervals); resyncing deadline.
+[21:29:44.586] [WARN] [ArtNet/wk] Late tick: 593712.6ms (target 33.3ms, behind 593681.1ms)
+[21:29:44.586] [WARN] [ArtNet/wk] tick stats: 48 ticks/595279.7094726562ms avg=12401.66ms (0.08fps) p50=33.2 p95=35.1 max=593712.6 maxBehind=593681.1ms hardStalls=1 target=33.33ms
+[21:30:04.604] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:30:24.635] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:34:46.573] [ERROR] [main] event-loop lag 254950ms (probe 250ms)
+[21:34:46.574] [ERROR] [Watchdog] No beat for 261.9s — triggering reconnect
+[21:34:46.575] [WARN] [ArtNet/wk] Hard stall: behind by 255062.3ms (>3 intervals); resyncing deadline.
+[21:34:46.575] [WARN] [ArtNet/wk] Late tick: 255094.0ms (target 33.3ms, behind 255062.3ms)
+[21:34:46.575] [WARN] [ArtNet/wk] tick stats: 28 ticks/255965.83520507812ms avg=9142.66ms (0.11fps) p50=33.1 p95=34.3 max=255094.0 maxBehind=255062.3ms hardStalls=1 target=33.33ms
+[21:35:06.602] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:35:26.633] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:48:43.679] [ERROR] [Watchdog] No beat for 797.0s — triggering reconnect
+[21:48:43.680] [ERROR] [main] event-loop lag 790031ms (probe 250ms)
+[21:48:43.680] [WARN] [ArtNet/wk] Hard stall: behind by 790174.7ms (>3 intervals); resyncing deadline.
+[21:48:43.680] [WARN] [ArtNet/wk] Late tick: 790206.8ms (target 33.3ms, behind 790174.7ms)
+[21:48:43.680] [WARN] [ArtNet/wk] tick stats: 28 ticks/791074.1049804688ms avg=28253.79ms (0.04fps) p50=33.1 p95=35.1 max=790206.8 maxBehind=790174.7ms hardStalls=1 target=33.33ms
+[21:48:53.038] [WARN] [ArtNet/wk] Late tick: 89.9ms (target 33.3ms, behind 58.7ms)
+[21:48:53.681] [WARN] [ArtNet/wk] tick stats: 60 ticks/2000.4384765625ms avg=33.36ms (29.99fps) p50=33.1 p95=35.1 max=89.9 maxBehind=58.7ms hardStalls=0 target=33.33ms
+[21:49:00.715] [WARN] [ArtNet/wk] Late tick: 66.9ms (target 33.3ms, behind 35.1ms)
+[21:49:01.681] [WARN] [ArtNet/wk] tick stats: 60 ticks/1999.99560546875ms avg=33.33ms (30.00fps) p50=33.1 p95=35.1 max=66.9 maxBehind=35.1ms hardStalls=0 target=33.33ms
+[21:49:03.719] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:49:23.744] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:50:46.270] [ERROR] [Watchdog] No beat for 82.5s — triggering reconnect
+[21:50:46.271] [ERROR] [main] event-loop lag 75489ms (probe 250ms)
+[21:50:46.271] [WARN] [ArtNet/wk] Hard stall: behind by 75557.5ms (>3 intervals); resyncing deadline.
+[21:50:46.271] [WARN] [ArtNet/wk] Late tick: 75589.0ms (target 33.3ms, behind 75557.5ms)
+[21:50:46.271] [WARN] [ArtNet/wk] tick stats: 31 ticks/76573.29272460938ms avg=2470.62ms (0.40fps) p50=33.1 p95=37.2 max=75589.0 maxBehind=75557.5ms hardStalls=1 target=33.33ms
+[21:51:06.299] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[21:51:26.329] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:06:26.190] [ERROR] [main] event-loop lag 892869ms (probe 250ms)
+[22:06:26.190] [ERROR] [Watchdog] No beat for 899.9s — triggering reconnect
+[22:06:26.191] [WARN] [ArtNet/wk] Hard stall: behind by 893021.4ms (>3 intervals); resyncing deadline.
+[22:06:26.191] [WARN] [ArtNet/wk] Late tick: 893053.3ms (target 33.3ms, behind 893021.4ms)
+[22:06:26.191] [WARN] [ArtNet/wk] tick stats: 27 ticks/893908.8466796875ms avg=33108.14ms (0.03fps) p50=33.1 p95=35.1 max=893053.3 maxBehind=893021.4ms hardStalls=1 target=33.33ms
+[22:06:28.192] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001.943115234375ms avg=33.36ms (29.47fps) p50=33.2 p95=35.2 max=35.3 maxBehind=2.2ms hardStalls=0 target=33.33ms
+[22:06:29.958] [WARN] [ArtNet/wk] Late tick: 63.3ms (target 33.3ms, behind 31.1ms)
+[22:06:46.205] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:07:06.229] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:19:44.573] [ERROR] [Watchdog] No beat for 758.3s — triggering reconnect
+[22:19:44.576] [ERROR] [main] event-loop lag 751326ms (probe 250ms)
+[22:19:44.576] [WARN] [ArtNet/wk] Hard stall: behind by 751416.1ms (>3 intervals); resyncing deadline.
+[22:19:44.576] [WARN] [ArtNet/wk] Late tick: 751447.8ms (target 33.3ms, behind 751416.1ms)
+[22:19:44.576] [WARN] [ArtNet/wk] tick stats: 28 ticks/752347.8898925781ms avg=26869.57ms (0.04fps) p50=33.1 p95=40.8 max=751447.8 maxBehind=751416.1ms hardStalls=1 target=33.33ms
+[22:19:57.420] [WARN] [ArtNet/wk] Late tick: 79.3ms (target 33.3ms, behind 46.9ms)
+[22:19:58.580] [WARN] [ArtNet/wk] tick stats: 60 ticks/2000.32568359375ms avg=33.36ms (30.00fps) p50=33.1 p95=35.1 max=79.3 maxBehind=46.9ms hardStalls=0 target=33.33ms
+[22:19:58.846] [WARN] [ArtNet/wk] Late tick: 71.1ms (target 33.3ms, behind 39.5ms)
+[22:20:00.581] [WARN] [ArtNet/wk] tick stats: 60 ticks/2001.095947265625ms avg=33.33ms (29.98fps) p50=33.1 p95=35.1 max=71.1 maxBehind=39.5ms hardStalls=0 target=33.33ms
+[22:20:04.613] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:20:24.650] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:35:32.480] [ERROR] [main] event-loop lag 900846ms (probe 250ms)
+[22:35:32.481] [ERROR] [Watchdog] No beat for 907.8s — triggering reconnect
+[22:35:32.482] [WARN] [ArtNet/wk] Hard stall: behind by 900876.1ms (>3 intervals); resyncing deadline.
+[22:35:32.482] [WARN] [ArtNet/wk] Late tick: 900908.3ms (target 33.3ms, behind 900876.1ms)
+[22:35:32.482] [WARN] [ArtNet/wk] tick stats: 31 ticks/901878.0419921875ms avg=29093.80ms (0.03fps) p50=33.1 p95=35.1 max=900908.3 maxBehind=900876.1ms hardStalls=1 target=33.33ms
+[22:35:34.482] [WARN] [ArtNet/wk] tick stats: 60 ticks/2000.7822265625ms avg=33.35ms (29.99fps) p50=33.2 p95=36.4 max=70.4 maxBehind=38.5ms hardStalls=0 target=33.33ms
+[22:35:34.692] [ERROR] [main] WS broadcast slow: 8ms (clients=1)
+[22:35:52.505] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:36:12.536] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:51:20.485] [ERROR] [main] event-loop lag 900956ms (probe 250ms)
+[22:51:20.486] [ERROR] [Watchdog] No beat for 907.9s — triggering reconnect
+[22:51:20.486] [WARN] [ArtNet/wk] Hard stall: behind by 901008.4ms (>3 intervals); resyncing deadline.
+[22:51:20.486] [WARN] [ArtNet/wk] Late tick: 901040.4ms (target 33.3ms, behind 901008.4ms)
+[22:51:20.486] [WARN] [ArtNet/wk] tick stats: 30 ticks/901977.7626953125ms avg=30066.88ms (0.03fps) p50=33.1 p95=35.0 max=901040.4 maxBehind=901008.4ms hardStalls=1 target=33.33ms
+[22:51:22.486] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001.2705078125ms avg=33.36ms (29.48fps) p50=33.1 p95=36.3 max=46.9 maxBehind=15.8ms hardStalls=0 target=33.33ms
+[22:51:40.508] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[22:52:00.539] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[23:09:45.563] [ERROR] [main] event-loop lag 1058026ms (probe 250ms)
+[23:09:45.565] [ERROR] [Watchdog] No beat for 1065.0s — triggering reconnect
+[23:09:45.566] [WARN] [ArtNet/wk] Hard stall: behind by 1058116.2ms (>3 intervals); resyncing deadline.
+[23:09:45.566] [WARN] [ArtNet/wk] Late tick: 1058148.3ms (target 33.3ms, behind 1058116.2ms)
+[23:09:45.566] [WARN] [ArtNet/wk] tick stats: 29 ticks/1059055.0610351562ms avg=36520.04ms (0.03fps) p50=33.1 p95=35.1 max=1058148.3 maxBehind=1058116.2ms hardStalls=1 target=33.33ms
+[23:09:47.565] [WARN] [ArtNet/wk] tick stats: 60 ticks/2001.7431640625ms avg=33.35ms (29.97fps) p50=33.2 p95=43.2 max=67.3 maxBehind=37.4ms hardStalls=0 target=33.33ms
+[23:10:05.588] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[23:20:44.554] [ERROR] [main] event-loop lag 635828ms (probe 250ms)
+[23:20:44.555] [ERROR] [Watchdog] No beat for 639.0s — triggering reconnect
+[23:20:44.556] [WARN] [ArtNet/wk] Hard stall: behind by 635926.3ms (>3 intervals); resyncing deadline.
+[23:20:44.556] [WARN] [ArtNet/wk] Late tick: 635958.6ms (target 33.3ms, behind 635926.3ms)
+[23:20:44.556] [WARN] [ArtNet/wk] tick stats: 32 ticks/636980.2084960938ms avg=19905.97ms (0.05fps) p50=33.1 p95=35.2 max=635958.6 maxBehind=635926.3ms hardStalls=1 target=33.33ms
+[23:20:45.172] [ERROR] [main] WS broadcast slow: 13ms (clients=1)
+[23:20:46.555] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001.6640625ms avg=33.35ms (29.48fps) p50=33.1 p95=36.5 max=37.3 maxBehind=5.7ms hardStalls=0 target=33.33ms
+[23:20:59.687] [WARN] [ArtNet/wk] Late tick: 131.6ms (target 33.3ms, behind 99.9ms)
+[23:21:00.560] [WARN] [ArtNet/wk] tick stats: 60 ticks/2001.486572265625ms avg=33.32ms (29.98fps) p50=33.1 p95=34.3 max=131.6 maxBehind=99.9ms hardStalls=0 target=33.33ms
+[23:21:01.160] [WARN] [ArtNet/wk] Late tick: 106.1ms (target 33.3ms, behind 73.4ms)
+[23:21:02.561] [WARN] [ArtNet/wk] tick stats: 60 ticks/2001.386474609375ms avg=33.33ms (29.98fps) p50=33.1 p95=34.2 max=106.1 maxBehind=73.4ms hardStalls=0 target=33.33ms
+[23:21:04.581] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[23:21:24.609] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[23:36:32.310] [ERROR] [Watchdog] No beat for 907.7s — triggering reconnect
+[23:36:32.311] [ERROR] [main] event-loop lag 900680ms (probe 250ms)
+[23:36:32.311] [WARN] [ArtNet/wk] Hard stall: behind by 900758.7ms (>3 intervals); resyncing deadline.
+[23:36:32.311] [WARN] [ArtNet/wk] Late tick: 900790.6ms (target 33.3ms, behind 900758.7ms)
+[23:36:32.311] [WARN] [ArtNet/wk] tick stats: 30 ticks/901723.5126953125ms avg=30058.58ms (0.03fps) p50=33.1 p95=41.4 max=900790.6 maxBehind=900758.7ms hardStalls=1 target=33.33ms
+[23:36:52.331] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[23:37:12.364] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[23:50:04.552] [ERROR] [main] event-loop lag 765186ms (probe 250ms)
+[23:50:04.552] [ERROR] [Watchdog] No beat for 772.2s — triggering reconnect
+[23:50:04.553] [WARN] [ArtNet/wk] Hard stall: behind by 765245.9ms (>3 intervals); resyncing deadline.
+[23:50:04.553] [WARN] [ArtNet/wk] Late tick: 765277.4ms (target 33.3ms, behind 765245.9ms)
+[23:50:04.553] [WARN] [ArtNet/wk] tick stats: 30 ticks/766218.6950683594ms avg=25541.52ms (0.04fps) p50=33.1 p95=35.8 max=765277.4 maxBehind=765245.9ms hardStalls=1 target=33.33ms
+[23:50:06.554] [WARN] [ArtNet/wk] tick stats: 59 ticks/2002.056640625ms avg=33.36ms (29.47fps) p50=33.2 p95=36.5 max=51.6 maxBehind=17.9ms hardStalls=0 target=33.33ms
+[23:50:24.581] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[23:50:44.611] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[00:05:52.378] [ERROR] [main] event-loop lag 900765ms (probe 250ms)
+[00:05:52.379] [ERROR] [Watchdog] No beat for 907.8s — triggering reconnect
+[00:05:52.379] [WARN] [ArtNet/wk] Hard stall: behind by 900795.9ms (>3 intervals); resyncing deadline.
+[00:05:52.379] [WARN] [ArtNet/wk] Late tick: 900827.7ms (target 33.3ms, behind 900795.9ms)
+[00:05:52.379] [WARN] [ArtNet/wk] tick stats: 31 ticks/901803.6740722656ms avg=29091.22ms (0.03fps) p50=33.1 p95=38.8 max=900827.7 maxBehind=900795.9ms hardStalls=1 target=33.33ms
+[00:05:54.380] [WARN] [ArtNet/wk] tick stats: 60 ticks/2002.08984375ms avg=33.37ms (29.97fps) p50=33.1 p95=35.2 max=117.8 maxBehind=85.9ms hardStalls=0 target=33.33ms
+[00:06:12.410] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[00:06:32.444] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[00:21:40.141] [ERROR] [main] event-loop lag 900717ms (probe 250ms)
+[00:21:40.142] [ERROR] [Watchdog] No beat for 907.7s — triggering reconnect
+[00:21:40.142] [WARN] [ArtNet/wk] Hard stall: behind by 900770.0ms (>3 intervals); resyncing deadline.
+[00:21:40.142] [WARN] [ArtNet/wk] Late tick: 900801.5ms (target 33.3ms, behind 900770.0ms)
+[00:21:40.142] [WARN] [ArtNet/wk] tick stats: 30 ticks/901742.2104492188ms avg=30058.94ms (0.03fps) p50=33.1 p95=35.1 max=900801.5 maxBehind=900770.0ms hardStalls=1 target=33.33ms
+[00:21:42.143] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001.477783203125ms avg=33.36ms (29.48fps) p50=33.2 p95=35.1 max=36.1 maxBehind=2.3ms hardStalls=0 target=33.33ms
+[00:22:00.167] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[00:22:20.198] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[00:37:28.048] [ERROR] [main] event-loop lag 900847ms (probe 250ms)
+[00:37:28.049] [ERROR] [Watchdog] No beat for 907.9s — triggering reconnect
+[00:37:28.050] [WARN] [ArtNet/wk] Hard stall: behind by 900876.7ms (>3 intervals); resyncing deadline.
+[00:37:28.050] [WARN] [ArtNet/wk] Late tick: 900908.0ms (target 33.3ms, behind 900876.7ms)
+[00:37:28.050] [WARN] [ArtNet/wk] tick stats: 31 ticks/901905.8020019531ms avg=29093.82ms (0.03fps) p50=33.1 p95=35.1 max=900908.0 maxBehind=900876.7ms hardStalls=1 target=33.33ms
+[00:37:48.081] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[00:38:00.554] [ERROR] [main] WS broadcast slow: 15ms (clients=1)
+[00:38:08.114] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[00:53:15.940] [ERROR] [main] event-loop lag 900833ms (probe 250ms)
+[00:53:15.940] [ERROR] [Watchdog] No beat for 907.8s — triggering reconnect
+[00:53:15.941] [WARN] [ArtNet/wk] Hard stall: behind by 900896.4ms (>3 intervals); resyncing deadline.
+[00:53:15.941] [WARN] [ArtNet/wk] Late tick: 900928.2ms (target 33.3ms, behind 900896.4ms)
+[00:53:15.941] [WARN] [ArtNet/wk] tick stats: 30 ticks/901873.5864257812ms avg=30063.15ms (0.03fps) p50=33.1 p95=36.1 max=900928.2 maxBehind=900896.4ms hardStalls=1 target=33.33ms
+[00:53:35.962] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[00:53:55.997] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[01:11:15.552] [ERROR] [main] event-loop lag 1032566ms (probe 250ms)
+[01:11:15.553] [ERROR] [Watchdog] No beat for 1039.6s — triggering reconnect
+[01:11:15.554] [WARN] [ArtNet/wk] Hard stall: behind by 1032585.8ms (>3 intervals); resyncing deadline.
+[01:11:15.554] [WARN] [ArtNet/wk] Late tick: 1032619.0ms (target 33.3ms, behind 1032585.8ms)
+[01:11:15.554] [WARN] [ArtNet/wk] tick stats: 31 ticks/1033590.9250488281ms avg=33342.51ms (0.03fps) p50=33.1 p95=35.1 max=1032619.0 maxBehind=1032585.8ms hardStalls=1 target=33.33ms
+[01:11:28.628] [WARN] [ArtNet/wk] Hard stall: behind by 108.9ms (>3 intervals); resyncing deadline.
+[01:11:28.629] [WARN] [ArtNet/wk] Late tick: 140.8ms (target 33.3ms, behind 108.9ms)
+[01:11:29.559] [WARN] [ArtNet/wk] tick stats: 56 ticks/2002.52490234375ms avg=35.28ms (27.96fps) p50=33.1 p95=35.3 max=140.8 maxBehind=108.9ms hardStalls=1 target=33.33ms
+[01:11:30.082] [WARN] [ArtNet/wk] Late tick: 86.2ms (target 33.3ms, behind 54.3ms)
+[01:11:31.560] [WARN] [ArtNet/wk] tick stats: 60 ticks/2001.3818359375ms avg=33.33ms (29.98fps) p50=33.1 p95=35.1 max=86.2 maxBehind=54.3ms hardStalls=0 target=33.33ms
+[01:11:35.642] [ERROR] [Watchdog] No beat for 20.1s — triggering reconnect
+[01:26:39.961] [ERROR] [Watchdog] No beat for 904.3s — triggering reconnect
+[01:26:39.962] [ERROR] [main] event-loop lag 901267ms (probe 250ms)
+[01:26:39.962] [WARN] [ArtNet/wk] Hard stall: behind by 901402.7ms (>3 intervals); resyncing deadline.
+[01:26:39.962] [WARN] [ArtNet/wk] Late tick: 901434.6ms (target 33.3ms, behind 901402.7ms)
+[01:26:39.962] [WARN] [ArtNet/wk] tick stats: 30 ticks/902400.8923339844ms avg=30080.03ms (0.03fps) p50=33.1 p95=35.1 max=901434.6 maxBehind=901402.7ms hardStalls=1 target=33.33ms
+[01:26:41.960] [WARN] [ArtNet/wk] tick stats: 59 ticks/2000.721923828125ms avg=33.35ms (29.49fps) p50=33.2 p95=36.1 max=44.3 maxBehind=12.5ms hardStalls=0 target=33.33ms
+[01:26:59.991] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[01:27:07.041] [WARN] [ArtNet/wk] Late tick: 79.8ms (target 33.3ms, behind 48.1ms)
+[01:27:07.976] [WARN] [ArtNet/wk] tick stats: 60 ticks/2002.066650390625ms avg=33.33ms (29.97fps) p50=33.1 p95=35.1 max=79.8 maxBehind=48.1ms hardStalls=0 target=33.33ms
+[01:27:20.064] [ERROR] [Watchdog] No beat for 20.1s — triggering reconnect
+[01:42:27.864] [ERROR] [main] event-loop lag 900866ms (probe 250ms)
+[01:42:27.865] [ERROR] [Watchdog] No beat for 907.8s — triggering reconnect
+[01:42:27.866] [WARN] [ArtNet/wk] Hard stall: behind by 900909.0ms (>3 intervals); resyncing deadline.
+[01:42:27.866] [WARN] [ArtNet/wk] Late tick: 900940.5ms (target 33.3ms, behind 900909.0ms)
+[01:42:27.866] [WARN] [ArtNet/wk] tick stats: 30 ticks/901874.2419433594ms avg=30063.60ms (0.03fps) p50=33.1 p95=37.1 max=900940.5 maxBehind=900909.0ms hardStalls=1 target=33.33ms
+[01:42:41.488] [WARN] [ArtNet/wk] Late tick: 85.5ms (target 33.3ms, behind 53.5ms)
+[01:42:41.867] [WARN] [ArtNet/wk] tick stats: 60 ticks/2000.8046875ms avg=33.32ms (29.99fps) p50=33.2 p95=35.8 max=85.5 maxBehind=53.5ms hardStalls=0 target=33.33ms
+[01:42:42.988] [WARN] [ArtNet/wk] Late tick: 83.2ms (target 33.3ms, behind 54.2ms)
+[01:42:43.868] [WARN] [ArtNet/wk] tick stats: 60 ticks/2000.8359375ms avg=33.35ms (29.99fps) p50=33.2 p95=35.9 max=83.2 maxBehind=54.2ms hardStalls=0 target=33.33ms
+[01:42:47.890] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[01:43:07.920] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[01:58:16.103] [ERROR] [Watchdog] No beat for 908.2s — triggering reconnect
+[01:58:16.104] [ERROR] [main] event-loop lag 901156ms (probe 250ms)
+[01:58:16.104] [WARN] [ArtNet/wk] Hard stall: behind by 901209.6ms (>3 intervals); resyncing deadline.
+[01:58:16.104] [WARN] [ArtNet/wk] Late tick: 901241.2ms (target 33.3ms, behind 901209.6ms)
+[01:58:16.104] [WARN] [ArtNet/wk] tick stats: 31 ticks/902227.1889648438ms avg=29104.56ms (0.03fps) p50=33.1 p95=35.1 max=901241.2 maxBehind=901209.6ms hardStalls=1 target=33.33ms
+[01:58:18.104] [WARN] [ArtNet/wk] tick stats: 60 ticks/2001.570068359375ms avg=33.36ms (29.98fps) p50=33.2 p95=37.9 max=74.3 maxBehind=40.7ms hardStalls=0 target=33.33ms
+[01:58:36.132] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[01:58:56.161] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[02:14:03.434] [ERROR] [Watchdog] No beat for 907.3s — triggering reconnect
+[02:14:03.435] [ERROR] [main] event-loop lag 900258ms (probe 250ms)
+[02:14:03.435] [WARN] [ArtNet/wk] Hard stall: behind by 900367.4ms (>3 intervals); resyncing deadline.
+[02:14:03.435] [WARN] [ArtNet/wk] Late tick: 900399.2ms (target 33.3ms, behind 900367.4ms)
+[02:14:03.435] [WARN] [ArtNet/wk] tick stats: 29 ticks/901305.7026367188ms avg=31080.47ms (0.03fps) p50=33.1 p95=35.1 max=900399.2 maxBehind=900367.4ms hardStalls=1 target=33.33ms
+[02:14:03.672] [ERROR] [main] WS broadcast slow: 28ms (clients=1)
+[02:14:16.186] [WARN] [ArtNet/wk] Hard stall: behind by 118.5ms (>3 intervals); resyncing deadline.
+[02:14:16.186] [WARN] [ArtNet/wk] Late tick: 150.3ms (target 33.3ms, behind 118.5ms)
+[02:14:17.441] [WARN] [ArtNet/wk] tick stats: 56 ticks/2000.338134765625ms avg=35.46ms (28.00fps) p50=33.1 p95=35.1 max=150.3 maxBehind=118.5ms hardStalls=1 target=33.33ms
+[02:14:17.608] [WARN] [ArtNet/wk] Late tick: 86.5ms (target 33.3ms, behind 54.3ms)
+[02:14:19.443] [WARN] [ArtNet/wk] tick stats: 60 ticks/2002.289794921875ms avg=33.34ms (29.97fps) p50=33.1 p95=35.1 max=86.5 maxBehind=54.3ms hardStalls=0 target=33.33ms
+[02:14:23.458] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[02:14:43.491] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[02:29:51.807] [ERROR] [main] event-loop lag 901330ms (probe 250ms)
+[02:29:51.808] [ERROR] [Watchdog] No beat for 908.3s — triggering reconnect
+[02:29:51.811] [WARN] [ArtNet/wk] Hard stall: behind by 901359.3ms (>3 intervals); resyncing deadline.
+[02:29:51.811] [WARN] [ArtNet/wk] Late tick: 901391.1ms (target 33.3ms, behind 901359.3ms)
+[02:29:51.811] [WARN] [ArtNet/wk] tick stats: 30 ticks/902348.5383300781ms avg=30078.64ms (0.03fps) p50=33.1 p95=35.1 max=901391.1 maxBehind=901359.3ms hardStalls=1 target=33.33ms
+[02:29:53.809] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001.398193359375ms avg=33.34ms (29.48fps) p50=33.2 p95=36.8 max=110.3 maxBehind=86.6ms hardStalls=0 target=33.33ms
+[02:30:11.861] [ERROR] [Watchdog] No beat for 20.1s — triggering reconnect
+[02:30:19.095] [WARN] [ArtNet/wk] Late tick: 54.5ms (target 33.3ms, behind 21.2ms)
+[02:30:31.892] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[02:45:39.687] [ERROR] [main] event-loop lag 900822ms (probe 250ms)
+[02:45:39.687] [ERROR] [Watchdog] No beat for 907.8s — triggering reconnect
+[02:45:39.688] [WARN] [ArtNet/wk] Hard stall: behind by 900816.3ms (>3 intervals); resyncing deadline.
+[02:45:39.688] [WARN] [ArtNet/wk] Late tick: 900848.4ms (target 33.3ms, behind 900816.3ms)
+[02:45:39.688] [WARN] [ArtNet/wk] tick stats: 32 ticks/901864.4816894531ms avg=28183.80ms (0.04fps) p50=33.1 p95=35.1 max=900848.4 maxBehind=900816.3ms hardStalls=1 target=33.33ms
+[02:45:40.314] [ERROR] [main] WS broadcast slow: 9ms (clients=1)
+[02:45:59.717] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[02:46:19.749] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[03:01:27.616] [ERROR] [main] event-loop lag 900879ms (probe 250ms)
+[03:01:27.616] [ERROR] [Watchdog] No beat for 907.9s — triggering reconnect
+[03:01:27.617] [WARN] [ArtNet/wk] Hard stall: behind by 900900.1ms (>3 intervals); resyncing deadline.
+[03:01:27.617] [WARN] [ArtNet/wk] Late tick: 900931.8ms (target 33.3ms, behind 900900.1ms)
+[03:01:27.617] [WARN] [ArtNet/wk] tick stats: 31 ticks/901915.4934082031ms avg=29094.57ms (0.03fps) p50=33.1 p95=35.1 max=900931.8 maxBehind=900900.1ms hardStalls=1 target=33.33ms
+[03:01:29.617] [WARN] [ArtNet/wk] tick stats: 60 ticks/2001.207763671875ms avg=33.35ms (29.98fps) p50=33.2 p95=39.9 max=74.2 maxBehind=42.5ms hardStalls=0 target=33.33ms
+[03:01:47.644] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[03:02:07.674] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[03:17:15.866] [ERROR] [main] event-loop lag 901192ms (probe 250ms)
+[03:17:15.867] [ERROR] [Watchdog] No beat for 908.2s — triggering reconnect
+[03:17:15.868] [WARN] [ArtNet/wk] Hard stall: behind by 901253.0ms (>3 intervals); resyncing deadline.
+[03:17:15.868] [WARN] [ArtNet/wk] Late tick: 901285.8ms (target 33.3ms, behind 901253.0ms)
+[03:17:15.868] [WARN] [ArtNet/wk] tick stats: 29 ticks/902218.5144042969ms avg=31111.03ms (0.03fps) p50=33.1 p95=36.1 max=901285.8 maxBehind=901253.0ms hardStalls=1 target=33.33ms
+[03:17:17.867] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001.23828125ms avg=33.36ms (29.48fps) p50=33.1 p95=35.1 max=69.9 maxBehind=38.0ms hardStalls=0 target=33.33ms
+[03:17:28.370] [WARN] [ArtNet/wk] Late tick: 102.2ms (target 33.3ms, behind 70.8ms)
+[03:17:29.842] [WARN] [ArtNet/wk] Late tick: 72.0ms (target 33.3ms, behind 42.8ms)
+[03:17:29.867] [WARN] [ArtNet/wk] tick stats: 60 ticks/2000.462646484375ms avg=33.34ms (29.99fps) p50=33.1 p95=38.1 max=102.2 maxBehind=70.8ms hardStalls=0 target=33.33ms
+[03:17:35.894] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[03:17:55.927] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[03:18:01.121] [ERROR] [main] WS broadcast slow: 19ms (clients=1)
+[03:33:05.292] [ERROR] [main] event-loop lag 902370ms (probe 250ms)
+[03:33:05.293] [ERROR] [Watchdog] No beat for 909.4s — triggering reconnect
+[03:33:05.295] [WARN] [ArtNet/wk] Hard stall: behind by 902431.7ms (>3 intervals); resyncing deadline.
+[03:33:05.295] [WARN] [ArtNet/wk] Late tick: 902463.0ms (target 33.3ms, behind 902431.7ms)
+[03:33:05.295] [WARN] [ArtNet/wk] tick stats: 30 ticks/903410.7319335938ms avg=30114.33ms (0.03fps) p50=33.1 p95=35.1 max=902463.0 maxBehind=902431.7ms hardStalls=1 target=33.33ms
+[03:33:07.293] [WARN] [ArtNet/wk] tick stats: 59 ticks/2000.369140625ms avg=33.37ms (29.49fps) p50=33.2 p95=36.5 max=54.7 maxBehind=21.7ms hardStalls=0 target=33.33ms
+[03:33:25.319] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[03:33:45.348] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[03:48:52.238] [ERROR] [main] event-loop lag 899905ms (probe 250ms)
+[03:48:52.238] [ERROR] [Watchdog] No beat for 906.9s — triggering reconnect
+[03:48:52.239] [WARN] [ArtNet/wk] Hard stall: behind by 899947.6ms (>3 intervals); resyncing deadline.
+[03:48:52.239] [WARN] [ArtNet/wk] Late tick: 899979.0ms (target 33.3ms, behind 899947.6ms)
+[03:48:52.239] [WARN] [ArtNet/wk] tick stats: 30 ticks/900918.2124023438ms avg=30031.54ms (0.03fps) p50=33.1 p95=35.1 max=899979.0 maxBehind=899947.6ms hardStalls=1 target=33.33ms
+[03:49:12.270] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[03:49:32.298] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[04:04:40.479] [ERROR] [main] event-loop lag 901187ms (probe 250ms)
+[04:04:40.480] [ERROR] [Watchdog] No beat for 908.2s — triggering reconnect
+[04:04:40.481] [WARN] [ArtNet/wk] Hard stall: behind by 901245.9ms (>3 intervals); resyncing deadline.
+[04:04:40.481] [WARN] [ArtNet/wk] Late tick: 901277.2ms (target 33.3ms, behind 901245.9ms)
+[04:04:40.481] [WARN] [ArtNet/wk] tick stats: 30 ticks/902239.0888671875ms avg=30074.80ms (0.03fps) p50=33.1 p95=38.5 max=901277.2 maxBehind=901245.9ms hardStalls=1 target=33.33ms
+[04:04:42.481] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001.56787109375ms avg=33.36ms (29.48fps) p50=33.2 p95=41.8 max=62.7 maxBehind=27.9ms hardStalls=0 target=33.33ms
+[04:05:00.507] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[04:05:20.538] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[04:22:27.485] [ERROR] [main] event-loop lag 1019962ms (probe 250ms)
+[04:22:27.487] [ERROR] [Watchdog] No beat for 1027.0s — triggering reconnect
+[04:22:27.488] [WARN] [ArtNet/wk] Hard stall: behind by 1019976.6ms (>3 intervals); resyncing deadline.
+[04:22:27.488] [WARN] [ArtNet/wk] Late tick: 1020008.4ms (target 33.3ms, behind 1019976.6ms)
+[04:22:27.488] [WARN] [ArtNet/wk] tick stats: 31 ticks/1020992.9423828125ms avg=32935.79ms (0.03fps) p50=33.1 p95=35.2 max=1020008.4 maxBehind=1019976.6ms hardStalls=1 target=33.33ms
+[04:22:29.485] [WARN] [ArtNet/wk] tick stats: 59 ticks/2000.0185546875ms avg=33.38ms (29.50fps) p50=33.1 p95=36.8 max=72.1 maxBehind=40.2ms hardStalls=0 target=33.33ms
+[04:22:30.545] [WARN] [ArtNet/wk] Late tick: 92.1ms (target 33.3ms, behind 58.6ms)
+[04:22:31.486] [WARN] [ArtNet/wk] tick stats: 61 ticks/2000.833740234375ms avg=33.30ms (30.49fps) p50=33.2 p95=35.2 max=92.1 maxBehind=58.6ms hardStalls=0 target=33.33ms
+[04:22:32.149] [ERROR] [main] WS broadcast slow: 11ms (clients=1)
+[04:22:40.116] [WARN] [ArtNet/wk] Late tick: 96.0ms (target 33.3ms, behind 64.4ms)
+[04:22:41.487] [WARN] [ArtNet/wk] tick stats: 60 ticks/2000.651611328125ms avg=33.35ms (29.99fps) p50=33.2 p95=35.2 max=96.0 maxBehind=64.4ms hardStalls=0 target=33.33ms
+[04:22:47.567] [ERROR] [Watchdog] No beat for 20.1s — triggering reconnect
+[04:37:50.638] [ERROR] [Watchdog] No beat for 903.1s — triggering reconnect
+[04:37:50.640] [ERROR] [main] event-loop lag 899955ms (probe 250ms)
+[04:37:50.640] [WARN] [ArtNet/wk] Hard stall: behind by 900088.5ms (>3 intervals); resyncing deadline.
+[04:37:50.640] [WARN] [ArtNet/wk] Late tick: 900119.9ms (target 33.3ms, behind 900088.5ms)
+[04:37:50.640] [WARN] [ArtNet/wk] tick stats: 32 ticks/901148.5427246094ms avg=28161.09ms (0.04fps) p50=33.2 p95=36.2 max=900119.9 maxBehind=900088.5ms hardStalls=1 target=33.33ms
+[04:37:54.638] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001.948974609375ms avg=33.37ms (29.47fps) p50=33.1 p95=35.1 max=36.1 maxBehind=2.1ms hardStalls=0 target=33.33ms
+[04:38:10.668] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[04:38:30.697] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[04:53:38.488] [ERROR] [Watchdog] No beat for 907.8s — triggering reconnect
+[04:53:38.492] [ERROR] [main] event-loop lag 900788ms (probe 250ms)
+[04:53:38.493] [WARN] [ArtNet/wk] Hard stall: behind by 900821.7ms (>3 intervals); resyncing deadline.
+[04:53:38.493] [WARN] [ArtNet/wk] Late tick: 900853.9ms (target 33.3ms, behind 900821.7ms)
+[04:53:38.493] [WARN] [ArtNet/wk] tick stats: 31 ticks/901828.1030273438ms avg=29092.03ms (0.03fps) p50=33.1 p95=38.7 max=900853.9 maxBehind=900821.7ms hardStalls=1 target=33.33ms
+[04:53:40.489] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001.524169921875ms avg=33.35ms (29.48fps) p50=33.1 p95=35.2 max=40.0 maxBehind=8.3ms hardStalls=0 target=33.33ms
+[04:53:58.525] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[04:54:18.569] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[05:00:59.478] [ERROR] [main] event-loop lag 393934ms (probe 250ms)
+[05:00:59.478] [ERROR] [Watchdog] No beat for 400.9s — triggering reconnect
+[05:00:59.479] [WARN] [ArtNet/wk] Hard stall: behind by 393990.4ms (>3 intervals); resyncing deadline.
+[05:00:59.480] [WARN] [ArtNet/wk] Late tick: 394021.7ms (target 33.3ms, behind 393990.4ms)
+[05:00:59.480] [WARN] [ArtNet/wk] tick stats: 30 ticks/394962.91943359375ms avg=13166.28ms (0.08fps) p50=33.1 p95=35.1 max=394021.7 maxBehind=393990.4ms hardStalls=1 target=33.33ms
+[05:00:59.694] [ERROR] [main] WS broadcast slow: 7ms (clients=1)
+[05:01:01.479] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001.49365234375ms avg=33.33ms (29.48fps) p50=33.2 p95=35.6 max=38.5 maxBehind=6.3ms hardStalls=0 target=33.33ms
+[05:01:14.035] [WARN] [ArtNet/wk] Late tick: 54.8ms (target 33.3ms, behind 23.5ms)
+[05:01:19.511] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[05:01:39.542] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[05:16:46.925] [ERROR] [main] event-loop lag 900397ms (probe 250ms)
+[05:16:46.926] [ERROR] [Watchdog] No beat for 907.4s — triggering reconnect
+[05:16:46.927] [WARN] [ArtNet/wk] Hard stall: behind by 900484.2ms (>3 intervals); resyncing deadline.
+[05:16:46.927] [WARN] [ArtNet/wk] Late tick: 900515.7ms (target 33.3ms, behind 900484.2ms)
+[05:16:46.927] [WARN] [ArtNet/wk] tick stats: 29 ticks/901432.1057128906ms avg=31084.45ms (0.03fps) p50=33.1 p95=34.1 max=900515.7 maxBehind=900484.2ms hardStalls=1 target=33.33ms
+[05:16:48.927] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001.27880859375ms avg=33.34ms (29.48fps) p50=33.1 p95=35.2 max=63.9 maxBehind=32.7ms hardStalls=0 target=33.33ms
+[05:17:06.958] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[05:17:26.992] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[05:32:34.759] [ERROR] [main] event-loop lag 900782ms (probe 250ms)
+[05:32:34.760] [ERROR] [Watchdog] No beat for 907.8s — triggering reconnect
+[05:32:34.761] [WARN] [ArtNet/wk] Hard stall: behind by 900838.6ms (>3 intervals); resyncing deadline.
+[05:32:34.761] [WARN] [ArtNet/wk] Late tick: 900870.5ms (target 33.3ms, behind 900838.6ms)
+[05:32:34.761] [WARN] [ArtNet/wk] tick stats: 30 ticks/901814.7827148438ms avg=30061.23ms (0.03fps) p50=33.1 p95=37.4 max=900870.5 maxBehind=900838.6ms hardStalls=1 target=33.33ms
+[05:32:45.538] [WARN] [ArtNet/wk] Late tick: 77.4ms (target 33.3ms, behind 45.2ms)
+[05:32:46.761] [WARN] [ArtNet/wk] tick stats: 60 ticks/2000.23291015625ms avg=33.36ms (30.00fps) p50=33.1 p95=35.1 max=77.4 maxBehind=45.2ms hardStalls=0 target=33.33ms
+[05:32:47.031] [WARN] [ArtNet/wk] Late tick: 103.5ms (target 33.3ms, behind 71.1ms)
+[05:32:48.534] [WARN] [ArtNet/wk] Late tick: 106.5ms (target 33.3ms, behind 74.8ms)
+[05:32:48.761] [WARN] [ArtNet/wk] tick stats: 60 ticks/2000.187744140625ms avg=33.31ms (30.00fps) p50=33.1 p95=49.0 max=106.5 maxBehind=74.8ms hardStalls=0 target=33.33ms
+[05:32:54.788] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[05:33:14.820] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[05:47:46.474] [ERROR] [main] event-loop lag 864664ms (probe 250ms)
+[05:47:46.474] [ERROR] [Watchdog] No beat for 871.7s — triggering reconnect
+[05:47:46.475] [WARN] [ArtNet/wk] Hard stall: behind by 864718.8ms (>3 intervals); resyncing deadline.
+[05:47:46.475] [WARN] [ArtNet/wk] Late tick: 864750.6ms (target 33.3ms, behind 864718.8ms)
+[05:47:46.475] [WARN] [ArtNet/wk] tick stats: 30 ticks/865690.9953613281ms avg=28857.24ms (0.03fps) p50=33.1 p95=35.2 max=864750.6 maxBehind=864718.8ms hardStalls=1 target=33.33ms
+[05:47:47.143] [ERROR] [main] WS broadcast slow: 21ms (clients=1)
+[05:47:48.476] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001.703857421875ms avg=33.37ms (29.47fps) p50=33.2 p95=34.8 max=59.1 maxBehind=26.0ms hardStalls=0 target=33.33ms
+[05:48:06.496] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[05:48:26.528] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[06:03:32.491] [ERROR] [main] event-loop lag 898966ms (probe 250ms)
+[06:03:32.491] [ERROR] [Watchdog] No beat for 906.0s — triggering reconnect
+[06:03:32.492] [WARN] [ArtNet/wk] Hard stall: behind by 899021.7ms (>3 intervals); resyncing deadline.
+[06:03:32.492] [WARN] [ArtNet/wk] Late tick: 899053.4ms (target 33.3ms, behind 899021.7ms)
+[06:03:32.492] [WARN] [ArtNet/wk] tick stats: 30 ticks/899990.5581054688ms avg=30000.66ms (0.03fps) p50=33.1 p95=36.1 max=899053.4 maxBehind=899021.7ms hardStalls=1 target=33.33ms
+[06:03:34.492] [WARN] [ArtNet/wk] tick stats: 60 ticks/2001.53564453125ms avg=33.36ms (29.98fps) p50=33.2 p95=39.0 max=118.2 maxBehind=87.0ms hardStalls=0 target=33.33ms
+[06:18:48.401] [ERROR] [main] event-loop lag 910633ms (probe 250ms)
+[06:18:48.402] [ERROR] [Watchdog] No beat for 915.9s — triggering reconnect
+[06:18:48.403] [WARN] [ArtNet/wk] Hard stall: behind by 910714.1ms (>3 intervals); resyncing deadline.
+[06:18:48.403] [WARN] [ArtNet/wk] Late tick: 910745.4ms (target 33.3ms, behind 910714.1ms)
+[06:18:48.403] [WARN] [ArtNet/wk] tick stats: 36 ticks/911913.3752441406ms avg=25330.93ms (0.04fps) p50=33.2 p95=38.3 max=910745.4 maxBehind=910714.1ms hardStalls=1 target=33.33ms
+[06:19:01.011] [WARN] [ArtNet/wk] Late tick: 105.6ms (target 33.3ms, behind 74.1ms)
+[06:19:02.462] [WARN] [ArtNet/wk] Late tick: 89.0ms (target 33.3ms, behind 57.7ms)
+[06:19:02.462] [WARN] [ArtNet/wk] tick stats: 60 ticks/2055.80615234375ms avg=34.26ms (29.19fps) p50=33.2 p95=35.2 max=105.6 maxBehind=74.1ms hardStalls=0 target=33.33ms
+[06:19:08.466] [ERROR] [Watchdog] No beat for 20.1s — triggering reconnect
+[06:19:28.486] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[06:34:35.341] [ERROR] [main] event-loop lag 899857ms (probe 250ms)
+[06:34:35.341] [ERROR] [Watchdog] No beat for 906.9s — triggering reconnect
+[06:34:35.342] [WARN] [ArtNet/wk] Hard stall: behind by 899975.3ms (>3 intervals); resyncing deadline.
+[06:34:35.342] [WARN] [ArtNet/wk] Late tick: 900007.3ms (target 33.3ms, behind 899975.3ms)
+[06:34:35.342] [WARN] [ArtNet/wk] tick stats: 27 ticks/900870.8481445312ms avg=33365.68ms (0.03fps) p50=33.1 p95=35.1 max=900007.3 maxBehind=899975.3ms hardStalls=1 target=33.33ms
+[06:34:55.372] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[06:35:15.405] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[06:50:23.754] [ERROR] [main] event-loop lag 901360ms (probe 250ms)
+[06:50:23.754] [ERROR] [Watchdog] No beat for 908.4s — triggering reconnect
+[06:50:23.755] [WARN] [ArtNet/wk] Hard stall: behind by 901383.5ms (>3 intervals); resyncing deadline.
+[06:50:23.755] [WARN] [ArtNet/wk] Late tick: 901415.4ms (target 33.3ms, behind 901383.5ms)
+[06:50:23.755] [WARN] [ArtNet/wk] tick stats: 31 ticks/902398.7658691406ms avg=29110.17ms (0.03fps) p50=33.1 p95=35.1 max=901415.4 maxBehind=901383.5ms hardStalls=1 target=33.33ms
+[06:50:43.798] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[06:51:03.829] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[07:01:59.443] [ERROR] [Watchdog] No beat for 655.6s — triggering reconnect
+[07:01:59.444] [ERROR] [main] event-loop lag 648622ms (probe 250ms)
+[07:01:59.444] [WARN] [ArtNet/wk] Hard stall: behind by 648660.7ms (>3 intervals); resyncing deadline.
+[07:01:59.444] [WARN] [ArtNet/wk] Late tick: 648693.9ms (target 33.3ms, behind 648660.7ms)
+[07:01:59.444] [WARN] [ArtNet/wk] tick stats: 31 ticks/649690.7644042969ms avg=20957.81ms (0.05fps) p50=33.1 p95=35.1 max=648693.9 maxBehind=648660.7ms hardStalls=1 target=33.33ms
+[07:01:59.876] [ERROR] [main] WS broadcast slow: 8ms (clients=1)
+[07:02:19.468] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[07:02:39.502] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[07:17:47.814] [ERROR] [main] event-loop lag 901326ms (probe 250ms)
+[07:17:47.815] [ERROR] [Watchdog] No beat for 908.3s — triggering reconnect
+[07:17:47.816] [WARN] [ArtNet/wk] Hard stall: behind by 901376.2ms (>3 intervals); resyncing deadline.
+[07:17:47.816] [WARN] [ArtNet/wk] Late tick: 901407.6ms (target 33.3ms, behind 901376.2ms)
+[07:17:47.816] [WARN] [ArtNet/wk] tick stats: 30 ticks/902350.79296875ms avg=30079.16ms (0.03fps) p50=33.1 p95=35.1 max=901407.6 maxBehind=901376.2ms hardStalls=1 target=33.33ms
+[07:17:49.815] [WARN] [ArtNet/wk] tick stats: 60 ticks/2001.25341796875ms avg=33.36ms (29.98fps) p50=33.1 p95=40.2 max=76.9 maxBehind=45.0ms hardStalls=0 target=33.33ms
+[07:18:00.496] [ERROR] [main] event-loop lag 67ms (probe 250ms)
+[07:18:00.499] [WARN] [ArtNet/wk] Late tick: 81.7ms (target 33.3ms, behind 49.8ms)
+[07:18:01.817] [WARN] [ArtNet/wk] tick stats: 60 ticks/2000.26416015625ms avg=33.36ms (30.00fps) p50=33.2 p95=35.1 max=81.7 maxBehind=49.8ms hardStalls=0 target=33.33ms
+[07:18:01.983] [WARN] [ArtNet/wk] Late tick: 69.1ms (target 33.3ms, behind 35.6ms)
+[07:18:03.818] [WARN] [ArtNet/wk] tick stats: 60 ticks/2001.0146484375ms avg=33.33ms (29.98fps) p50=33.1 p95=35.1 max=69.1 maxBehind=35.6ms hardStalls=0 target=33.33ms
+[07:18:07.849] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[07:18:27.878] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[07:33:40.851] [ERROR] [Watchdog] No beat for 913.0s — triggering reconnect
+[07:33:40.852] [ERROR] [main] event-loop lag 905879ms (probe 250ms)
+[07:33:40.852] [WARN] [ArtNet/wk] Hard stall: behind by 906038.2ms (>3 intervals); resyncing deadline.
+[07:33:40.854] [WARN] [ArtNet/wk] Late tick: 906069.7ms (target 33.3ms, behind 906038.2ms)
+[07:33:40.854] [WARN] [ArtNet/wk] tick stats: 30 ticks/907010.1755371094ms avg=30234.54ms (0.03fps) p50=33.1 p95=35.0 max=906069.7 maxBehind=906038.2ms hardStalls=1 target=33.33ms
+[07:34:00.867] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[07:34:20.894] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[07:49:28.159] [ERROR] [main] event-loop lag 900263ms (probe 250ms)
+[07:49:28.159] [ERROR] [Watchdog] No beat for 907.3s — triggering reconnect
+[07:49:28.160] [WARN] [ArtNet/wk] Hard stall: behind by 900344.7ms (>3 intervals); resyncing deadline.
+[07:49:28.160] [WARN] [ArtNet/wk] Late tick: 900376.4ms (target 33.3ms, behind 900344.7ms)
+[07:49:28.160] [WARN] [ArtNet/wk] tick stats: 29 ticks/901278.5270996094ms avg=31079.64ms (0.03fps) p50=33.1 p95=35.0 max=900376.4 maxBehind=900344.7ms hardStalls=1 target=33.33ms
+[07:49:30.159] [WARN] [ArtNet/wk] tick stats: 59 ticks/2000.8623046875ms avg=33.37ms (29.49fps) p50=33.2 p95=35.2 max=70.7 maxBehind=39.0ms hardStalls=0 target=33.33ms
+[07:49:48.185] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[07:50:08.224] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[08:02:59.430] [ERROR] [Watchdog] No beat for 771.2s — triggering reconnect
+[08:02:59.431] [ERROR] [main] event-loop lag 764200ms (probe 250ms)
+[08:02:59.431] [WARN] [ArtNet/wk] Hard stall: behind by 764241.0ms (>3 intervals); resyncing deadline.
+[08:02:59.431] [WARN] [ArtNet/wk] Late tick: 764272.7ms (target 33.3ms, behind 764241.0ms)
+[08:02:59.431] [WARN] [ArtNet/wk] tick stats: 31 ticks/765244.9538574219ms avg=24686.23ms (0.04fps) p50=33.1 p95=34.1 max=764272.7 maxBehind=764241.0ms hardStalls=1 target=33.33ms
+[08:03:01.429] [WARN] [ArtNet/wk] tick stats: 59 ticks/2000.361572265625ms avg=33.37ms (29.49fps) p50=33.1 p95=37.6 max=45.5 maxBehind=12.6ms hardStalls=0 target=33.33ms
+[08:03:19.450] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[08:03:39.480] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[08:19:43.426] [ERROR] [main] event-loop lag 956959ms (probe 250ms)
+[08:19:43.427] [ERROR] [Watchdog] No beat for 963.9s — triggering reconnect
+[08:19:43.427] [WARN] [ArtNet/wk] Hard stall: behind by 957000.0ms (>3 intervals); resyncing deadline.
+[08:19:43.427] [WARN] [ArtNet/wk] Late tick: 957032.0ms (target 33.3ms, behind 957000.0ms)
+[08:19:43.427] [WARN] [ArtNet/wk] tick stats: 30 ticks/957983.3862304688ms avg=31933.28ms (0.03fps) p50=33.1 p95=35.2 max=957032.0 maxBehind=957000.0ms hardStalls=1 target=33.33ms
+[08:19:45.427] [WARN] [ArtNet/wk] tick stats: 59 ticks/2002.966064453125ms avg=33.35ms (29.46fps) p50=33.1 p95=35.9 max=100.3 maxBehind=68.7ms hardStalls=0 target=33.33ms
+[08:19:56.055] [WARN] [ArtNet/wk] Late tick: 96.0ms (target 33.3ms, behind 64.6ms)
+[08:19:57.436] [WARN] [ArtNet/wk] tick stats: 60 ticks/2002.23291015625ms avg=33.33ms (29.97fps) p50=33.2 p95=35.2 max=96.0 maxBehind=64.6ms hardStalls=0 target=33.33ms
+[08:19:57.525] [WARN] [ArtNet/wk] Late tick: 65.7ms (target 33.3ms, behind 34.6ms)
+[08:19:59.438] [WARN] [ArtNet/wk] tick stats: 60 ticks/2002.216064453125ms avg=33.34ms (29.97fps) p50=33.2 p95=35.1 max=65.7 maxBehind=34.6ms hardStalls=0 target=33.33ms
+[08:20:03.443] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[08:35:06.789] [ERROR] [main] event-loop lag 900174ms (probe 250ms)
+[08:35:06.790] [ERROR] [Watchdog] No beat for 903.4s — triggering reconnect
+[08:35:06.792] [WARN] [ArtNet/wk] Hard stall: behind by 900336.9ms (>3 intervals); resyncing deadline.
+[08:35:06.792] [WARN] [ArtNet/wk] Late tick: 900368.4ms (target 33.3ms, behind 900336.9ms)
+[08:35:06.792] [WARN] [ArtNet/wk] tick stats: 31 ticks/901349.7702636719ms avg=29076.41ms (0.03fps) p50=33.1 p95=36.8 max=900368.4 maxBehind=900336.9ms hardStalls=1 target=33.33ms
+[08:35:08.791] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001.4697265625ms avg=33.36ms (29.48fps) p50=33.1 p95=35.2 max=53.1 maxBehind=21.1ms hardStalls=0 target=33.33ms
+[08:35:26.819] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[08:35:46.843] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[08:53:05.421] [ERROR] [main] event-loop lag 1031579ms (probe 250ms)
+[08:53:05.422] [ERROR] [Watchdog] No beat for 1038.6s — triggering reconnect
+[08:53:05.423] [WARN] [ArtNet/wk] Hard stall: behind by 1031635.3ms (>3 intervals); resyncing deadline.
+[08:53:05.423] [WARN] [ArtNet/wk] Late tick: 1031667.6ms (target 33.3ms, behind 1031635.3ms)
+[08:53:05.423] [WARN] [ArtNet/wk] tick stats: 30 ticks/1032611.5764160156ms avg=34421.12ms (0.03fps) p50=33.1 p95=36.0 max=1031667.6 maxBehind=1031635.3ms hardStalls=1 target=33.33ms
+[08:53:07.422] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001.3681640625ms avg=33.34ms (29.48fps) p50=33.2 p95=35.2 max=66.5 maxBehind=34.9ms hardStalls=0 target=33.33ms
+[09:03:16.035] [ERROR] [main] event-loop lag 605330ms (probe 250ms)
+[09:03:16.036] [ERROR] [Watchdog] No beat for 610.6s — triggering reconnect
+[09:03:16.037] [WARN] [ArtNet/wk] Hard stall: behind by 605417.0ms (>3 intervals); resyncing deadline.
+[09:03:16.037] [WARN] [ArtNet/wk] Late tick: 605448.6ms (target 33.3ms, behind 605417.0ms)
+[09:03:16.037] [WARN] [ArtNet/wk] tick stats: 36 ticks/606615.6960449219ms avg=16850.43ms (0.06fps) p50=33.1 p95=35.1 max=605448.6 maxBehind=605417.0ms hardStalls=1 target=33.33ms
+[09:03:18.037] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001.281982421875ms avg=33.34ms (29.48fps) p50=33.1 p95=36.1 max=40.7 maxBehind=9.8ms hardStalls=0 target=33.33ms
+[09:03:36.068] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[09:03:56.103] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[09:20:52.421] [ERROR] [main] event-loop lag 1009348ms (probe 250ms)
+[09:20:52.421] [ERROR] [Watchdog] No beat for 1016.3s — triggering reconnect
+[09:20:52.422] [WARN] [ArtNet/wk] Hard stall: behind by 1009523.6ms (>3 intervals); resyncing deadline.
+[09:20:52.422] [WARN] [ArtNet/wk] Late tick: 1009555.9ms (target 33.3ms, behind 1009523.6ms)
+[09:20:52.422] [WARN] [ArtNet/wk] tick stats: 26 ticks/1010363.5017089844ms avg=38861.10ms (0.03fps) p50=33.1 p95=34.1 max=1009555.9 maxBehind=1009523.6ms hardStalls=1 target=33.33ms
+[09:38:17.390] [ERROR] [main] event-loop lag 1033649ms (probe 250ms)
+[09:38:17.405] [ERROR] [Watchdog] No beat for 1045.0s — triggering reconnect
+[09:38:17.405] [WARN] [ArtNet/wk] Hard stall: behind by 1033872.5ms (>3 intervals); resyncing deadline.
+[09:38:17.405] [WARN] [ArtNet/wk] Late tick: 1033906.1ms (target 33.3ms, behind 1033872.5ms)
+[09:38:17.405] [WARN] [ArtNet/wk] tick stats: 33 ticks/1034971.4445800781ms avg=31362.77ms (0.03fps) p50=33.1 p95=35.1 max=1033906.1 maxBehind=1033872.5ms hardStalls=1 target=33.33ms
+[09:38:19.391] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001.937744140625ms avg=33.35ms (29.47fps) p50=33.2 p95=35.2 max=36.2 maxBehind=4.6ms hardStalls=0 target=33.33ms
+[09:38:19.647] [WARN] [ArtNet/wk] Late tick: 54.0ms (target 33.3ms, behind 22.7ms)
+[09:53:53.419] [ERROR] [main] event-loop lag 924716ms (probe 250ms)
+[09:53:53.419] [ERROR] [Watchdog] No beat for 936.0s — triggering reconnect
+[09:53:53.420] [WARN] [ArtNet/wk] Hard stall: behind by 924832.4ms (>3 intervals); resyncing deadline.
+[09:53:53.420] [WARN] [ArtNet/wk] Late tick: 924864.3ms (target 33.3ms, behind 924832.4ms)
+[09:53:53.420] [WARN] [ArtNet/wk] tick stats: 36 ticks/926028.5710449219ms avg=25723.08ms (0.04fps) p50=33.1 p95=35.1 max=924864.3 maxBehind=924832.4ms hardStalls=1 target=33.33ms
+[09:53:55.420] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001.837158203125ms avg=33.35ms (29.47fps) p50=33.1 p95=35.1 max=35.3 maxBehind=2.2ms hardStalls=0 target=33.33ms
+[10:04:16.383] [ERROR] [main] event-loop lag 611642ms (probe 250ms)
+[10:04:16.383] [ERROR] [Watchdog] No beat for 623.0s — triggering reconnect
+[10:04:16.393] [WARN] [ArtNet/wk] Hard stall: behind by 611834.2ms (>3 intervals); resyncing deadline.
+[10:04:16.393] [WARN] [ArtNet/wk] Late tick: 611866.4ms (target 33.3ms, behind 611834.2ms)
+[10:04:16.393] [WARN] [ArtNet/wk] tick stats: 34 ticks/612965.7795410156ms avg=18028.40ms (0.06fps) p50=33.1 p95=35.1 max=611866.4 maxBehind=611834.2ms hardStalls=1 target=33.33ms
+[10:04:36.422] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[10:04:56.454] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[10:22:46.401] [ERROR] [main] event-loop lag 1062971ms (probe 250ms)
+[10:22:46.401] [ERROR] [Watchdog] No beat for 1070.0s — triggering reconnect
+[10:22:46.403] [WARN] [ArtNet/wk] Hard stall: behind by 1063089.8ms (>3 intervals); resyncing deadline.
+[10:22:46.403] [WARN] [ArtNet/wk] Late tick: 1063122.0ms (target 33.3ms, behind 1063089.8ms)
+[10:22:46.403] [WARN] [ArtNet/wk] tick stats: 28 ticks/1063990.8310546875ms avg=38000.78ms (0.03fps) p50=33.1 p95=36.1 max=1063122.0 maxBehind=1063089.8ms hardStalls=1 target=33.33ms
+[10:22:48.403] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001.673095703125ms avg=33.33ms (29.48fps) p50=33.2 p95=37.8 max=49.4 maxBehind=16.4ms hardStalls=0 target=33.33ms
+[10:40:28.401] [ERROR] [main] event-loop lag 1050680ms (probe 250ms)
+[10:40:28.401] [ERROR] [Watchdog] No beat for 1062.0s — triggering reconnect
+[10:40:28.402] [WARN] [ArtNet/wk] Hard stall: behind by 1050737.4ms (>3 intervals); resyncing deadline.
+[10:40:28.402] [WARN] [ArtNet/wk] Late tick: 1050770.0ms (target 33.3ms, behind 1050737.4ms)
+[10:40:28.402] [WARN] [ArtNet/wk] tick stats: 38 ticks/1052001.7922363281ms avg=27684.31ms (0.04fps) p50=33.1 p95=35.3 max=1050770.0 maxBehind=1050737.4ms hardStalls=1 target=33.33ms
+[10:57:37.404] [ERROR] [main] event-loop lag 1017681ms (probe 250ms)
+[10:57:37.405] [ERROR] [Watchdog] No beat for 1029.0s — triggering reconnect
+[10:57:37.405] [WARN] [ArtNet/wk] Hard stall: behind by 1017774.4ms (>3 intervals); resyncing deadline.
+[10:57:37.405] [WARN] [ArtNet/wk] Late tick: 1017806.1ms (target 33.3ms, behind 1017774.4ms)
+[10:57:37.405] [WARN] [ArtNet/wk] tick stats: 37 ticks/1019005.1396484375ms avg=27540.71ms (0.04fps) p50=33.1 p95=35.1 max=1017806.1 maxBehind=1017774.4ms hardStalls=1 target=33.33ms
+[11:05:16.394] [ERROR] [main] event-loop lag 447665ms (probe 250ms)
+[11:05:16.395] [ERROR] [Watchdog] No beat for 459.0s — triggering reconnect
+[11:05:16.396] [WARN] [ArtNet/wk] Hard stall: behind by 447759.2ms (>3 intervals); resyncing deadline.
+[11:05:16.396] [WARN] [ArtNet/wk] Late tick: 447791.1ms (target 33.3ms, behind 447759.2ms)
+[11:05:16.396] [WARN] [ArtNet/wk] tick stats: 37 ticks/448990.556640625ms avg=12134.88ms (0.08fps) p50=33.1 p95=36.1 max=447791.1 maxBehind=447759.2ms hardStalls=1 target=33.33ms
+[11:05:36.420] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[11:05:56.453] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[11:22:58.380] [ERROR] [main] event-loop lag 1014932ms (probe 250ms)
+[11:22:58.380] [ERROR] [Watchdog] No beat for 1021.9s — triggering reconnect
+[11:22:58.383] [WARN] [ArtNet/wk] Hard stall: behind by 1015121.6ms (>3 intervals); resyncing deadline.
+[11:22:58.383] [WARN] [ArtNet/wk] Late tick: 1015153.5ms (target 33.3ms, behind 1015121.6ms)
+[11:22:58.383] [WARN] [ArtNet/wk] tick stats: 26 ticks/1015954.4453125ms avg=39076.42ms (0.03fps) p50=33.1 p95=35.0 max=1015153.5 maxBehind=1015121.6ms hardStalls=1 target=33.33ms
+[11:23:00.380] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001.98193359375ms avg=33.35ms (29.47fps) p50=33.1 p95=35.0 max=35.6 maxBehind=4.2ms hardStalls=0 target=33.33ms
+[11:40:41.360] [ERROR] [main] event-loop lag 1051663ms (probe 250ms)
+[11:40:41.368] [ERROR] [Watchdog] No beat for 1063.0s — triggering reconnect
+[11:40:41.369] [WARN] [ArtNet/wk] Hard stall: behind by 1051885.1ms (>3 intervals); resyncing deadline.
+[11:40:41.369] [WARN] [ArtNet/wk] Late tick: 1051917.3ms (target 33.3ms, behind 1051885.1ms)
+[11:40:41.369] [WARN] [ArtNet/wk] tick stats: 33 ticks/1052983.4809570312ms avg=31908.59ms (0.03fps) p50=33.1 p95=36.1 max=1051917.3 maxBehind=1051885.1ms hardStalls=1 target=33.33ms
+[11:53:43.936] [ERROR] [main] event-loop lag 771255ms (probe 250ms)
+[11:53:43.937] [ERROR] [Watchdog] No beat for 782.6s — triggering reconnect
+[11:53:43.938] [WARN] [ArtNet/wk] Hard stall: behind by 771313.6ms (>3 intervals); resyncing deadline.
+[11:53:43.938] [WARN] [ArtNet/wk] Late tick: 771346.3ms (target 33.3ms, behind 771313.6ms)
+[11:53:43.938] [WARN] [ArtNet/wk] tick stats: 38 ticks/772578.2504882812ms avg=20331.00ms (0.05fps) p50=33.1 p95=35.1 max=771346.3 maxBehind=771313.6ms hardStalls=1 target=33.33ms
+[11:53:48.001] [WARN] [ArtNet/wk] Late tick: 55.3ms (target 33.3ms, behind 29.0ms)
+[11:54:03.961] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[11:54:23.989] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[12:06:16.373] [ERROR] [Watchdog] No beat for 712.4s — triggering reconnect
+[12:06:16.374] [ERROR] [main] event-loop lag 705374ms (probe 250ms)
+[12:06:16.374] [WARN] [ArtNet/wk] Hard stall: behind by 705439.8ms (>3 intervals); resyncing deadline.
+[12:06:16.374] [WARN] [ArtNet/wk] Late tick: 705472.0ms (target 33.3ms, behind 705439.8ms)
+[12:06:16.374] [WARN] [ArtNet/wk] tick stats: 29 ticks/706404.060546875ms avg=24358.85ms (0.04fps) p50=33.1 p95=38.1 max=705472.0 maxBehind=705439.8ms hardStalls=1 target=33.33ms
+[12:06:18.374] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001.231689453125ms avg=33.34ms (29.48fps) p50=33.1 p95=36.1 max=39.4 maxBehind=7.9ms hardStalls=0 target=33.33ms
+[12:06:30.267] [WARN] [ArtNet/wk] Late tick: 60.7ms (target 33.3ms, behind 29.4ms)
+[12:06:36.398] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[12:06:46.705] [ERROR] [main] WS broadcast slow: 7ms (clients=1)
+[12:06:56.421] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[12:22:05.036] [ERROR] [main] event-loop lag 901615ms (probe 250ms)
+[12:22:05.037] [ERROR] [Watchdog] No beat for 908.6s — triggering reconnect
+[12:22:05.038] [WARN] [ArtNet/wk] Hard stall: behind by 901637.5ms (>3 intervals); resyncing deadline.
+[12:22:05.038] [WARN] [ArtNet/wk] Late tick: 901669.6ms (target 33.3ms, behind 901637.5ms)
+[12:22:05.038] [WARN] [ArtNet/wk] tick stats: 31 ticks/902648.4130859375ms avg=29118.37ms (0.03fps) p50=33.1 p95=40.1 max=901669.6 maxBehind=901637.5ms hardStalls=1 target=33.33ms
+[12:22:07.038] [WARN] [ArtNet/wk] tick stats: 59 ticks/2002.0732421875ms avg=33.35ms (29.47fps) p50=33.2 p95=41.4 max=57.0 maxBehind=25.4ms hardStalls=0 target=33.33ms
+[12:22:17.670] [ERROR] [main] event-loop lag 57ms (probe 250ms)
+[12:22:17.670] [WARN] [ArtNet/wk] Hard stall: behind by 100.9ms (>3 intervals); resyncing deadline.
+[12:22:17.670] [WARN] [ArtNet/wk] Late tick: 132.7ms (target 33.3ms, behind 100.9ms)
+[12:22:19.038] [WARN] [ArtNet/wk] tick stats: 57 ticks/2000.225830078125ms avg=35.09ms (28.50fps) p50=33.1 p95=35.1 max=132.7 maxBehind=100.9ms hardStalls=1 target=33.33ms
+[12:22:19.109] [WARN] [ArtNet/wk] Late tick: 71.7ms (target 33.3ms, behind 38.9ms)
+[12:22:21.038] [WARN] [ArtNet/wk] tick stats: 60 ticks/2000.326416015625ms avg=33.34ms (30.00fps) p50=33.1 p95=35.1 max=71.7 maxBehind=38.9ms hardStalls=0 target=33.33ms
+[12:22:25.057] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[12:22:45.088] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[12:37:52.911] [ERROR] [Watchdog] No beat for 907.8s — triggering reconnect
+[12:37:52.912] [ERROR] [main] event-loop lag 900775ms (probe 250ms)
+[12:37:52.912] [WARN] [ArtNet/wk] Hard stall: behind by 900846.6ms (>3 intervals); resyncing deadline.
+[12:37:52.912] [WARN] [ArtNet/wk] Late tick: 900878.8ms (target 33.3ms, behind 900846.6ms)
+[12:37:52.912] [WARN] [ArtNet/wk] tick stats: 31 ticks/901862.9611816406ms avg=29092.84ms (0.03fps) p50=33.1 p95=42.8 max=900878.8 maxBehind=900846.6ms hardStalls=1 target=33.33ms
+[12:38:12.939] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[12:38:32.969] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[12:53:40.690] [ERROR] [Watchdog] No beat for 907.7s — triggering reconnect
+[12:53:40.691] [ERROR] [main] event-loop lag 900715ms (probe 250ms)
+[12:53:40.691] [WARN] [ArtNet/wk] Hard stall: behind by 900783.4ms (>3 intervals); resyncing deadline.
+[12:53:40.691] [WARN] [ArtNet/wk] Late tick: 900815.0ms (target 33.3ms, behind 900783.4ms)
+[12:53:40.692] [WARN] [ArtNet/wk] tick stats: 30 ticks/901770.7578125ms avg=30059.39ms (0.03fps) p50=33.1 p95=35.1 max=900815.0 maxBehind=900783.4ms hardStalls=1 target=33.33ms
+[12:53:42.691] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001.560546875ms avg=33.35ms (29.48fps) p50=33.2 p95=35.1 max=40.0 maxBehind=8.6ms hardStalls=0 target=33.33ms
+[12:54:00.720] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[12:54:20.745] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:07:16.344] [ERROR] [main] WS broadcast slow: 768634ms (clients=1)
+[13:07:16.346] [WARN] [ArtNet/wk] Hard stall: behind by 768627.3ms (>3 intervals); resyncing deadline.
+[13:07:16.346] [WARN] [ArtNet/wk] Late tick: 768659.0ms (target 33.3ms, behind 768627.3ms)
+[13:07:16.346] [WARN] [ArtNet/wk] tick stats: 31 ticks/769636.0322265625ms avg=24827.74ms (0.04fps) p50=33.1 p95=35.1 max=768659.0 maxBehind=768627.3ms hardStalls=1 target=33.33ms
+[13:07:16.346] [ERROR] [Watchdog] No beat for 775.6s — triggering reconnect
+[13:07:16.347] [ERROR] [main] event-loop lag 768586ms (probe 250ms)
+[13:07:36.372] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:07:56.399] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:23:05.054] [ERROR] [main] WS broadcast slow: 901716ms (clients=1)
+[13:23:05.054] [WARN] [ArtNet/wk] Hard stall: behind by 901714.3ms (>3 intervals); resyncing deadline.
+[13:23:05.055] [WARN] [ArtNet/wk] Late tick: 901746.5ms (target 33.3ms, behind 901714.3ms)
+[13:23:05.055] [WARN] [ArtNet/wk] tick stats: 30 ticks/902692.9294433594ms avg=30090.43ms (0.03fps) p50=33.1 p95=35.1 max=901746.5 maxBehind=901714.3ms hardStalls=1 target=33.33ms
+[13:23:05.055] [ERROR] [Watchdog] No beat for 908.7s — triggering reconnect
+[13:23:05.056] [ERROR] [main] event-loop lag 901653ms (probe 250ms)
+[13:23:07.010] [ERROR] [main] WS broadcast slow: 11ms (clients=1)
+[13:23:17.846] [WARN] [ArtNet/wk] Late tick: 86.9ms (target 33.3ms, behind 55.0ms)
+[13:23:19.061] [WARN] [ArtNet/wk] tick stats: 60 ticks/2001.046142578125ms avg=33.31ms (29.98fps) p50=33.2 p95=35.1 max=86.9 maxBehind=55.0ms hardStalls=0 target=33.33ms
+[13:23:19.324] [WARN] [ArtNet/wk] Late tick: 66.4ms (target 33.3ms, behind 34.2ms)
+[13:23:21.062] [WARN] [ArtNet/wk] tick stats: 60 ticks/2001.1240234375ms avg=33.35ms (29.98fps) p50=33.1 p95=35.1 max=66.4 maxBehind=34.2ms hardStalls=0 target=33.33ms
+[13:23:25.086] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:23:45.116] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:27:27.193] [ERROR] [Watchdog] No beat for 222.1s — triggering reconnect
+[13:27:27.196] [ERROR] [main] event-loop lag 215073ms (probe 250ms)
+[13:27:27.196] [WARN] [ArtNet/wk] Hard stall: behind by 215102.4ms (>3 intervals); resyncing deadline.
+[13:27:27.196] [WARN] [ArtNet/wk] Late tick: 215134.5ms (target 33.3ms, behind 215102.4ms)
+[13:27:27.196] [WARN] [ArtNet/wk] tick stats: 31 ticks/216105.42895507812ms avg=6972.08ms (0.14fps) p50=33.1 p95=35.8 max=215134.5 maxBehind=215102.4ms hardStalls=1 target=33.33ms
+[13:27:29.193] [WARN] [ArtNet/wk] tick stats: 60 ticks/2000.84130859375ms avg=33.35ms (29.99fps) p50=33.1 p95=35.3 max=94.3 maxBehind=60.7ms hardStalls=0 target=33.33ms
+[13:27:47.211] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:28:07.229] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:28:27.247] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:28:47.265] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:29:07.283] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:29:27.305] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:29:28.886] [ERROR] [main] WS broadcast slow: 6ms (clients=1)
+[13:29:47.325] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:30:07.346] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:30:27.360] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:30:47.373] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:31:07.390] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:31:27.410] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:31:27.452] [WARN] [ArtNet/wk] Late tick: 59.3ms (target 33.3ms, behind 26.9ms)
+[13:31:39.292] [WARN] [ArtNet/wk] tick stats: 59 ticks/2000.5380859375ms avg=33.37ms (29.49fps) p50=33.1 p95=34.2 max=35.5 maxBehind=1.2ms hardStalls=0 target=33.33ms
+[13:31:47.429] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:32:07.449] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:32:27.469] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:32:47.489] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:33:04.485] [WARN] [ArtNet/wk] Late tick: 59.8ms (target 33.3ms, behind 26.5ms)
+[13:33:05.325] [WARN] [ArtNet/wk] tick stats: 60 ticks/1999.220947265625ms avg=33.34ms (30.01fps) p50=33.1 p95=35.1 max=69.3 maxBehind=36.5ms hardStalls=0 target=33.33ms
+[13:33:07.508] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:33:19.623] [WARN] [ArtNet/wk] Late tick: 65.0ms (target 33.3ms, behind 31.2ms)
+[13:33:27.527] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:33:29.561] [WARN] [ArtNet/wk] Late tick: 69.3ms (target 33.3ms, behind 36.0ms)
+[13:33:31.329] [WARN] [ArtNet/wk] tick stats: 60 ticks/1999.8125ms avg=33.33ms (30.00fps) p50=33.1 p95=35.1 max=69.3 maxBehind=36.0ms hardStalls=0 target=33.33ms
+[13:33:37.714] [WARN] [ArtNet/wk] Late tick: 55.9ms (target 33.3ms, behind 22.8ms)
+[13:33:47.578] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:33:54.587] [WARN] [ArtNet/wk] Late tick: 62.3ms (target 33.3ms, behind 29.3ms)
+[13:33:59.947] [WARN] [ArtNet/wk] Late tick: 56.4ms (target 33.3ms, behind 22.9ms)
+[13:34:07.600] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:34:09.514] [WARN] [ArtNet/wk] Late tick: 56.0ms (target 33.3ms, behind 22.9ms)
+[13:34:27.619] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:34:43.221] [WARN] [ArtNet/wk] Late tick: 64.2ms (target 33.3ms, behind 30.5ms)
+[13:34:47.664] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:34:54.233] [ERROR] [main] WS broadcast slow: 22ms (clients=1)
+[13:34:56.444] [WARN] [ArtNet/wk] Late tick: 85.9ms (target 33.3ms, behind 53.1ms)
+[13:34:57.366] [WARN] [ArtNet/wk] tick stats: 60 ticks/2000.562744140625ms avg=33.34ms (29.99fps) p50=33.1 p95=35.1 max=85.9 maxBehind=53.1ms hardStalls=0 target=33.33ms
+[13:35:07.688] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:35:25.682] [WARN] [ArtNet/wk] Late tick: 57.9ms (target 33.3ms, behind 24.9ms)
+[13:35:27.705] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:35:43.987] [WARN] [ArtNet/wk] Late tick: 62.4ms (target 33.3ms, behind 30.0ms)
+[13:35:47.725] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:36:00.707] [ERROR] [main] WS broadcast slow: 24ms (clients=1)
+[13:36:04.183] [WARN] [ArtNet/wk] Late tick: 58.8ms (target 33.3ms, behind 26.0ms)
+[13:36:07.746] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:36:24.359] [ERROR] [main] WS broadcast slow: 11ms (clients=1)
+[13:36:27.765] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:36:38.688] [WARN] [ArtNet/wk] Late tick: 63.3ms (target 33.3ms, behind 30.5ms)
+[13:36:47.793] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:37:07.820] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:37:27.841] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:37:46.015] [WARN] [ArtNet/wk] Late tick: 58.4ms (target 33.3ms, behind 25.4ms)
+[13:37:47.863] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:38:07.892] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:38:27.926] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:38:30.347] [WARN] [ArtNet/wk] Late tick: 55.5ms (target 33.3ms, behind 22.6ms)
+[13:38:31.426] [WARN] [ArtNet/wk] tick stats: 60 ticks/2000.705078125ms avg=33.35ms (29.99fps) p50=33.2 p95=34.7 max=77.9 maxBehind=44.7ms hardStalls=0 target=33.33ms
+[13:38:32.705] [ERROR] [main] WS broadcast slow: 6ms (clients=1)
+[13:38:35.266] [ERROR] [main] WS broadcast slow: 9ms (clients=1)
+[13:38:36.278] [WARN] [ArtNet/wk] Late tick: 55.5ms (target 33.3ms, behind 22.4ms)
+[13:38:40.546] [WARN] [ArtNet/wk] Late tick: 56.9ms (target 33.3ms, behind 23.7ms)
+[13:38:47.943] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:39:07.965] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:39:27.987] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:39:48.008] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:39:57.021] [ERROR] [main] WS broadcast slow: 7ms (clients=1)
+[13:40:08.034] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:40:14.522] [WARN] [ArtNet/wk] Late tick: 65.2ms (target 33.3ms, behind 32.6ms)
+[13:40:21.748] [WARN] [ArtNet/wk] Late tick: 58.7ms (target 33.3ms, behind 26.1ms)
+[13:40:28.057] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:40:48.077] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:40:53.442] [WARN] [ArtNet/wk] Late tick: 53.5ms (target 33.3ms, behind 21.0ms)
+[13:41:08.096] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:41:16.132] [ERROR] [main] WS broadcast slow: 9ms (clients=1)
+[13:41:28.125] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:41:40.210] [WARN] [ArtNet/wk] Late tick: 53.6ms (target 33.3ms, behind 20.6ms)
+[13:41:48.145] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:42:04.252] [WARN] [ArtNet/wk] Late tick: 64.1ms (target 33.3ms, behind 30.9ms)
+[13:42:08.164] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:42:28.190] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:42:42.428] [ERROR] [main] WS broadcast slow: 15ms (clients=1)
+[13:42:48.212] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:42:53.521] [WARN] [ArtNet/wk] tick stats: 59 ticks/2000.626220703125ms avg=33.32ms (29.49fps) p50=33.1 p95=34.1 max=35.2 maxBehind=1.1ms hardStalls=0 target=33.33ms
+[13:43:08.231] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:43:28.248] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:43:48.271] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:43:57.554] [WARN] [ArtNet/wk] tick stats: 59 ticks/2000.68994140625ms avg=33.35ms (29.49fps) p50=33.1 p95=34.2 max=35.1 maxBehind=1.2ms hardStalls=0 target=33.33ms
+[13:44:08.306] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:44:28.330] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:44:30.798] [ERROR] [main] WS broadcast slow: 12ms (clients=1)
+[13:44:48.352] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:45:00.407] [WARN] [ArtNet/wk] Late tick: 53.5ms (target 33.3ms, behind 20.4ms)
+[13:45:08.373] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:45:17.587] [WARN] [ArtNet/wk] tick stats: 59 ticks/2000.38671875ms avg=33.34ms (29.49fps) p50=33.1 p95=34.2 max=34.2 maxBehind=1.1ms hardStalls=0 target=33.33ms
+[13:45:28.392] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:45:48.407] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:46:02.609] [WARN] [ArtNet/wk] Late tick: 57.1ms (target 33.3ms, behind 23.4ms)
+[13:46:08.428] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:46:28.446] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:46:48.462] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:47:08.480] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:47:28.498] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:47:48.518] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:47:51.652] [WARN] [ArtNet/wk] tick stats: 59 ticks/2001.263916015625ms avg=33.36ms (29.48fps) p50=33.1 p95=34.1 max=34.3 maxBehind=1.2ms hardStalls=0 target=33.33ms
+[13:48:08.538] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:48:28.554] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:48:48.571] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:49:08.588] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:49:15.685] [WARN] [ArtNet/wk] tick stats: 59 ticks/2000.48046875ms avg=33.35ms (29.49fps) p50=33.1 p95=34.1 max=35.1 maxBehind=1.1ms hardStalls=0 target=33.33ms
+[13:49:28.609] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:49:48.627] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:50:08.644] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:50:28.660] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:50:48.678] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:51:08.693] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:51:28.712] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:51:48.731] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:52:08.744] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:52:28.763] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:52:48.782] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:53:08.807] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:53:28.840] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:53:48.874] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:54:08.907] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:54:28.943] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:54:48.981] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:55:09.013] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:55:29.049] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:55:49.082] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:56:09.113] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[13:56:29.138] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect

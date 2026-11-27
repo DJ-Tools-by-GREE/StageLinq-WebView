@@ -21,6 +21,27 @@ the player used filename matching only; MP4/M4V/MOV restrictions still apply.
 
 ## Architectural decisions
 
+### 2026-11-26 — Single-stream NDI mode
+
+The user requested `video.multi_ndi_stream` with a default of `false` and
+asked to reuse automatic deck selection for songs outside a playlist. Main
+contains manual sACN selection. The historical `feature/deck-suggestion`
+branch contains a playlist-dependent suggestion that required operator
+confirmation. The user confirmed selecting the playing deck with the highest
+channel fader and using one stable NDI source named `StageLinq` by default.
+Single-stream selection uses live or replay deck state independently of the
+playlist. Four-stream mode retains the four named deck sources.
+One native sender handles all handoffs using per-selection generations. Equal
+faders retain the current deck, then prefer the lowest deck number. The
+selected deck's unavailable video or no playing deck produces black. Mode
+changes replace the helper through the existing config reload and rollback
+path. A reload also waits for a failed helper to exit before creating new
+senders. The SDK-enabled build, all 196 backend/frontend tests and all 10
+native decoder tests passed. macOS fixtures now use the same canonical
+temporary paths as the video library. Socket and AVFoundation tests ran
+outside the sandbox. The native tests used an in-process sink. Live NDI
+reception in TouchDesigner remains unverified for this mode.
+
 ### 2026-11-26 — Explicit TypeScript worker loading in development
 
 Confirmed the reported macOS startup failure with an isolated Node 24.13.0 /

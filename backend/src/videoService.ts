@@ -11,7 +11,17 @@ import { FREEWHEEL_STALE_THRESHOLD_MS, VIDEO_HELPER_RESTART_DELAY_MS } from './c
 import { logError, logLifecycle } from './logging.js';
 
 const DECKS: DeckNumber[] = [1, 2, 3, 4];
+const IDLE_COMMAND: VideoDeckCommand = { deck: 1, generation: 'idle', path: null, positionSec: 0, rate: 1, playing: false };
 type RendererFactory = (callbacks: { status: (status: NativeVideoStatus) => void; error: (message: string) => void }) => VideoRenderer;
+
+function selectPlayingDeck(decks: Record<DeckNumber, DeckState>, timings: Record<DeckNumber, SourceTiming>, current: DeckNumber | null): DeckNumber | null {
+  const playing = DECKS.filter(deck => decks[deck].trackLoaded && (timings[deck].transportPlay ?? decks[deck].play));
+  let selected = current !== null && playing.includes(current) ? current : null;
+  for (const deck of playing) {
+    if (selected === null || decks[deck].fader > decks[selected].fader) selected = deck;
+  }
+  return selected;
+}
 
 export function videoDeckCommand(deck: DeckState, timing: SourceTiming, config: VideoConfig,
   library: VideoLibrary, sourceEpoch: string, nowMs: number): VideoDeckCommand {
@@ -47,10 +57,13 @@ export class VideoService {
   private baseDir = process.cwd();
   private renderer: VideoRenderer | null = null;
   private starting: VideoRenderer | null = null;
+  private rendererExit: Promise<void> | null = null;
   private error: string | null = null;
   private pending: Promise<unknown> = Promise.resolve();
   private closed = false;
   private epoch = 0;
+  private activeDeck: DeckNumber | null = null;
+  private selectionRevision = 0;
   private retries: Record<DeckNumber, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
   private retry: NodeJS.Timeout | null = null;
   private scanning: AbortController | null = null;
@@ -90,10 +103,12 @@ export class VideoService {
     if (this.retry) { clearTimeout(this.retry); this.retry = null; }
     const previous = this.config;
     const previousRenderer = this.renderer;
-    const replace = !config.enabled || !previousRenderer || config.ndi_name_prefix !== previous.ndi_name_prefix || config.output_format !== previous.output_format;
+    const replace = !config.enabled || !previousRenderer || config.ndi_name_prefix !== previous.ndi_name_prefix ||
+      config.output_format !== previous.output_format || config.multi_ndi_stream !== previous.multi_ndi_stream;
     if (replace) {
       this.renderer = null;
-      await previousRenderer?.stop();
+      await (previousRenderer ? previousRenderer.stop() : this.rendererExit);
+      if (this.closed) throw new Error('Video output is shutting down');
       try {
         if (config.enabled) this.renderer = await this.launch(config);
       } catch (error) {
@@ -111,6 +126,7 @@ export class VideoService {
     this.error = null;
     if (replace) {
       this.epoch++;
+      this.activeDeck = null;
       this.commands.clear();
       this.native.clear();
       this.timing.clear();
@@ -131,6 +147,13 @@ export class VideoService {
 
   update(decks: Record<DeckNumber, DeckState>, timings: Record<DeckNumber, SourceTiming>, replay: boolean, nowMs = monotonicNowMs()): void {
     if (!this.config.enabled || this.closed) return;
+    const multi = this.config.multi_ndi_stream;
+    const activeDeck = multi ? null : selectPlayingDeck(decks, timings, this.activeDeck);
+    if (activeDeck !== this.activeDeck) {
+      this.activeDeck = activeDeck;
+      this.selectionRevision++;
+      this.native.clear();
+    }
     const commands: VideoDeckCommand[] = [];
     for (const deck of DECKS) {
       const state = decks[deck];
@@ -146,10 +169,15 @@ export class VideoService {
       if (waiting !== null) command.playing = false;
       this.timing.set(deck, { identity: command.generation, revision: timing.positionRevision,
         transport: timing.transportRevision, play, waiting });
-      const previous = this.commands.get(deck);
-      if (previous?.generation !== command.generation) this.native.delete(deck);
-      this.commands.set(deck, command);
-      commands.push(command);
+      const output = multi || deck === activeDeck;
+      if (output) {
+        if (!multi) command.generation += ':' + this.selectionRevision;
+        if (this.commands.get(deck)?.generation !== command.generation) this.native.delete(deck);
+        this.commands.set(deck, command);
+        commands.push(command);
+      } else {
+        this.commands.delete(deck);
+      }
       const match = state.trackLoaded ? findVideo(this.library, state.fileName) : { kind: 'missing' as const };
       const native = this.native.get(deck);
       let status: VideoDeckStatus['state'] = 'idle';
@@ -157,26 +185,28 @@ export class VideoService {
       if (state.trackLoaded) {
         if (match.kind === 'ambiguous') { status = 'ambiguous'; message = 'Multiple videos match this track'; }
         else if (match.kind === 'missing') { status = 'unmatched'; message = 'No matching video'; }
-        else if (this.error) { status = 'error'; message = this.error; }
-        else if (native?.state === 'error') { status = 'error'; message = native.error ?? 'Video decoder failed'; }
-        else if (!command.playing) status = 'black';
-        else if (native?.state === 'playing') status = 'playing';
-        else if (native?.state === 'idle') status = 'black';
-        else status = 'loading';
+        else if (output) {
+          if (this.error) { status = 'error'; message = this.error; }
+          else if (native?.state === 'error') { status = 'error'; message = native.error ?? 'Video decoder failed'; }
+          else if (!command.playing || native?.state === 'idle') status = 'black';
+          else if (native?.state === 'playing') status = 'playing';
+          else status = 'loading';
+        }
       }
       this.decks[deck] = {
         deck, track: state.fileName, video: match.kind === 'matched' ? match.file.relativePath : null,
-        sourceName: this.config.ndi_name_prefix + ' Deck ' + deck, state: status, message,
-        positionSec: command.path ? command.positionSec : null,
+        sourceName: multi ? this.config.ndi_name_prefix + ' Deck ' + deck : output ? this.config.ndi_name_prefix : null,
+        state: status, message, positionSec: output && command.path ? command.positionSec : null,
         width: native?.width ?? null, height: native?.height ?? null, fps: native?.fps ?? null,
       };
     }
-    this.renderer?.send(commands, nowMs);
+    this.renderer?.send(commands.length ? commands : [IDLE_COMMAND], nowMs);
   }
 
   getStatus(): VideoStatus {
     return { enabled: this.config.enabled, running: this.renderer !== null, directory: this.library.directory ?? this.config.directory,
       outputFormat: this.config.output_format, sourcePrefix: this.config.ndi_name_prefix,
+      multiNdiStream: this.config.multi_ndi_stream, activeDeck: this.activeDeck,
       indexedVideos: this.library.files.length, ambiguousMatches: [...this.library.ambiguous.keys()],
       error: this.error, decks: structuredClone(this.decks) };
   }
@@ -189,7 +219,7 @@ export class VideoService {
     const stopping = this.renderer?.stop();
     const starting = this.starting?.stop();
     this.renderer = null;
-    await Promise.allSettled([this.pending, stopping, starting]);
+    await Promise.allSettled([this.pending, stopping, starting, this.rendererExit]);
   }
 
   private async launch(config: VideoConfig): Promise<VideoRenderer> {
@@ -197,14 +227,14 @@ export class VideoService {
       status: status => {
         if (this.renderer !== renderer) return;
         const generation = this.commands.get(status.deck)?.generation;
-        if (status.generation !== undefined && status.generation !== generation) return;
+        if (generation === undefined || (status.generation !== undefined && status.generation !== generation)) return;
         this.native.set(status.deck, status);
       },
       error: message => {
         if (this.renderer !== renderer || this.closed) return;
         this.renderer = null;
         this.setError(new Error(message));
-        void renderer.stop().catch(error => logError('[VIDEO] Stop failed:', error));
+        this.rendererExit = renderer.stop().catch(error => logError('[VIDEO] Stop failed:', error));
         this.scheduleRestart();
       },
     });
@@ -236,7 +266,7 @@ export class VideoService {
   }
 
   private blankStatus(deck: DeckNumber): VideoDeckStatus {
-    return { deck, track: '', video: null, sourceName: this.config.ndi_name_prefix + ' Deck ' + deck,
+    return { deck, track: '', video: null, sourceName: this.config.multi_ndi_stream ? this.config.ndi_name_prefix + ' Deck ' + deck : null,
       state: 'idle', message: null, positionSec: null, width: null, height: null, fps: null };
   }
 }

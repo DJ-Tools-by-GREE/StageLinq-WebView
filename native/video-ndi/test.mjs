@@ -74,18 +74,19 @@ class Helper {
       this.events.on('message', listener);
     });
   }
-  async start(format = 'source') {
+  async start(format = 'source', sourceNames = ['Test 1', 'Test 2', 'Test 3', 'Test 4']) {
     await this.wait(message => message.type === 'ready');
     const sentAt = performance.now() / 1000;
     this.send({ type: 'ping', id: 1 });
     const pong = await this.wait(message => message.type === 'pong' && message.id === 1);
     this.offset = pong.hostTimeSec - (sentAt + performance.now() / 1000) / 2;
-    this.send({ type: 'configure', protocol: 1, sourceNames: ['Test 1', 'Test 2', 'Test 3', 'Test 4'], outputFormat: format, settings });
+    this.outputSlots = sourceNames.map((_, index) => index + 1);
+    this.send({ type: 'configure', protocol: 1, sourceNames, outputFormat: format, settings });
     await this.wait(message => message.type === 'configured');
   }
   state(overrides = {}) {
     this.send({ type: 'state', seq: ++this.sequence, hostTimeSec: performance.now() / 1000 + this.offset,
-      decks: [1, 2, 3, 4].map(deck => ({ deck, generation: 'track-' + deck, path: null, positionSec: 0, rate: 1, playing: false, ...(deck === 1 ? overrides : {}) })) });
+      decks: this.outputSlots.map(deck => ({ deck, generation: 'track-' + deck, path: null, positionSec: 0, rate: 1, playing: false, ...(deck === 1 ? overrides : {}) })) });
   }
   async inspect(deck = 1) {
     const id = ++this.inspection;
@@ -169,6 +170,30 @@ test('native source mode follows pitch, seeks on jumps, blacks on pause, EOF and
   helper.state({ path: video, positionSec: 100, rate, playing: true });
   await new Promise(resolve => setTimeout(resolve, 100));
   assert.equal((await helper.inspect()).black, true);
+});
+
+test('one native output slot renders deck handoffs and stays available on black', async t => {
+  const helper = new Helper();
+  t.after(() => helper.close());
+  await helper.start('source', ['Test']);
+  let command = { deck: 2, generation: 'first', path: video, positionSec: 0.25, playing: true };
+  const send = () => helper.state(command);
+  send();
+  const heartbeat = setInterval(send, 50);
+  t.after(() => clearInterval(heartbeat));
+  await helper.wait(message => message.type === 'status' && message.deck === 2 && message.state === 'playing');
+  assert.ok((await helper.inspect()).centerBgra[2] > 200);
+  command = { ...command, deck: 4, generation: 'second', positionSec: 2.5 };
+  send();
+  await helper.wait(message => message.type === 'status' && message.deck === 4 && message.state === 'playing');
+  assert.ok((await helper.inspect()).centerBgra[0] > 200);
+  command = { deck: 1, generation: 'idle', path: null, positionSec: 0, playing: false };
+  send();
+  await helper.wait(message => message.type === 'status' && message.generation === 'idle');
+  assert.equal((await helper.inspect()).black, true);
+  helper.send({ type: 'ping', id: 'inspection complete' });
+  await helper.wait(message => message.type === 'pong' && message.id === 'inspection complete');
+  assert.deepEqual(helper.messages.filter(message => message.type === 'inspection').map(message => message.deck), [1, 1, 1]);
 });
 
 test('bad files recover on a new generation and fixed format stays 1080p30', async t => {

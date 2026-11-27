@@ -65,12 +65,18 @@ export function VideoEditor({ config, onChange }: Props) {
             </p>
           </div>
           <div className="settings-card">
-            <h3>Four NDI outputs</h3>
+            <h3>NDI output</h3>
+            <label className="label-inline">
+              <span>Send one stream per deck</span>
+              <input type="checkbox" checked={video.multi_ndi_stream} onChange={event => update({ multi_ndi_stream: event.target.checked })} />
+            </label>
             <label>
-              Source name prefix
+              {video.multi_ndi_stream ? 'Source name prefix' : 'Source name'}
               <input type="text" value={video.ndi_name_prefix} placeholder="StageLinq" onChange={event => update({ ndi_name_prefix: event.target.value })} />
             </label>
-            <p className="hint">{video.ndi_name_prefix || 'StageLinq'} Deck 1 through Deck 4. Video only; idle outputs are black.</p>
+            <p className="hint">{video.multi_ndi_stream
+              ? `${video.ndi_name_prefix || 'StageLinq'} Deck 1 through Deck 4. Idle outputs are black.`
+              : 'One source follows the playing deck with the highest channel fader. It sends black when idle.'}</p>
             <label>
               Output format
               <select value={video.output_format} onChange={event => update({ output_format: event.target.value as VideoConfig['output_format'] })}>

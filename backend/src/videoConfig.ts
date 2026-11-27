@@ -15,6 +15,10 @@ export function parseVideoConfig(raw: unknown): VideoConfig {
   };
   if (value.enabled !== undefined && typeof value.enabled !== 'boolean') throw new Error('video.enabled must be a boolean');
   const enabled = value.enabled ?? false;
+  if (value.multi_ndi_stream !== undefined && typeof value.multi_ndi_stream !== 'boolean') {
+    throw new Error('video.multi_ndi_stream must be a boolean');
+  }
+  const multiNdiStream = value.multi_ndi_stream ?? false;
   const directory = string('directory', '');
   if (enabled && !directory.trim()) throw new Error('video.directory is required when video is enabled');
   const ndiNamePrefix = string('ndi_name_prefix', 'StageLinq');
@@ -40,5 +44,6 @@ export function parseVideoConfig(raw: unknown): VideoConfig {
     if (typeof offset !== 'number' || !Number.isFinite(offset)) throw new Error(`video.offsets_sec[${audioFileName}] must be a finite number`);
     offsetsSec[audioFileName] = offset;
   }
-  return { enabled, directory, ndi_name_prefix: ndiNamePrefix, output_format: outputFormat, latency_comp_ms: latencyCompMs, offsets_sec: offsetsSec };
+  return { enabled, multi_ndi_stream: multiNdiStream, directory, ndi_name_prefix: ndiNamePrefix,
+    output_format: outputFormat, latency_comp_ms: latencyCompMs, offsets_sec: offsetsSec };
 }

@@ -295,7 +295,7 @@ Port `8090` (configurable via `PORT` env). Path `/ws`.
 
 ### Video output contracts (2026-11-24)
 
-- Four independent NDI outputs consume StateProvider deck state and SourceTiming; sACN selection and faders do not choose a video deck. Video alignment offsets are separate from lighting offsets.
+- NDI consumes StateProvider deck state and SourceTiming. The default single source follows the highest-fader playing deck without playlist or sACN selection. `video.multi_ndi_stream: true` gives each deck its own independent source. Video alignment offsets are separate from lighting offsets.
 - Native macOS code in native/video-ndi owns video decoding and NDI frames. Node/native IPC carries only bounded control, timing and status messages. Preserve source identity, clock mapping, generation cancellation and blackout on stale input.
 - Video config changes must update backend validation and frontend config migration/serialization together. Await catalog/native preparation before committing a reload.
 - Video lookup gives the configured folder's optional `mappings.json` priority over automatic filename matching. Keys are exact audio basenames including extensions; values are relative video paths using forward slashes. Preserve bounded validation and the previous working catalog when mappings fail to load or resolve.

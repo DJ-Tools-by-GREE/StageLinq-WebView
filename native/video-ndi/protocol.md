@@ -33,7 +33,8 @@ lowest round-trip measurement. State positions are projected to that host clock.
 }
 ```
 
-The settings above are examples; the backend supplies its constants. A successful
+`sourceNames` contains either one stable source name or four deck source names
+in deck order. The settings above are examples. The backend supplies its constants. A successful
 configuration emits `{"type":"configured","protocol":1}`. `outputFormat` is
 `source` (source dimensions, nominal source FPS multiplied by playback rate) or
 `1080p30` (letterboxed, fixed 1920×1080 at 30 FPS). Neither mode sends audio.
@@ -52,7 +53,11 @@ configuration emits `{"type":"configured","protocol":1}`. `outputFormat` is
 }
 ```
 
-Every state includes all four decks. Sequence numbers increase within a process.
+In four-source mode every state includes each deck exactly once. In single-source
+mode every state contains one entry with the deck driving the shared source.
+When idle, use a null path and `playing: false`. Status reports the deck from
+the active command, and each handoff uses a new generation. Sequence numbers
+increase within a process.
 Positions already include video alignment and output latency compensation. The
 helper extrapolates `positionSec + (hostNow - hostTimeSec) * rate` while playing.
 The backend resolves transport freshness and replay; the helper independently

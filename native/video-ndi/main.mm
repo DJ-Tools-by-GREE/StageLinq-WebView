@@ -85,6 +85,7 @@ Settings settingsFrom(NSDictionary *object) {
     positive(object, @"maxOutputFps"), static_cast<size_t>(decodeLimit), leeway / 1000};
 }
 struct State {
+  int deck = 0;
   std::string generation;
   std::string path;
   double position = 0;
@@ -379,9 +380,9 @@ public:
     emit(@{@"type":@"inspection", @"id":identifier, @"deck":@(index), @"frame":lastFrame ?: (id)NSNull.null});
   }
   void status(const State &state, const char *value, int width, int height, double fps, const std::string &error = {}) {
-    std::string signature = state.generation + ":" + value + ":" + error + ":" + std::to_string(width) + ":" + std::to_string(height) + ":" + std::to_string(fps);
+    std::string signature = std::to_string(state.deck) + ":" + state.generation + ":" + value + ":" + error + ":" + std::to_string(width) + ":" + std::to_string(height) + ":" + std::to_string(fps);
     if (signature == reported) return; reported = signature;
-    NSMutableDictionary *message = [@{@"type":@"status", @"deck":@(index), @"generation":ns(state.generation), @"state":@(value), @"width":@(width), @"height":@(height), @"fps":@(fps)} mutableCopy];
+    NSMutableDictionary *message = [@{@"type":@"status", @"deck":@(state.deck ? state.deck : index), @"generation":ns(state.generation), @"state":@(value), @"width":@(width), @"height":@(height), @"fps":@(fps)} mutableCopy];
     if (!error.empty()) message[@"error"] = ns(error);
     emit(message);
   }
@@ -398,12 +399,14 @@ public:
         @autoreleasepool {
           std::unique_ptr<Loaded> result;
           bool controlChanged = false;
+          bool deckChanged = false;
           {
             std::unique_lock<std::mutex> guard(mutex);
             double wait = std::max(0.0, nextFrameAt - hostNow());
             if (wait > 0) condition.wait_for(guard, std::chrono::duration<double>(std::min(wait, settings.stateTimeoutSec)));
             if (stop) break;
             double receivedNow = hostNow();
+            deckChanged = state.deck != pending.deck;
             controlChanged = state.playing != pending.playing || state.rate != pending.rate ||
               std::abs(projected(state, receivedNow) - projected(pending, receivedNow)) > settings.seekThresholdSec;
             state = pending;
@@ -411,7 +414,7 @@ public:
           }
           double now = hostNow();
           if (controlChanged) nextFrameAt = now;
-          if (state.generation != generation || state.path != path) {
+          if (deckChanged || state.generation != generation || state.path != path) {
             [asset cancelLoading]; asset = nil; decoder.reset(); failure.clear(); result.reset();
             generation = state.generation; path = state.path; nextFrameAt = now;
             uint64_t token;
@@ -580,31 +583,32 @@ int main(int argc, const char **argv) {
             std::string format = stringValue(message, @"outputFormat");
             if (format != "source" && format != "1080p30") invalid("outputFormat");
             NSArray *names = message[@"sourceNames"];
-            if (![names isKindOfClass:NSArray.class] || names.count != 4) invalid("sourceNames");
+            if (![names isKindOfClass:NSArray.class] || (names.count != 1 && names.count != 4)) invalid("sourceNames");
             for (id name in names) if (![name isKindOfClass:NSString.class] || [name length] == 0) invalid("source name");
             for (auto &deck : decks) deck->close();
             decks.clear();
             if (!ndi) ndi = std::make_unique<Ndi>(testMode);
-            for (int i = 0; i < 4; i++) decks.push_back(std::make_shared<Deck>(i + 1, *ndi, utf8(names[i]), settings, format == "source"));
+            for (NSUInteger i = 0; i < names.count; i++) decks.push_back(std::make_shared<Deck>(int(i) + 1, *ndi, utf8(names[i]), settings, format == "source"));
             for (auto &deck : decks) deck->start();
             emit(@{@"type":@"configured", @"protocol":@1});
           } else if (type == "state") {
-            if (decks.size() != 4) throw std::runtime_error("State received before configure");
+            if (decks.empty()) throw std::runtime_error("State received before configure");
             double seq = number(message, @"seq");
             if (seq < 0 || seq != std::floor(seq) || seq > 9007199254740991.0) invalid("seq");
             if (seq <= sequence) continue;
             double clock = number(message, @"hostTimeSec");
             NSArray *updates = message[@"decks"];
-            if (![updates isKindOfClass:NSArray.class] || updates.count != 4) invalid("decks");
-            std::vector<State> states(4); bool seen[4] = {};
+            if (![updates isKindOfClass:NSArray.class] || updates.count != decks.size()) invalid("decks");
+            std::vector<State> states(decks.size());
             for (id raw in updates) {
               if (![raw isKindOfClass:NSDictionary.class]) invalid("deck state");
               NSDictionary *update = raw;
               double deckNumber = number(update, @"deck");
               if (deckNumber < 1 || deckNumber > 4 || deckNumber != std::floor(deckNumber)) invalid("deck number");
-              int index = int(deckNumber) - 1;
-              if (seen[index]) invalid("duplicate deck"); seen[index] = true;
+              int index = decks.size() == 1 ? 0 : int(deckNumber) - 1;
+              if (states[index].deck != 0) invalid("duplicate deck");
               State state;
+              state.deck = int(deckNumber);
               state.generation = stringValue(update, @"generation");
               if (update[@"path"] != NSNull.null) state.path = stringValue(update, @"path");
               if (!state.path.empty() && state.path[0] != '/') invalid("absolute video path");
@@ -615,7 +619,7 @@ int main(int argc, const char **argv) {
               states[index] = std::move(state);
             }
             sequence = int64_t(seq);
-            for (int i = 0; i < 4; i++) decks[i]->update(std::move(states[i]));
+            for (size_t i = 0; i < decks.size(); i++) decks[i]->update(std::move(states[i]));
           } else throw std::runtime_error("Unknown protocol message: " + type);
         }
       }

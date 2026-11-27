@@ -77,7 +77,7 @@ export class NativeVideoHelper implements VideoRenderer {
     });
     this.write(JSON.stringify({
       type: 'configure', protocol: 1,
-      sourceNames: [1, 2, 3, 4].map(deck => config.ndi_name_prefix + ' Deck ' + deck),
+      sourceNames: config.multi_ndi_stream ? [1, 2, 3, 4].map(deck => config.ndi_name_prefix + ' Deck ' + deck) : [config.ndi_name_prefix],
       outputFormat: config.output_format,
       settings: { stateTimeoutMs: VIDEO_HELPER_STATE_TIMEOUT_MS, loadTimeoutMs: VIDEO_HELPER_LOAD_TIMEOUT_MS,
         seekThresholdSec: VIDEO_HELPER_DRIFT_SEC, maxFramePixels: VIDEO_MAX_FRAME_PIXELS,

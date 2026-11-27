@@ -1,0 +1,5 @@
+--- session start 2026-11-26T17:20:59.808Z ---
+[17:20:59.807] [WARN] [ArtNet/wk] tick stats: 59 ticks/2000.753173828125ms avg=33.32ms (29.49fps) p50=33.1 p95=34.3 max=35.1 maxBehind=1.2ms hardStalls=0 target=33.33ms
+[17:21:17.806] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:21:37.823] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect
+[17:21:57.840] [ERROR] [Watchdog] No beat for 20.0s — triggering reconnect

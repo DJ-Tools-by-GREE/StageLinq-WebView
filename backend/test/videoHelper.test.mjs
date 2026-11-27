@@ -79,7 +79,7 @@ async function fixture(t, mode = 'normal') {
   const errors = [];
   const helper = new NativeVideoHelper({ status: status => statuses.push(status), error: error => errors.push(error) }, executable);
   t.after(async () => { await helper.stop(); await fs.rm(directory, { recursive: true, force: true }); });
-  const config = parseVideoConfig({ enabled: true, directory, ndi_name_prefix: 'Regression', output_format: 'source' });
+  const config = parseVideoConfig({ enabled: true, directory, multi_ndi_stream: true, ndi_name_prefix: 'Regression', output_format: 'source' });
   const records = async () => (await fs.readFile(log, 'utf8')).trim().split('\n').filter(Boolean).map(JSON.parse);
   return { helper, config, statuses, errors, records, directory };
 }
@@ -104,6 +104,17 @@ test('helper negotiates four sources and maps Node clock anchors to a distinct n
   assert.equal(f.statuses[0].generation, 'live-1');
   assert.equal(records.at(-1).type, 'shutdown');
   assert.deepEqual(f.errors, []);
+});
+
+test('single-stream helper configuration announces one fixed source and accepts any deck on it', { timeout: 5000 }, async t => {
+  const f = await fixture(t);
+  await f.helper.start({ ...f.config, multi_ndi_stream: false });
+  f.helper.send([commands('deck-3')[2]], monotonicNowMs());
+  await waitFor(() => f.statuses.length === 1, 'native status not received');
+  const records = await f.records();
+  assert.deepEqual(records.find(record => record.type === 'configure').sourceNames, ['Regression']);
+  assert.deepEqual(records.find(record => record.type === 'state').decks, [commands('deck-3')[2]]);
+  assert.equal(f.statuses[0].deck, 3);
 });
 
 test('helper parses split JSON lines and split multibyte UTF-8 status text', { timeout: 5000 }, async t => {

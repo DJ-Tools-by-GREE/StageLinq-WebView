@@ -110,7 +110,6 @@ export default function VideoStatusPanel({ onOpenConfigEditor }: Props) {
         </button>
       </div>
       <p className="settingHint">
-        Each deck has its own silent NDI source and follows live or replayed tracks.
         Changes in the config editor take effect after Save and Reload config. Rescan uses the active folder
         and reloads its mappings.json file.
       </p>
@@ -123,6 +122,9 @@ export default function VideoStatusPanel({ onOpenConfigEditor }: Props) {
             <span>{status.directory || 'No video folder configured'}</span>
             <span>{status.indexedVideos} video files · {status.outputFormat === 'source' ? 'Source format' : '1080p30'}</span>
           </p>
+          {!status.multiNdiStream && (
+            <p className="settingHint">NDI source <strong>{status.sourcePrefix}</strong> · {status.activeDeck ? `Deck ${status.activeDeck}` : 'No playing deck'}</p>
+          )}
           {status.error && <p role="alert" className="videoStatusError">{status.error}</p>}
           {status.ambiguousMatches.length > 0 && (
             <details className="videoMatchConflicts">
@@ -140,7 +142,7 @@ export default function VideoStatusPanel({ onOpenConfigEditor }: Props) {
                     <strong>Deck {deck}</strong>
                     <span className={`videoState videoState--${output.state}`}>{STATE_LABELS[output.state]}</span>
                   </div>
-                  <span className="videoSourceName" title={output.sourceName}>{output.sourceName}</span>
+                  {status.multiNdiStream && output.sourceName && <span className="videoSourceName" title={output.sourceName}>{output.sourceName}</span>}
                   <span className="videoTrackName" title={output.track}>{output.track || 'No track loaded'}</span>
                   {output.video && <span className="videoFileName" title={output.video}>{output.video}</span>}
                   {output.width != null && output.height != null && (

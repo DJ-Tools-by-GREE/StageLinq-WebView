@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { setImmediate as nextTurn } from 'node:timers/promises';
+import { setImmediate as nextTurn, setTimeout as delay } from 'node:timers/promises';
 import { VideoService, videoDeckCommand } from '../dist/videoService.js';
 import { parseVideoConfig } from '../dist/videoConfig.js';
 import { scanVideoLibrary } from '../dist/videoLibrary.js';
@@ -25,10 +25,10 @@ const allDecks = () => Object.fromEntries(deckNumbers.map(n => [n, deck(n, { ela
 const allTimings = () => Object.fromEntries(deckNumbers.map(n => [n, timing()]));
 
 async function fixture(t) {
-  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'slwv-video-service-'));
+  const directory = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'slwv-video-service-')));
   await fs.writeFile(path.join(directory, 'Song (Music Video).mp4'), 'fake video; no decoder is started');
   t.after(() => fs.rm(directory, { recursive: true, force: true }));
-  const config = parseVideoConfig({ enabled: true, directory });
+  const config = parseVideoConfig({ enabled: true, directory, multi_ndi_stream: true });
   const library = await scanVideoLibrary(config, directory);
   return { directory, config, library };
 }
@@ -118,6 +118,101 @@ test('all four decks run independently, and replay switches reject old source st
   assert.equal(service.getStatus().decks[1].width, 1280);
   service.update(states, timings, false, 1050);
   assert.notEqual(renderer.sent.at(-1).commands[0].generation, replay[0].generation);
+});
+
+test('the default stream follows the highest playing fader and keeps its source through handoffs', async t => {
+  const { directory } = await fixture(t);
+  const mock = renderers();
+  const service = new VideoService(mock.factory);
+  t.after(() => service.shutdown());
+  await service.initialize({ enabled: true, directory }, directory);
+  const states = allDecks(), timings = allTimings();
+  states[1].fader = 0.6;
+  states[2].fader = 0.8;
+  states[3].fader = 1;
+  timings[3].transportPlay = false;
+  const renderer = mock.instances[0];
+  const send = (replay = false) => {
+    service.update(states, timings, replay, 1000);
+    const { commands } = renderer.sent.at(-1);
+    assert.equal(commands.length, 1);
+    return commands[0];
+  };
+  const first = send();
+  assert.equal(first.deck, 2);
+  assert.equal(first.playing, true);
+  assert.equal(first.positionSec, 20);
+  assert.equal(service.getStatus().activeDeck, 2);
+  assert.equal(service.getStatus().decks[2].sourceName, 'StageLinq');
+  assert.equal(service.getStatus().decks[1].sourceName, null);
+  states[1].fader = 0.8;
+  assert.deepEqual(send(), first);
+  states[1].fader = 0.9;
+  const second = send();
+  assert.equal(second.deck, 1);
+  assert.notEqual(second.generation, first.generation);
+  states[1].fader = 0.6;
+  const returned = send();
+  assert.equal(returned.deck, 2);
+  assert.notEqual(returned.generation, first.generation);
+  renderer.callbacks.status({ deck: 2, generation: first.generation, state: 'error', error: 'obsolete handoff' });
+  send();
+  assert.equal(service.getStatus().decks[2].state, 'loading');
+  renderer.callbacks.status({ deck: 2, generation: returned.generation, state: 'playing' });
+  send();
+  assert.equal(service.getStatus().decks[2].state, 'playing');
+  const replay = send(true);
+  assert.equal(replay.deck, 2);
+  assert.notEqual(replay.generation, returned.generation);
+  states[2].fileName = 'Unmatched.mp3';
+  assert.equal(send(true).path, null);
+  assert.equal(service.getStatus().decks[2].state, 'unmatched');
+  for (const deck of deckNumbers) timings[deck].transportPlay = false;
+  assert.equal(send(true).playing, false);
+  assert.equal(service.getStatus().activeDeck, null);
+  assert.equal(mock.instances.length, 1);
+  assert.equal(renderer.stops, 0);
+});
+
+test('reloading the stream mode replaces the renderer and rolls back a failed mode change', async t => {
+  const { directory, config } = await fixture(t);
+  let failMulti = false;
+  const mock = renderers({ start(next) { if (failMulti && next.multi_ndi_stream) throw new Error('cannot start four sources'); } });
+  const service = new VideoService(mock.factory);
+  t.after(() => service.shutdown());
+  await service.configure(config, directory);
+  await service.configure({ ...config, multi_ndi_stream: false }, directory);
+  assert.equal(mock.instances[0].stops, 1);
+  assert.equal(service.getStatus().multiNdiStream, false);
+  failMulti = true;
+  await assert.rejects(service.configure(config, directory), /cannot start four sources/);
+  assert.equal(mock.instances[1].stops, 1);
+  assert.equal(mock.instances[2].stops, 1);
+  assert.equal(mock.instances[3].starts[0].multi_ndi_stream, false);
+  assert.equal(service.getStatus().multiNdiStream, false);
+  service.update(allDecks(), allTimings(), false, 1000);
+  assert.equal(mock.instances[3].sent.at(-1).commands.length, 1);
+});
+
+test('a mode reload waits for a failed renderer to exit before announcing new sources', async t => {
+  const { directory, config } = await fixture(t);
+  let release;
+  const stopped = new Promise(resolve => { release = resolve; });
+  const mock = renderers({ stop(renderer) { if (renderer === mock.instances[0]) return stopped; } });
+  const service = new VideoService(mock.factory);
+  t.after(() => { release(); return service.shutdown(); });
+  await service.configure(config, directory);
+  mock.instances[0].callbacks.error('renderer failed');
+  const reloading = service.configure({ ...config, multi_ndi_stream: false }, directory);
+  try {
+    await Promise.race([reloading, delay(100)]);
+    assert.equal(mock.instances.length, 1);
+  } finally {
+    release();
+  }
+  await reloading;
+  assert.equal(mock.instances.length, 2);
+  assert.equal(service.getStatus().multiNdiStream, false);
 });
 
 test('failed folder reload preserves the running renderer and successful rescan replaces the catalog', async t => {

@@ -202,6 +202,7 @@ function orderedConfig(config: AppConfig): Record<string, unknown> {
     })),
     video: {
       enabled: config.video.enabled,
+      multi_ndi_stream: config.video.multi_ndi_stream,
       directory: config.video.directory,
       ndi_name_prefix: config.video.ndi_name_prefix,
       output_format: config.video.output_format,
