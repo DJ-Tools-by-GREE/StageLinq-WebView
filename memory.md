@@ -21,6 +21,44 @@ the player used filename matching only; MP4/M4V/MOV restrictions still apply.
 
 ## Architectural decisions
 
+### 2026-11-27 — Two recent video mappings
+
+The user moved `Marianne Rosenberg - Er gehört zu mir.mp4` and
+`Modern Talking - Wetten dass Medley (Live 1998) (Music Video).mp4` to the
+Mac's video folder and confirmed their filenames are unchanged. This session
+can update the Windows checkout; it has no connection to the Mac. Read-only
+queries of `C:\Users\Jan\Music\Engine Library\Database2\m.db` found the
+corresponding audio entries: track 3242,
+`Various Artists - Die Hit‐Giganten - Best of Discofox - 15 - Er gehört zu mir.mp3`,
+and track 3241, `Modern Talking - Wetten dass Medley (Live 1998).m4a`.
+The Modern Talking pair is waveform-verified at zero offset across all 19
+distributed windows (median correlation 0.9996). The Marianne audio decodes to
+195.970625 s versus 185.016625 s for the video; the same analysis finds no
+reliable waveform correspondence. The user explicitly requested mapping
+Marianne despite that mismatch, with additional waveform analysis to find the
+best timing offset. This overrides the verified-pairs-only policy for this
+specific entry. Both mappings are now added, with explicit offsets in
+`config.json`: Modern Talking 0 s, Marianne -1.58 s. Modern Talking passes all
+127 dense waveform windows. Marianne's approximate offset is the median of 61
+qualified, locally time-stretched spectral matches on a 2.5 s grid (74 windows
+tested), minimizing absolute timing error over those matches. It is not a
+phase-coherent waveform match: early/middle timing drifts from +0.22 s to
+-4.58 s, and the ending has a further edit/structure mismatch, with late
+correspondences around -12.7 s. One offset cannot correct these differences;
+do not present this explicitly requested compromise as full-track sync.
+Analysis evidence and an offset plot are in
+`docs/video-alignment-2026-11-27/`. Copies of both downloaded videos in the
+local `videos/` folder passed SHA-256 comparison. The local full catalog scan
+found 13 pre-existing mappings referencing `(H.264).mp4` filenames absent from
+this Windows media collection. Those Mac-targeted entries are preserved.
+Validation passed: exact database filenames (including the U+2010 hyphen in
+Hit‐Giganten), strict mapping/config parsing, both new entries through the
+production catalog scanner in an isolated folder containing the real videos,
+and unchanged prior mappings/config values. There are now 26 mappings. No
+source-code contracts changed. The Mac still needs the updated mapping file
+and the two video offsets, followed by config reload; this session did not
+modify the Mac or validate native playback there.
+
 ### 2026-11-26 — Single-stream NDI mode
 
 The user requested `video.multi_ndi_stream` with a default of `false` and

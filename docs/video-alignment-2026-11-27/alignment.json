@@ -1,0 +1,2813 @@
+{
+  "date": "2026-11-27",
+  "offset_sign": "video_position_sec = audio_position_sec + offset_sec",
+  "engine_database": "~/Music/Engine Library/Database2/m.db (opened read-only)",
+  "method": {
+    "strict": {
+      "name": "waveform-v1-copyts-8k",
+      "sample_rate_hz": 8000,
+      "spectral_hop_sec": 0.02,
+      "distributed_window_sec": 12.0,
+      "dense_window_sec": 3,
+      "dense_step_sec": 2.5
+    },
+    "marianne_extended": {
+      "features": "20 mel bands, logarithmic spectrum, local whitening; local tempo stretch searched using linear interpolation",
+      "sample_rate_hz": 8000,
+      "spectral_frame_samples": 512,
+      "spectral_hop_sec": 0.02,
+      "initial_global_search": {
+        "window_sec": 8,
+        "candidates": [
+          {
+            "score": 0.41836935053932284,
+            "ratio": 0.978,
+            "video_time_sec": 5.26,
+            "audio_time_sec": 5.0
+          },
+          {
+            "score": 0.44829960632282256,
+            "ratio": 0.988,
+            "video_time_sec": 20.02,
+            "audio_time_sec": 20.0
+          },
+          {
+            "score": 0.45468548604826065,
+            "ratio": 0.978,
+            "video_time_sec": 34.74,
+            "audio_time_sec": 35.0
+          },
+          {
+            "score": 0.4721041766805498,
+            "ratio": 0.972,
+            "video_time_sec": 49.34,
+            "audio_time_sec": 50.0
+          },
+          {
+            "score": 0.4211323402314634,
+            "ratio": 0.982,
+            "video_time_sec": 23.64,
+            "audio_time_sec": 65.0
+          },
+          {
+            "score": 0.4083819503251586,
+            "ratio": 0.972,
+            "video_time_sec": 78.48,
+            "audio_time_sec": 80.0
+          },
+          {
+            "score": 0.4428394670932843,
+            "ratio": 0.972,
+            "video_time_sec": 52.9,
+            "audio_time_sec": 95.0
+          },
+          {
+            "score": 0.3003291792842147,
+            "ratio": 0.968,
+            "video_time_sec": 107.42,
+            "audio_time_sec": 110.0
+          },
+          {
+            "score": 0.40096214621812193,
+            "ratio": 0.964,
+            "video_time_sec": 121.9,
+            "audio_time_sec": 125.0
+          },
+          {
+            "score": 0.431395368802309,
+            "ratio": 0.964,
+            "video_time_sec": 136.32,
+            "audio_time_sec": 140.0
+          },
+          {
+            "score": 0.3872935097079254,
+            "ratio": 0.948,
+            "video_time_sec": 150.78,
+            "audio_time_sec": 155.0
+          },
+          {
+            "score": 0.27706874227442124,
+            "ratio": 0.988,
+            "video_time_sec": 15.96,
+            "audio_time_sec": 170.0
+          }
+        ],
+        "elapsed_sec": 2.9465236000251025
+      },
+      "local_search": {
+        "initialization": "video_time = .97 * audio_time + .5, derived from the initial global search",
+        "window_sec": 8,
+        "grid_step_sec": 2.5,
+        "before_audio_sec_162": {
+          "search_radius_sec": 3,
+          "stretch_ratio_range": [
+            0.94,
+            1.01
+          ]
+        },
+        "from_audio_sec_162": {
+          "search_before_sec": 15,
+          "search_after_sec": 3,
+          "stretch_ratio_range": [
+            0.9,
+            1.052
+          ]
+        },
+        "stretch_ratio_step": 0.002
+      },
+      "waveform_refinement": "1-second band-passed 70-1200 Hz samples; local resampling and normalized correlation remained weak"
+    }
+  },
+  "results": [
+    {
+      "engine_track_id": 3241,
+      "audio_file": "Modern Talking - Wetten dass Medley (Live 1998).m4a",
+      "video_file": "Modern Talking - Wetten dass Medley (Live 1998) (Music Video).mp4",
+      "audio_duration_sec": 321.015875,
+      "video_audio_duration_sec": 321.015875,
+      "anchors": [
+        {
+          "audio_time_sec": 9.0,
+          "candidates": [
+            {
+              "coarse_corr": 0.9963842315354495,
+              "coarse_offset_sec": 0.0,
+              "offset_sec": 0.0,
+              "waveform_corr": 0.9994518662104191
+            },
+            {
+              "coarse_corr": 0.7548172251224978,
+              "coarse_offset_sec": 8.12,
+              "offset_sec": 8.1135,
+              "waveform_corr": 0.9953304118061623
+            },
+            {
+              "coarse_corr": 0.6056728695316121,
+              "coarse_offset_sec": 4.06,
+              "offset_sec": 4.056625,
+              "waveform_corr": 0.2369853108695191
+            },
+            {
+              "coarse_corr": 0.5274336795666857,
+              "coarse_offset_sec": 6.08,
+              "offset_sec": 6.086875,
+              "waveform_corr": 0.600907870815454
+            }
+          ],
+          "selected": {
+            "coarse_corr": 0.9963842315354495,
+            "coarse_offset_sec": 0.0,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9994518662104191
+          }
+        },
+        {
+          "audio_time_sec": 25.84,
+          "candidates": [
+            {
+              "coarse_corr": 0.9975596617205847,
+              "coarse_offset_sec": 0.0,
+              "offset_sec": 0.0,
+              "waveform_corr": 0.9996323584421859
+            },
+            {
+              "coarse_corr": 0.6045607648215567,
+              "coarse_offset_sec": 8.100000000000001,
+              "offset_sec": 8.107125,
+              "waveform_corr": 0.41254832993142015
+            },
+            {
+              "coarse_corr": 0.5956472167923563,
+              "coarse_offset_sec": -8.1,
+              "offset_sec": -8.10775,
+              "waveform_corr": 0.552645198779855
+            },
+            {
+              "coarse_corr": 0.5500702370380033,
+              "coarse_offset_sec": -3.039999999999999,
+              "offset_sec": -3.039875,
+              "waveform_corr": 0.34986152025082423
+            }
+          ],
+          "selected": {
+            "coarse_corr": 0.9975596617205847,
+            "coarse_offset_sec": 0.0,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996323584421859
+          }
+        },
+        {
+          "audio_time_sec": 42.66,
+          "candidates": [
+            {
+              "coarse_corr": 0.9974794048046133,
+              "coarse_offset_sec": 0.0,
+              "offset_sec": 0.0,
+              "waveform_corr": 0.9996412704754833
+            },
+            {
+              "coarse_corr": 0.5095895870252646,
+              "coarse_offset_sec": -21.279999999999994,
+              "offset_sec": -21.281375,
+              "waveform_corr": 0.3092213926869797
+            },
+            {
+              "coarse_corr": 0.5095031082063315,
+              "coarse_offset_sec": 58.8,
+              "offset_sec": 58.797125,
+              "waveform_corr": 0.4416265571705674
+            },
+            {
+              "coarse_corr": 0.5063085543278124,
+              "coarse_offset_sec": -8.099999999999998,
+              "offset_sec": -8.10675,
+              "waveform_corr": 0.4094863126830185
+            }
+          ],
+          "selected": {
+            "coarse_corr": 0.9974794048046133,
+            "coarse_offset_sec": 0.0,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996412704754833
+          }
+        },
+        {
+          "audio_time_sec": 59.5,
+          "candidates": [
+            {
+              "coarse_corr": 0.9973560500781813,
+              "coarse_offset_sec": 0.0,
+              "offset_sec": 0.0,
+              "waveform_corr": 0.9995847615538213
+            },
+            {
+              "coarse_corr": 0.5934891573291463,
+              "coarse_offset_sec": 8.100000000000001,
+              "offset_sec": 8.107,
+              "waveform_corr": 0.3998361923313341
+            },
+            {
+              "coarse_corr": 0.5640497625247036,
+              "coarse_offset_sec": -8.100000000000001,
+              "offset_sec": -8.107125,
+              "waveform_corr": 0.47948797388453035
+            },
+            {
+              "coarse_corr": 0.5639270289064822,
+              "coarse_offset_sec": 10.14,
+              "offset_sec": 10.64,
+              "waveform_corr": 0.36572351655536106
+            }
+          ],
+          "selected": {
+            "coarse_corr": 0.9973560500781813,
+            "coarse_offset_sec": 0.0,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9995847615538213
+          }
+        },
+        {
+          "audio_time_sec": 76.34,
+          "candidates": [
+            {
+              "coarse_corr": 0.9971222456460489,
+              "coarse_offset_sec": 0.0,
+              "offset_sec": 0.0,
+              "waveform_corr": 0.9994630455229603
+            },
+            {
+              "coarse_corr": 0.5786225742981929,
+              "coarse_offset_sec": 8.11999999999999,
+              "offset_sec": 8.11225,
+              "waveform_corr": 0.42296798317345347
+            },
+            {
+              "coarse_corr": 0.5413463341842042,
+              "coarse_offset_sec": -18.240000000000002,
+              "offset_sec": -18.244,
+              "waveform_corr": 0.42816068790830725
+            },
+            {
+              "coarse_corr": 0.5412600138052588,
+              "coarse_offset_sec": -10.14,
+              "offset_sec": -10.13625,
+              "waveform_corr": 0.47568721442537276
+            }
+          ],
+          "selected": {
+            "coarse_corr": 0.9971222456460489,
+            "coarse_offset_sec": 0.0,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9994630455229603
+          }
+        },
+        {
+          "audio_time_sec": 93.18,
+          "candidates": [
+            {
+              "coarse_corr": 0.9975982559339577,
+              "coarse_offset_sec": 0.0,
+              "offset_sec": 0.0,
+              "waveform_corr": 0.9996820676218473
+            },
+            {
+              "coarse_corr": 0.5460716925121017,
+              "coarse_offset_sec": 24.33999999999999,
+              "offset_sec": 24.3385,
+              "waveform_corr": 0.4018949603516864
+            },
+            {
+              "coarse_corr": 0.5378951757310575,
+              "coarse_offset_sec": 8.11999999999999,
+              "offset_sec": 8.11275,
+              "waveform_corr": 0.4488469756057469
+            },
+            {
+              "coarse_corr": 0.5160123567382077,
+              "coarse_offset_sec": 16.22,
+              "offset_sec": 16.225625,
+              "waveform_corr": 0.4622357695494641
+            }
+          ],
+          "selected": {
+            "coarse_corr": 0.9975982559339577,
+            "coarse_offset_sec": 0.0,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996820676218473
+          }
+        },
+        {
+          "audio_time_sec": 110.0,
+          "candidates": [
+            {
+              "coarse_corr": 0.9978328649655761,
+              "coarse_offset_sec": 0.0,
+              "offset_sec": 0.0,
+              "waveform_corr": 0.9996385293160207
+            },
+            {
+              "coarse_corr": 0.5730343048476513,
+              "coarse_offset_sec": 16.22,
+              "offset_sec": 16.225,
+              "waveform_corr": 0.38970917581454484
+            },
+            {
+              "coarse_corr": 0.5380273580097478,
+              "coarse_offset_sec": -8.120000000000005,
+              "offset_sec": -8.11325,
+              "waveform_corr": 0.46598455825699486
+            },
+            {
+              "coarse_corr": 0.5345658738877074,
+              "coarse_offset_sec": 8.120000000000005,
+              "offset_sec": 8.619125,
+              "waveform_corr": 0.46436761866923437
+            }
+          ],
+          "selected": {
+            "coarse_corr": 0.9978328649655761,
+            "coarse_offset_sec": 0.0,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996385293160207
+          }
+        },
+        {
+          "audio_time_sec": 126.84,
+          "candidates": [
+            {
+              "coarse_corr": 0.9977376552417625,
+              "coarse_offset_sec": 0.0,
+              "offset_sec": 0.0,
+              "waveform_corr": 0.9995868416063078
+            },
+            {
+              "coarse_corr": 0.5650235836900376,
+              "coarse_offset_sec": -16.22,
+              "offset_sec": -16.22475,
+              "waveform_corr": 0.3532715152929631
+            },
+            {
+              "coarse_corr": 0.48162401691583256,
+              "coarse_offset_sec": 16.22,
+              "offset_sec": 16.225625,
+              "waveform_corr": 0.3508780986525805
+            },
+            {
+              "coarse_corr": 0.46756156337292687,
+              "coarse_offset_sec": -91.24000000000001,
+              "offset_sec": -91.242625,
+              "waveform_corr": 0.4574402870854789
+            }
+          ],
+          "selected": {
+            "coarse_corr": 0.9977376552417625,
+            "coarse_offset_sec": 0.0,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9995868416063078
+          }
+        },
+        {
+          "audio_time_sec": 143.68,
+          "candidates": [
+            {
+              "coarse_corr": 0.997291443799817,
+              "coarse_offset_sec": 0.0,
+              "offset_sec": 0.0,
+              "waveform_corr": 0.999544969117113
+            },
+            {
+              "coarse_corr": 0.4843571800407585,
+              "coarse_offset_sec": -16.220000000000013,
+              "offset_sec": -16.2255,
+              "waveform_corr": 0.3518386467538399
+            },
+            {
+              "coarse_corr": 0.4565920481516611,
+              "coarse_offset_sec": 6.079999999999984,
+              "offset_sec": 6.084,
+              "waveform_corr": 0.44582054541303723
+            },
+            {
+              "coarse_corr": 0.4504254155912593,
+              "coarse_offset_sec": -48.68000000000001,
+              "offset_sec": -48.677,
+              "waveform_corr": 0.39114467914026335
+            }
+          ],
+          "selected": {
+            "coarse_corr": 0.997291443799817,
+            "coarse_offset_sec": 0.0,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.999544969117113
+          }
+        },
+        {
+          "audio_time_sec": 160.5,
+          "candidates": [
+            {
+              "coarse_corr": 0.9972528428554803,
+              "coarse_offset_sec": 0.0,
+              "offset_sec": 0.0,
+              "waveform_corr": 0.9996499171833445
+            },
+            {
+              "coarse_corr": 0.4982085533298898,
+              "coarse_offset_sec": -140.92,
+              "offset_sec": -140.924,
+              "waveform_corr": 0.26183685288803293
+            },
+            {
+              "coarse_corr": 0.48469075743206286,
+              "coarse_offset_sec": -46.64,
+              "offset_sec": -46.648375,
+              "waveform_corr": 0.36380337938292956
+            },
+            {
+              "coarse_corr": 0.47360693320313385,
+              "coarse_offset_sec": -144.98,
+              "offset_sec": -144.9765,
+              "waveform_corr": 0.24269540264542597
+            }
+          ],
+          "selected": {
+            "coarse_corr": 0.9972528428554803,
+            "coarse_offset_sec": 0.0,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996499171833445
+          }
+        },
+        {
+          "audio_time_sec": 177.34,
+          "candidates": [
+            {
+              "coarse_corr": 0.9975332425801052,
+              "coarse_offset_sec": 0.0,
+              "offset_sec": 0.0,
+              "waveform_corr": 0.9996283211557087
+            },
+            {
+              "coarse_corr": 0.5171293536122916,
+              "coarse_offset_sec": -2.0200000000000102,
+              "offset_sec": -2.025875,
+              "waveform_corr": 0.31211546949762536
+            },
+            {
+              "coarse_corr": 0.5089580414318459,
+              "coarse_offset_sec": -81.12,
+              "offset_sec": -81.114875,
+              "waveform_corr": 0.25117468025428197
+            },
+            {
+              "coarse_corr": 0.504447863490468,
+              "coarse_offset_sec": 8.099999999999994,
+              "offset_sec": 8.1075,
+              "waveform_corr": 0.35163040266797213
+            }
+          ],
+          "selected": {
+            "coarse_corr": 0.9975332425801052,
+            "coarse_offset_sec": 0.0,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996283211557087
+          }
+        },
+        {
+          "audio_time_sec": 194.18,
+          "candidates": [
+            {
+              "coarse_corr": 0.9974994745256996,
+              "coarse_offset_sec": 0.0,
+              "offset_sec": 0.0,
+              "waveform_corr": 0.9996383830894665
+            },
+            {
+              "coarse_corr": 0.4913620497327912,
+              "coarse_offset_sec": -8.099999999999994,
+              "offset_sec": -8.10725,
+              "waveform_corr": 0.3549327121035919
+            },
+            {
+              "coarse_corr": 0.48661177584358456,
+              "coarse_offset_sec": -103.42,
+              "offset_sec": -103.413875,
+              "waveform_corr": 0.4806913396478794
+            },
+            {
+              "coarse_corr": 0.47739870792086025,
+              "coarse_offset_sec": -12.159999999999997,
+              "offset_sec": -12.16025,
+              "waveform_corr": 0.3600888577381478
+            }
+          ],
+          "selected": {
+            "coarse_corr": 0.9974994745256996,
+            "coarse_offset_sec": 0.0,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996383830894665
+          }
+        },
+        {
+          "audio_time_sec": 211.02,
+          "candidates": [
+            {
+              "coarse_corr": 0.9969167898415682,
+              "coarse_offset_sec": 0.0,
+              "offset_sec": 0.0,
+              "waveform_corr": 0.9995953650454225
+            },
+            {
+              "coarse_corr": 0.5371655548653985,
+              "coarse_offset_sec": 8.119999999999976,
+              "offset_sec": 8.113375,
+              "waveform_corr": 0.33236140903744726
+            },
+            {
+              "coarse_corr": 0.5092737845339855,
+              "coarse_offset_sec": -8.100000000000023,
+              "offset_sec": -8.113875,
+              "waveform_corr": 0.3165907204525358
+            },
+            {
+              "coarse_corr": 0.5017046900601205,
+              "coarse_offset_sec": -4.060000000000002,
+              "offset_sec": -4.05725,
+              "waveform_corr": 0.35903604335432276
+            }
+          ],
+          "selected": {
+            "coarse_corr": 0.9969167898415682,
+            "coarse_offset_sec": 0.0,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9995953650454225
+          }
+        },
+        {
+          "audio_time_sec": 227.84,
+          "candidates": [
+            {
+              "coarse_corr": 0.9961695830883672,
+              "coarse_offset_sec": 0.0,
+              "offset_sec": 0.0,
+              "waveform_corr": 0.9996259380753146
+            },
+            {
+              "coarse_corr": 0.5584914383260178,
+              "coarse_offset_sec": -8.120000000000005,
+              "offset_sec": -8.114125,
+              "waveform_corr": 0.266313221264424
+            },
+            {
+              "coarse_corr": 0.48353322067758886,
+              "coarse_offset_sec": -2.0200000000000102,
+              "offset_sec": -2.02875,
+              "waveform_corr": 0.34603819878174824
+            },
+            {
+              "coarse_corr": 0.48063204721874603,
+              "coarse_offset_sec": -4.060000000000002,
+              "offset_sec": -4.0575,
+              "waveform_corr": 0.348763131987138
+            }
+          ],
+          "selected": {
+            "coarse_corr": 0.9961695830883672,
+            "coarse_offset_sec": 0.0,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996259380753146
+          }
+        },
+        {
+          "audio_time_sec": 244.68,
+          "candidates": [
+            {
+              "coarse_corr": 0.9968807857884113,
+              "coarse_offset_sec": 0.0,
+              "offset_sec": 0.0,
+              "waveform_corr": 0.9995476583720679
+            },
+            {
+              "coarse_corr": 0.6148931837264875,
+              "coarse_offset_sec": -4.060000000000002,
+              "offset_sec": -4.05475,
+              "waveform_corr": 0.4549654233430314
+            },
+            {
+              "coarse_corr": 0.518681837199078,
+              "coarse_offset_sec": 4.060000000000002,
+              "offset_sec": 4.055125,
+              "waveform_corr": 0.4931149770746106
+            },
+            {
+              "coarse_corr": 0.5157183882502061,
+              "coarse_offset_sec": -8.099999999999994,
+              "offset_sec": -8.109875,
+              "waveform_corr": 0.37635477865013456
+            }
+          ],
+          "selected": {
+            "coarse_corr": 0.9968807857884113,
+            "coarse_offset_sec": 0.0,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9995476583720679
+          }
+        },
+        {
+          "audio_time_sec": 261.52,
+          "candidates": [
+            {
+              "coarse_corr": 0.9977530987968346,
+              "coarse_offset_sec": 0.0,
+              "offset_sec": 0.0,
+              "waveform_corr": 0.9996700027028788
+            },
+            {
+              "coarse_corr": 0.56622978788242,
+              "coarse_offset_sec": 16.22,
+              "offset_sec": 16.219125,
+              "waveform_corr": 0.36488399477958483
+            },
+            {
+              "coarse_corr": 0.5280036373799252,
+              "coarse_offset_sec": -229.12,
+              "offset_sec": -229.1245,
+              "waveform_corr": 0.29536904768700006
+            },
+            {
+              "coarse_corr": 0.5193615459844333,
+              "coarse_offset_sec": -4.060000000000002,
+              "offset_sec": -4.054625,
+              "waveform_corr": 0.3016815266379166
+            }
+          ],
+          "selected": {
+            "coarse_corr": 0.9977530987968346,
+            "coarse_offset_sec": 0.0,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996700027028788
+          }
+        },
+        {
+          "audio_time_sec": 278.34,
+          "candidates": [
+            {
+              "coarse_corr": 0.9972128949841594,
+              "coarse_offset_sec": 0.0,
+              "offset_sec": 0.0,
+              "waveform_corr": 0.9996127490382999
+            },
+            {
+              "coarse_corr": 0.5507775776284943,
+              "coarse_offset_sec": -16.21999999999997,
+              "offset_sec": -16.218875,
+              "waveform_corr": 0.35526332381678016
+            },
+            {
+              "coarse_corr": 0.459990406783969,
+              "coarse_offset_sec": -20.279999999999973,
+              "offset_sec": -20.273625,
+              "waveform_corr": 0.35724116395424216
+            },
+            {
+              "coarse_corr": 0.4266301265546506,
+              "coarse_offset_sec": -216.95999999999998,
+              "offset_sec": -216.96775,
+              "waveform_corr": 0.3996982840485946
+            }
+          ],
+          "selected": {
+            "coarse_corr": 0.9972128949841594,
+            "coarse_offset_sec": 0.0,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996127490382999
+          }
+        },
+        {
+          "audio_time_sec": 295.18,
+          "candidates": [
+            {
+              "coarse_corr": 0.9972141970275231,
+              "coarse_offset_sec": 0.0,
+              "offset_sec": 0.0,
+              "waveform_corr": 0.9995864506398285
+            },
+            {
+              "coarse_corr": 0.4963450937537483,
+              "coarse_offset_sec": 4.060000000000002,
+              "offset_sec": 4.055,
+              "waveform_corr": 0.35995161815828053
+            },
+            {
+              "coarse_corr": 0.4853541338002006,
+              "coarse_offset_sec": -4.060000000000002,
+              "offset_sec": -4.055625,
+              "waveform_corr": 0.28278357717952324
+            },
+            {
+              "coarse_corr": 0.4708566460030784,
+              "coarse_offset_sec": -8.100000000000023,
+              "offset_sec": -8.109625,
+              "waveform_corr": 0.3425193784873009
+            }
+          ],
+          "selected": {
+            "coarse_corr": 0.9972141970275231,
+            "coarse_offset_sec": 0.0,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9995864506398285
+          }
+        },
+        {
+          "audio_time_sec": 312.02,
+          "candidates": [
+            {
+              "coarse_corr": 0.9969907510037264,
+              "coarse_offset_sec": 0.0,
+              "offset_sec": 0.0,
+              "waveform_corr": 0.9994702797068886
+            },
+            {
+              "coarse_corr": 0.49746645788250965,
+              "coarse_offset_sec": -8.099999999999966,
+              "offset_sec": -8.11,
+              "waveform_corr": 0.4746433171722893
+            },
+            {
+              "coarse_corr": 0.38522816880075456,
+              "coarse_offset_sec": -40.56,
+              "offset_sec": -40.54825,
+              "waveform_corr": 0.3162323452029736
+            },
+            {
+              "coarse_corr": 0.38371242004803296,
+              "coarse_offset_sec": -44.599999999999966,
+              "offset_sec": -44.60325,
+              "waveform_corr": 0.37356132681023374
+            }
+          ],
+          "selected": {
+            "coarse_corr": 0.9969907510037264,
+            "coarse_offset_sec": 0.0,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9994702797068886
+          }
+        }
+      ],
+      "status": "verified",
+      "reason": "Consistent constant offset across independent windows",
+      "offset_sec": 0.0,
+      "matched_windows": 19,
+      "eligible_windows": 19,
+      "all_windows": 19,
+      "spread_sec": 0.0,
+      "drift_sec": 0.0,
+      "median_waveform_corr": 0.9996,
+      "median_spectral_corr": 0.9973,
+      "audio_overlap_fraction": 1.0,
+      "analysis_seconds": 1.12,
+      "dense_validation": {
+        "windows": 127,
+        "matched_fraction": 1.0,
+        "longest_failed_run_sec": 0.0,
+        "failed_windows": [],
+        "anchors": [
+          {
+            "audio_time_sec": 2.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9989,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 4.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9993,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 7.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9995,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 9.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9995,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 12.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9995,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 14.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9994,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 17.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9995,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 19.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 22.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 24.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 27.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 29.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 32.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 34.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 37.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 39.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 42.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 44.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 47.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9997,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 49.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 52.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 54.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9995,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 57.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9995,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 59.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 62.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 64.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 67.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9995,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 69.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 72.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9995,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 74.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9995,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 77.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9995,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 79.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9995,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 82.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 84.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9995,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 87.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 89.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 92.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 94.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9997,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 97.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9997,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 99.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9997,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 102.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 104.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9997,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 107.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9997,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 109.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 112.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9997,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 114.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 117.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9997,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 119.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 122.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 124.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 127.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 129.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 132.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9995,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 134.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9995,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 137.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 139.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9995,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 142.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 144.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9995,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 147.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9995,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 149.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 152.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9995,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 154.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 157.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9994,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 159.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 162.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 164.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 167.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9995,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 169.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 172.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 174.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 177.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 179.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9997,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 182.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 184.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9997,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 187.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9997,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 189.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 192.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9997,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 194.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 197.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 199.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9995,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 202.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 204.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9995,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 207.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 209.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 212.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 214.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9995,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 217.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 219.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 222.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 224.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 227.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 229.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 232.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 234.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 237.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 239.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9995,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 242.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 244.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 247.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 249.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 252.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 254.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9997,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 257.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9997,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 259.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 262.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9997,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 264.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9997,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 267.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9997,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 269.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 272.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 274.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 277.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 279.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 282.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 284.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 287.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 289.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9997,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 292.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 294.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 297.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 299.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 302.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9995,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 304.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9996,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 307.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9995,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 309.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9994,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 312.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9995,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 314.6,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9995,
+            "quiet": false,
+            "good": true
+          },
+          {
+            "audio_time_sec": 317.1,
+            "offset_sec": 0.0,
+            "waveform_corr": 0.9992,
+            "quiet": false,
+            "good": true
+          }
+        ]
+      },
+      "audio_sha256": "55d5ed8bf0984380d1793db647e09e8a6c556f4e0acf8c8c6d250b2f541c0db9",
+      "video_sha256": "fb7719e37d2bcc2203a049ec3fc4ced8459a3d9f49a788b5846dbc0c01a25a4e",
+      "applied_offset_sec": 0,
+      "mapping_status": "waveform_verified"
+    },
+    {
+      "engine_track_id": 3242,
+      "audio_file": "Various Artists - Die Hit‐Giganten - Best of Discofox - 15 - Er gehört zu mir.mp3",
+      "video_file": "Marianne Rosenberg - Er gehört zu mir.mp4",
+      "audio_duration_sec": 195.970625,
+      "video_audio_duration_sec": 185.016625,
+      "anchors": [
+        {
+          "audio_time_sec": 9.0,
+          "candidates": []
+        },
+        {
+          "audio_time_sec": 18.880000000000003,
+          "candidates": [
+            {
+              "coarse_corr": 0.4133126200705586,
+              "coarse_offset_sec": 0.019999999999999574,
+              "offset_sec": 0.055375,
+              "waveform_corr": 0.11662022064917399
+            }
+          ]
+        },
+        {
+          "audio_time_sec": 28.78,
+          "candidates": []
+        },
+        {
+          "audio_time_sec": 38.66,
+          "candidates": []
+        },
+        {
+          "audio_time_sec": 48.54,
+          "candidates": []
+        },
+        {
+          "audio_time_sec": 58.44,
+          "candidates": []
+        },
+        {
+          "audio_time_sec": 68.32,
+          "candidates": []
+        },
+        {
+          "audio_time_sec": 78.22,
+          "candidates": []
+        },
+        {
+          "audio_time_sec": 88.1,
+          "candidates": []
+        },
+        {
+          "audio_time_sec": 97.98,
+          "candidates": []
+        },
+        {
+          "audio_time_sec": 107.88,
+          "candidates": []
+        },
+        {
+          "audio_time_sec": 117.76,
+          "candidates": []
+        },
+        {
+          "audio_time_sec": 127.64,
+          "candidates": []
+        },
+        {
+          "audio_time_sec": 137.54,
+          "candidates": []
+        },
+        {
+          "audio_time_sec": 147.42,
+          "candidates": []
+        },
+        {
+          "audio_time_sec": 157.3,
+          "candidates": []
+        },
+        {
+          "audio_time_sec": 167.2,
+          "candidates": []
+        },
+        {
+          "audio_time_sec": 177.08,
+          "candidates": []
+        },
+        {
+          "audio_time_sec": 186.98,
+          "candidates": []
+        }
+      ],
+      "status": "review",
+      "reason": "No reliable waveform correspondence",
+      "offset_sec": null,
+      "analysis_seconds": 0.74,
+      "audio_sha256": "1c5601946a5e01de4ee62fba93cb1892e1707773b570b5ae6b4221cabbbfe47a",
+      "video_sha256": "ae909da06ae447bba4ff46cedac0584b6df4eb7db2bac8398249d2fef5904286",
+      "applied_offset_sec": -1.58,
+      "mapping_status": "explicit_user_request_despite_timing_mismatch",
+      "extended_analysis": {
+        "summary": {
+          "status": "best_effort_drift_and_edit_mismatch",
+          "fixed_offset_selection": "Median of equally spaced locally matched spectral-window timing offsets; minimizes sum of absolute timing errors over qualified windows. Not a phase-coherent waveform match.",
+          "spectral_correlation_threshold": 0.35,
+          "window_sec": 8,
+          "grid_step_sec": 2.5,
+          "total_windows": 74,
+          "qualified_windows": 61,
+          "chosen_offset_sec": -1.58,
+          "unrounded_median_offset_sec": -1.58,
+          "mean_offset_sec": -2.446295081967213,
+          "measured_offset_range_sec": [
+            -12.708,
+            0.22
+          ],
+          "median_absolute_error_sec": 1.3880000000000001,
+          "max_absolute_error_sec": 11.128,
+          "matched_audio_time_range_sec": [
+            7.0,
+            187.0
+          ],
+          "median_spectral_corr": 0.4281,
+          "notes": [
+            "Initial strict 19-window waveform analysis found no reliable constant-offset correspondence.",
+            "Stretch search identifies a drifting shared song pattern, followed by an edit/structure difference in the final section.",
+            "The constant offset is an approximate compromise; it does not correct tempo or edit differences.",
+            "Weak windows are excluded rather than assigned invented timings."
+          ]
+        },
+        "windows": [
+          {
+            "spectral_corr": 0.4053,
+            "ratio": 0.98,
+            "audio_time_sec": 7.0,
+            "video_time_sec": 7.22,
+            "offset_sec": 0.22,
+            "waveform_refinement": {
+              "waveform_corr": 0.1665,
+              "ratio": 0.9795,
+              "video_time_sec": 7.240625
+            }
+          },
+          {
+            "spectral_corr": 0.4505,
+            "ratio": 0.978,
+            "audio_time_sec": 9.5,
+            "video_time_sec": 9.672,
+            "offset_sec": 0.172,
+            "waveform_refinement": {
+              "waveform_corr": 0.1494,
+              "ratio": 0.9809,
+              "video_time_sec": 9.788563
+            }
+          },
+          {
+            "spectral_corr": 0.538,
+            "ratio": 0.98,
+            "audio_time_sec": 12.0,
+            "video_time_sec": 12.12,
+            "offset_sec": 0.12,
+            "waveform_refinement": {
+              "waveform_corr": 0.1459,
+              "ratio": 0.9802,
+              "video_time_sec": 12.179375
+            }
+          },
+          {
+            "spectral_corr": 0.5579,
+            "ratio": 0.988,
+            "audio_time_sec": 14.5,
+            "video_time_sec": 14.572,
+            "offset_sec": 0.072,
+            "waveform_refinement": {
+              "waveform_corr": 0.2362,
+              "ratio": 0.992,
+              "video_time_sec": 14.587375
+            }
+          },
+          {
+            "spectral_corr": 0.5368,
+            "ratio": 0.992,
+            "audio_time_sec": 17.0,
+            "video_time_sec": 17.048,
+            "offset_sec": 0.048,
+            "waveform_refinement": {
+              "waveform_corr": 0.2061,
+              "ratio": 0.996,
+              "video_time_sec": 17.078625
+            }
+          },
+          {
+            "spectral_corr": 0.4787,
+            "ratio": 0.99,
+            "audio_time_sec": 19.5,
+            "video_time_sec": 19.52,
+            "offset_sec": 0.02,
+            "waveform_refinement": {
+              "waveform_corr": 0.2089,
+              "ratio": 0.989,
+              "video_time_sec": 19.53125
+            }
+          },
+          {
+            "spectral_corr": 0.4389,
+            "ratio": 0.984,
+            "audio_time_sec": 22.0,
+            "video_time_sec": 21.996,
+            "offset_sec": -0.004,
+            "waveform_refinement": {
+              "waveform_corr": 0.1745,
+              "ratio": 0.9859,
+              "video_time_sec": 21.893313
+            }
+          },
+          {
+            "spectral_corr": 0.4613,
+            "ratio": 0.984,
+            "audio_time_sec": 24.5,
+            "video_time_sec": 24.456,
+            "offset_sec": -0.044,
+            "waveform_refinement": {
+              "waveform_corr": 0.223,
+              "ratio": 0.98,
+              "video_time_sec": 24.485875
+            }
+          },
+          {
+            "spectral_corr": 0.4603,
+            "ratio": 0.988,
+            "audio_time_sec": 27.0,
+            "video_time_sec": 26.932,
+            "offset_sec": -0.068,
+            "waveform_refinement": {
+              "waveform_corr": 0.2477,
+              "ratio": 0.9851,
+              "video_time_sec": 26.937438
+            }
+          },
+          {
+            "spectral_corr": 0.4207,
+            "ratio": 0.98,
+            "audio_time_sec": 29.5,
+            "video_time_sec": 29.38,
+            "offset_sec": -0.12,
+            "waveform_refinement": {
+              "waveform_corr": 0.1111,
+              "ratio": 0.9836,
+              "video_time_sec": 29.542812
+            }
+          },
+          {
+            "spectral_corr": 0.4488,
+            "ratio": 0.972,
+            "audio_time_sec": 32.0,
+            "video_time_sec": 31.808,
+            "offset_sec": -0.192,
+            "waveform_refinement": {
+              "waveform_corr": 0.1492,
+              "ratio": 0.9724,
+              "video_time_sec": 31.811438
+            }
+          },
+          {
+            "spectral_corr": 0.4525,
+            "ratio": 0.978,
+            "audio_time_sec": 34.5,
+            "video_time_sec": 34.252,
+            "offset_sec": -0.248,
+            "waveform_refinement": {
+              "waveform_corr": 0.1507,
+              "ratio": 0.9795,
+              "video_time_sec": 34.299
+            }
+          },
+          {
+            "spectral_corr": 0.455,
+            "ratio": 0.984,
+            "audio_time_sec": 37.0,
+            "video_time_sec": 36.696,
+            "offset_sec": -0.304,
+            "waveform_refinement": {
+              "waveform_corr": 0.117,
+              "ratio": 0.984,
+              "video_time_sec": 36.6565
+            }
+          },
+          {
+            "spectral_corr": 0.4281,
+            "ratio": 0.974,
+            "audio_time_sec": 39.5,
+            "video_time_sec": 39.136,
+            "offset_sec": -0.364,
+            "waveform_refinement": {
+              "waveform_corr": 0.1418,
+              "ratio": 0.978,
+              "video_time_sec": 39.140375
+            }
+          },
+          {
+            "spectral_corr": 0.4405,
+            "ratio": 0.972,
+            "audio_time_sec": 42.0,
+            "video_time_sec": 41.588,
+            "offset_sec": -0.412,
+            "waveform_refinement": {
+              "waveform_corr": 0.1,
+              "ratio": 0.9719,
+              "video_time_sec": 41.662437
+            }
+          },
+          {
+            "spectral_corr": 0.4904,
+            "ratio": 0.972,
+            "audio_time_sec": 44.5,
+            "video_time_sec": 44.008,
+            "offset_sec": -0.492,
+            "waveform_refinement": {
+              "waveform_corr": 0.1022,
+              "ratio": 0.976,
+              "video_time_sec": 44.008625
+            }
+          },
+          {
+            "spectral_corr": 0.4715,
+            "ratio": 0.964,
+            "audio_time_sec": 47.0,
+            "video_time_sec": 46.436,
+            "offset_sec": -0.564,
+            "waveform_refinement": {
+              "waveform_corr": 0.1542,
+              "ratio": 0.9614,
+              "video_time_sec": 46.485563
+            }
+          },
+          {
+            "spectral_corr": 0.4499,
+            "ratio": 0.97,
+            "audio_time_sec": 49.5,
+            "video_time_sec": 48.86,
+            "offset_sec": -0.64,
+            "waveform_refinement": {
+              "waveform_corr": 0.1495,
+              "ratio": 0.9714,
+              "video_time_sec": 48.842187
+            }
+          },
+          {
+            "spectral_corr": 0.4275,
+            "ratio": 0.978,
+            "audio_time_sec": 52.0,
+            "video_time_sec": 51.292,
+            "offset_sec": -0.708,
+            "waveform_refinement": {
+              "waveform_corr": 0.2011,
+              "ratio": 0.9765,
+              "video_time_sec": 51.206
+            }
+          },
+          {
+            "spectral_corr": 0.4753,
+            "ratio": 0.974,
+            "audio_time_sec": 54.5,
+            "video_time_sec": 53.716,
+            "offset_sec": -0.784,
+            "waveform_refinement": {
+              "waveform_corr": 0.1327,
+              "ratio": 0.9777,
+              "video_time_sec": 53.73525
+            }
+          },
+          {
+            "spectral_corr": 0.4598,
+            "ratio": 0.974,
+            "audio_time_sec": 57.0,
+            "video_time_sec": 56.156,
+            "offset_sec": -0.844,
+            "waveform_refinement": {
+              "waveform_corr": 0.1198,
+              "ratio": 0.9762,
+              "video_time_sec": 56.335625
+            }
+          },
+          {
+            "spectral_corr": 0.5375,
+            "ratio": 0.978,
+            "audio_time_sec": 59.5,
+            "video_time_sec": 58.592,
+            "offset_sec": -0.908,
+            "waveform_refinement": {
+              "waveform_corr": 0.1202,
+              "ratio": 0.9744,
+              "video_time_sec": 58.786187
+            }
+          },
+          {
+            "spectral_corr": 0.5636,
+            "ratio": 0.972,
+            "audio_time_sec": 62.0,
+            "video_time_sec": 61.028,
+            "offset_sec": -0.972,
+            "waveform_refinement": {
+              "waveform_corr": 0.1801,
+              "ratio": 0.9736,
+              "video_time_sec": 61.155062
+            }
+          },
+          {
+            "spectral_corr": 0.5333,
+            "ratio": 0.978,
+            "audio_time_sec": 64.5,
+            "video_time_sec": 63.472,
+            "offset_sec": -1.028,
+            "waveform_refinement": {
+              "waveform_corr": 0.192,
+              "ratio": 0.9789,
+              "video_time_sec": 63.305438
+            }
+          },
+          {
+            "spectral_corr": 0.3987,
+            "ratio": 0.974,
+            "audio_time_sec": 67.0,
+            "video_time_sec": 65.896,
+            "offset_sec": -1.104,
+            "waveform_refinement": {
+              "waveform_corr": 0.1541,
+              "ratio": 0.9776,
+              "video_time_sec": 66.066187
+            }
+          },
+          {
+            "spectral_corr": 0.3847,
+            "ratio": 0.968,
+            "audio_time_sec": 69.5,
+            "video_time_sec": 68.332,
+            "offset_sec": -1.168,
+            "waveform_refinement": {
+              "waveform_corr": 0.1468,
+              "ratio": 0.9707,
+              "video_time_sec": 68.501875
+            }
+          },
+          {
+            "spectral_corr": 0.4099,
+            "ratio": 0.968,
+            "audio_time_sec": 72.0,
+            "video_time_sec": 70.752,
+            "offset_sec": -1.248,
+            "waveform_refinement": {
+              "waveform_corr": 0.2273,
+              "ratio": 0.9695,
+              "video_time_sec": 70.659125
+            }
+          },
+          {
+            "spectral_corr": 0.4621,
+            "ratio": 0.964,
+            "audio_time_sec": 74.5,
+            "video_time_sec": 73.156,
+            "offset_sec": -1.344,
+            "waveform_refinement": {
+              "waveform_corr": 0.1087,
+              "ratio": 0.966,
+              "video_time_sec": 73.167
+            }
+          },
+          {
+            "spectral_corr": 0.4618,
+            "ratio": 0.964,
+            "audio_time_sec": 77.0,
+            "video_time_sec": 75.576,
+            "offset_sec": -1.424,
+            "waveform_refinement": {
+              "waveform_corr": 0.1081,
+              "ratio": 0.9661,
+              "video_time_sec": 75.548313
+            }
+          },
+          {
+            "spectral_corr": 0.4777,
+            "ratio": 0.97,
+            "audio_time_sec": 79.5,
+            "video_time_sec": 78.0,
+            "offset_sec": -1.5,
+            "waveform_refinement": {
+              "waveform_corr": 0.1281,
+              "ratio": 0.9705,
+              "video_time_sec": 78.108125
+            }
+          },
+          {
+            "spectral_corr": 0.4359,
+            "ratio": 0.97,
+            "audio_time_sec": 82.0,
+            "video_time_sec": 80.42,
+            "offset_sec": -1.58,
+            "waveform_refinement": {
+              "waveform_corr": 0.1702,
+              "ratio": 0.9665,
+              "video_time_sec": 80.42975
+            }
+          },
+          {
+            "spectral_corr": 0.4095,
+            "ratio": 0.97,
+            "audio_time_sec": 84.5,
+            "video_time_sec": 82.84,
+            "offset_sec": -1.66,
+            "waveform_refinement": {
+              "waveform_corr": 0.1494,
+              "ratio": 0.974,
+              "video_time_sec": 83.037375
+            }
+          },
+          {
+            "spectral_corr": 0.3705,
+            "ratio": 0.962,
+            "audio_time_sec": 87.0,
+            "video_time_sec": 85.268,
+            "offset_sec": -1.732,
+            "waveform_refinement": {
+              "waveform_corr": 0.1093,
+              "ratio": 0.9605,
+              "video_time_sec": 85.17675
+            }
+          },
+          {
+            "spectral_corr": 0.4107,
+            "ratio": 0.96,
+            "audio_time_sec": 89.5,
+            "video_time_sec": 87.68,
+            "offset_sec": -1.82,
+            "waveform_refinement": {
+              "waveform_corr": 0.108,
+              "ratio": 0.9577,
+              "video_time_sec": 87.6725
+            }
+          },
+          {
+            "spectral_corr": 0.3912,
+            "ratio": 0.958,
+            "audio_time_sec": 92.0,
+            "video_time_sec": 90.072,
+            "offset_sec": -1.928,
+            "waveform_refinement": {
+              "waveform_corr": 0.0983,
+              "ratio": 0.9611,
+              "video_time_sec": 89.958813
+            }
+          },
+          {
+            "spectral_corr": 0.413,
+            "ratio": 0.954,
+            "audio_time_sec": 94.5,
+            "video_time_sec": 92.456,
+            "offset_sec": -2.044,
+            "waveform_refinement": {
+              "waveform_corr": 0.1427,
+              "ratio": 0.9574,
+              "video_time_sec": 92.295188
+            }
+          },
+          {
+            "spectral_corr": 0.4038,
+            "ratio": 0.962,
+            "audio_time_sec": 97.0,
+            "video_time_sec": 94.848,
+            "offset_sec": -2.152,
+            "waveform_refinement": {
+              "waveform_corr": 0.104,
+              "ratio": 0.9609,
+              "video_time_sec": 94.799437
+            }
+          },
+          {
+            "spectral_corr": 0.378,
+            "ratio": 0.954,
+            "audio_time_sec": 99.5,
+            "video_time_sec": 97.256,
+            "offset_sec": -2.244,
+            "waveform_refinement": {
+              "waveform_corr": 0.0967,
+              "ratio": 0.9577,
+              "video_time_sec": 97.204
+            }
+          },
+          {
+            "spectral_corr": 0.4456,
+            "ratio": 0.968,
+            "audio_time_sec": 102.0,
+            "video_time_sec": 99.672,
+            "offset_sec": -2.328,
+            "waveform_refinement": {
+              "waveform_corr": 0.1099,
+              "ratio": 0.9661,
+              "video_time_sec": 99.666438
+            }
+          },
+          {
+            "spectral_corr": 0.395,
+            "ratio": 0.97,
+            "audio_time_sec": 104.5,
+            "video_time_sec": 102.08,
+            "offset_sec": -2.42,
+            "waveform_refinement": {
+              "waveform_corr": 0.1869,
+              "ratio": 0.974,
+              "video_time_sec": 102.082125
+            }
+          },
+          {
+            "spectral_corr": 0.3868,
+            "ratio": 0.964,
+            "audio_time_sec": 107.0,
+            "video_time_sec": 104.496,
+            "offset_sec": -2.504,
+            "waveform_refinement": {
+              "waveform_corr": 0.117,
+              "ratio": 0.9626,
+              "video_time_sec": 104.516437
+            }
+          },
+          {
+            "spectral_corr": 0.3153,
+            "ratio": 0.972,
+            "audio_time_sec": 109.5,
+            "video_time_sec": 106.928,
+            "offset_sec": -2.572,
+            "waveform_refinement": {
+              "waveform_corr": 0.1411,
+              "ratio": 0.972,
+              "video_time_sec": 106.756125
+            }
+          },
+          {
+            "spectral_corr": 0.275,
+            "ratio": 0.972,
+            "audio_time_sec": 112.0,
+            "video_time_sec": 109.348,
+            "offset_sec": -2.652,
+            "waveform_refinement": {
+              "waveform_corr": 0.1444,
+              "ratio": 0.973,
+              "video_time_sec": 109.33825
+            }
+          },
+          {
+            "spectral_corr": 0.3047,
+            "ratio": 0.968,
+            "audio_time_sec": 114.5,
+            "video_time_sec": 111.772,
+            "offset_sec": -2.728,
+            "waveform_refinement": {
+              "waveform_corr": 0.11,
+              "ratio": 0.9684,
+              "video_time_sec": 111.803313
+            }
+          },
+          {
+            "spectral_corr": 0.3076,
+            "ratio": 0.968,
+            "audio_time_sec": 117.0,
+            "video_time_sec": 114.192,
+            "offset_sec": -2.808,
+            "waveform_refinement": {
+              "waveform_corr": 0.1158,
+              "ratio": 0.971,
+              "video_time_sec": 114.1755
+            }
+          },
+          {
+            "spectral_corr": 0.3195,
+            "ratio": 0.964,
+            "audio_time_sec": 119.5,
+            "video_time_sec": 116.596,
+            "offset_sec": -2.904,
+            "waveform_refinement": {
+              "waveform_corr": 0.0957,
+              "ratio": 0.968,
+              "video_time_sec": 116.693375
+            }
+          },
+          {
+            "spectral_corr": 0.3461,
+            "ratio": 0.962,
+            "audio_time_sec": 122.0,
+            "video_time_sec": 119.008,
+            "offset_sec": -2.992,
+            "waveform_refinement": {
+              "waveform_corr": 0.1206,
+              "ratio": 0.9649,
+              "video_time_sec": 118.871063
+            }
+          },
+          {
+            "spectral_corr": 0.3526,
+            "ratio": 0.96,
+            "audio_time_sec": 124.5,
+            "video_time_sec": 121.42,
+            "offset_sec": -3.08,
+            "waveform_refinement": {
+              "waveform_corr": 0.1063,
+              "ratio": 0.9585,
+              "video_time_sec": 121.28975
+            }
+          },
+          {
+            "spectral_corr": 0.3808,
+            "ratio": 0.962,
+            "audio_time_sec": 127.0,
+            "video_time_sec": 123.828,
+            "offset_sec": -3.172,
+            "waveform_refinement": {
+              "waveform_corr": 0.0791,
+              "ratio": 0.9639,
+              "video_time_sec": 123.664438
+            }
+          },
+          {
+            "spectral_corr": 0.4076,
+            "ratio": 0.964,
+            "audio_time_sec": 129.5,
+            "video_time_sec": 126.236,
+            "offset_sec": -3.264,
+            "waveform_refinement": {
+              "waveform_corr": 0.098,
+              "ratio": 0.9615,
+              "video_time_sec": 126.234125
+            }
+          },
+          {
+            "spectral_corr": 0.4235,
+            "ratio": 0.962,
+            "audio_time_sec": 132.0,
+            "video_time_sec": 128.648,
+            "offset_sec": -3.352,
+            "waveform_refinement": {
+              "waveform_corr": 0.1074,
+              "ratio": 0.9584,
+              "video_time_sec": 128.645187
+            }
+          },
+          {
+            "spectral_corr": 0.4197,
+            "ratio": 0.964,
+            "audio_time_sec": 134.5,
+            "video_time_sec": 131.056,
+            "offset_sec": -3.444,
+            "waveform_refinement": {
+              "waveform_corr": 0.1117,
+              "ratio": 0.9641,
+              "video_time_sec": 131.031313
+            }
+          },
+          {
+            "spectral_corr": 0.4108,
+            "ratio": 0.96,
+            "audio_time_sec": 137.0,
+            "video_time_sec": 133.46,
+            "offset_sec": -3.54,
+            "waveform_refinement": {
+              "waveform_corr": 0.099,
+              "ratio": 0.9584,
+              "video_time_sec": 133.293813
+            }
+          },
+          {
+            "spectral_corr": 0.4218,
+            "ratio": 0.96,
+            "audio_time_sec": 139.5,
+            "video_time_sec": 135.86,
+            "offset_sec": -3.64,
+            "waveform_refinement": {
+              "waveform_corr": 0.1398,
+              "ratio": 0.9609,
+              "video_time_sec": 135.836187
+            }
+          },
+          {
+            "spectral_corr": 0.4458,
+            "ratio": 0.958,
+            "audio_time_sec": 142.0,
+            "video_time_sec": 138.252,
+            "offset_sec": -3.748,
+            "waveform_refinement": {
+              "waveform_corr": 0.1189,
+              "ratio": 0.959,
+              "video_time_sec": 138.2085
+            }
+          },
+          {
+            "spectral_corr": 0.4055,
+            "ratio": 0.96,
+            "audio_time_sec": 144.5,
+            "video_time_sec": 140.66,
+            "offset_sec": -3.84,
+            "waveform_refinement": {
+              "waveform_corr": 0.0917,
+              "ratio": 0.956,
+              "video_time_sec": 140.656375
+            }
+          },
+          {
+            "spectral_corr": 0.434,
+            "ratio": 0.964,
+            "audio_time_sec": 147.0,
+            "video_time_sec": 143.056,
+            "offset_sec": -3.944,
+            "waveform_refinement": {
+              "waveform_corr": 0.1195,
+              "ratio": 0.9657,
+              "video_time_sec": 143.03575
+            }
+          },
+          {
+            "spectral_corr": 0.4535,
+            "ratio": 0.952,
+            "audio_time_sec": 149.5,
+            "video_time_sec": 145.468,
+            "offset_sec": -4.032,
+            "waveform_refinement": {
+              "waveform_corr": 0.0802,
+              "ratio": 0.9535,
+              "video_time_sec": 145.448125
+            }
+          },
+          {
+            "spectral_corr": 0.4547,
+            "ratio": 0.958,
+            "audio_time_sec": 152.0,
+            "video_time_sec": 147.872,
+            "offset_sec": -4.128,
+            "waveform_refinement": {
+              "waveform_corr": 0.1536,
+              "ratio": 0.9609,
+              "video_time_sec": 147.889562
+            }
+          },
+          {
+            "spectral_corr": 0.3976,
+            "ratio": 0.96,
+            "audio_time_sec": 154.5,
+            "video_time_sec": 150.26,
+            "offset_sec": -4.24,
+            "waveform_refinement": {
+              "waveform_corr": 0.1379,
+              "ratio": 0.9602,
+              "video_time_sec": 150.20225
+            }
+          },
+          {
+            "spectral_corr": 0.377,
+            "ratio": 0.952,
+            "audio_time_sec": 157.0,
+            "video_time_sec": 152.648,
+            "offset_sec": -4.352,
+            "waveform_refinement": {
+              "waveform_corr": 0.0886,
+              "ratio": 0.9557,
+              "video_time_sec": 152.6705
+            }
+          },
+          {
+            "spectral_corr": 0.3564,
+            "ratio": 0.95,
+            "audio_time_sec": 159.5,
+            "video_time_sec": 155.04,
+            "offset_sec": -4.46,
+            "waveform_refinement": {
+              "waveform_corr": 0.0744,
+              "ratio": 0.9527,
+              "video_time_sec": 154.990875
+            }
+          },
+          {
+            "spectral_corr": 0.4293,
+            "ratio": 0.96,
+            "audio_time_sec": 162.0,
+            "video_time_sec": 157.42,
+            "offset_sec": -4.58
+          },
+          {
+            "spectral_corr": 0.2948,
+            "ratio": 0.972,
+            "audio_time_sec": 164.5,
+            "video_time_sec": 159.848,
+            "offset_sec": -4.652
+          },
+          {
+            "spectral_corr": 0.2055,
+            "ratio": 0.954,
+            "audio_time_sec": 167.0,
+            "video_time_sec": 162.216,
+            "offset_sec": -4.784
+          },
+          {
+            "spectral_corr": 0.1987,
+            "ratio": 1.024,
+            "audio_time_sec": 169.5,
+            "video_time_sec": 160.976,
+            "offset_sec": -8.524
+          },
+          {
+            "spectral_corr": 0.1894,
+            "ratio": 0.98,
+            "audio_time_sec": 172.0,
+            "video_time_sec": 163.48,
+            "offset_sec": -8.52
+          },
+          {
+            "spectral_corr": 0.2641,
+            "ratio": 0.964,
+            "audio_time_sec": 174.5,
+            "video_time_sec": 165.896,
+            "offset_sec": -8.604
+          },
+          {
+            "spectral_corr": 0.2753,
+            "ratio": 0.968,
+            "audio_time_sec": 177.0,
+            "video_time_sec": 164.692,
+            "offset_sec": -12.308
+          },
+          {
+            "spectral_corr": 0.3505,
+            "ratio": 0.962,
+            "audio_time_sec": 179.5,
+            "video_time_sec": 167.108,
+            "offset_sec": -12.392
+          },
+          {
+            "spectral_corr": 0.3503,
+            "ratio": 0.962,
+            "audio_time_sec": 182.0,
+            "video_time_sec": 169.528,
+            "offset_sec": -12.472
+          },
+          {
+            "spectral_corr": 0.4039,
+            "ratio": 0.952,
+            "audio_time_sec": 184.5,
+            "video_time_sec": 171.908,
+            "offset_sec": -12.592
+          },
+          {
+            "spectral_corr": 0.4258,
+            "ratio": 0.948,
+            "audio_time_sec": 187.0,
+            "video_time_sec": 174.292,
+            "offset_sec": -12.708
+          },
+          {
+            "spectral_corr": 0.3165,
+            "ratio": 0.958,
+            "audio_time_sec": 189.5,
+            "video_time_sec": 176.672,
+            "offset_sec": -12.828
+          }
+        ]
+      },
+      "tail_global_search": [
+        {
+          "audio_time_sec": 163,
+          "candidates": [
+            {
+              "score": 0.4635,
+              "ratio": 0.96,
+              "video_time_sec": 158.38
+            },
+            {
+              "score": 0.2771,
+              "ratio": 0.99,
+              "video_time_sec": 14.61
+            },
+            {
+              "score": 0.2583,
+              "ratio": 0.99,
+              "video_time_sec": 98.65
+            }
+          ]
+        },
+        {
+          "audio_time_sec": 168,
+          "candidates": [
+            {
+              "score": 0.2625,
+              "ratio": 0.982,
+              "video_time_sec": 62.466
+            },
+            {
+              "score": 0.2247,
+              "ratio": 0.98,
+              "video_time_sec": 25.84
+            },
+            {
+              "score": 0.2142,
+              "ratio": 1.026,
+              "video_time_sec": 15.278
+            }
+          ]
+        },
+        {
+          "audio_time_sec": 173,
+          "candidates": [
+            {
+              "score": 0.2764,
+              "ratio": 0.96,
+              "video_time_sec": 102.9
+            },
+            {
+              "score": 0.2757,
+              "ratio": 1.052,
+              "video_time_sec": 63.136
+            },
+            {
+              "score": 0.2542,
+              "ratio": 0.94,
+              "video_time_sec": 164.4
+            }
+          ]
+        },
+        {
+          "audio_time_sec": 178,
+          "candidates": [
+            {
+              "score": 0.434,
+              "ratio": 0.99,
+              "video_time_sec": 23.87
+            },
+            {
+              "score": 0.4266,
+              "ratio": 0.976,
+              "video_time_sec": 64.188
+            },
+            {
+              "score": 0.3775,
+              "ratio": 0.966,
+              "video_time_sec": 165.658
+            }
+          ]
+        },
+        {
+          "audio_time_sec": 183,
+          "candidates": [
+            {
+              "score": 0.4111,
+              "ratio": 0.986,
+              "video_time_sec": 28.798
+            },
+            {
+              "score": 0.3744,
+              "ratio": 0.966,
+              "video_time_sec": 69.058
+            },
+            {
+              "score": 0.3688,
+              "ratio": 0.962,
+              "video_time_sec": 170.486
+            }
+          ]
+        },
+        {
+          "audio_time_sec": 188,
+          "candidates": [
+            {
+              "score": 0.4108,
+              "ratio": 0.956,
+              "video_time_sec": 175.228
+            },
+            {
+              "score": 0.2476,
+              "ratio": 0.98,
+              "video_time_sec": 62.96
+            },
+            {
+              "score": 0.2188,
+              "ratio": 1.05,
+              "video_time_sec": 180.99
+            }
+          ]
+        },
+        {
+          "audio_time_sec": 193,
+          "candidates": [
+            {
+              "score": 0.6803,
+              "ratio": 0.91,
+              "video_time_sec": 181.89
+            },
+            {
+              "score": 0.5126,
+              "ratio": 1.01,
+              "video_time_sec": 159.31
+            },
+            {
+              "score": 0.3852,
+              "ratio": 0.982,
+              "video_time_sec": 58.646
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

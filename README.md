@@ -151,8 +151,9 @@ be a regular file. Limits are 4 MiB and 10,000 entries, set in
 `backend/src/constants.ts`. Existing `offsets_sec` settings remain keyed by
 audio filename; mapping a video does not alter its alignment offset.
 
-The prepared collection contains **25 waveform-verified mappings**. Pairs with
-different edits, timing drift or an unconfirmed match remain unmapped. See the
+The prepared collection contains **26 mappings**, including the explicitly
+requested Marianne Rosenberg pair described below. Other pairs with different
+edits, timing drift or an unconfirmed match remain unmapped. See the
 [alignment report](docs/video-alignment-2026-11-26/report.txt),
 [spreadsheet summary](docs/video-alignment-2026-11-26/alignment.csv) and
 [waveform plots](docs/video-alignment-2026-11-26/). Some short fades/tails extend
@@ -160,6 +161,17 @@ beyond the video's duration and produce black; the report lists those ranges.
 Copy `mappings.json` with the complete video collection and retain the matching
 `video.offsets_sec` settings when moving to another computer. Content alignment
 is separate from final NDI/display latency calibration.
+
+The two additions on 2026-11-27 use exact filenames from the local Engine DJ
+database. Modern Talking's **Wetten dass Medley (Live 1998)** is waveform-verified
+at **0 s**. Marianne Rosenberg's **Er gehört zu mir** is mapped at the user's
+request despite tempo drift and an ending edit difference. Its **-1.58 s**
+offset minimizes absolute timing error over the qualified spectral windows;
+it is an approximate compromise and cannot synchronize the whole track.
+See the [timing measurements](docs/video-alignment-2026-11-27/alignment.json)
+and [offset plot](docs/video-alignment-2026-11-27/offsets.png).
+Copy the updated `videos/mappings.json` and `config.json` video offsets to the
+Mac, then reload config to apply both filenames and offsets.
 
 MKV files are not indexed. For H.264/AAC sources, remux the primary video and
 audio into MP4 without re-encoding:
